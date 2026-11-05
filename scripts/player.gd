@@ -73,15 +73,15 @@ func _ready() -> void:
 
 	var shape := CollisionShape2D.new()
 	var rect := RectangleShape2D.new()
-	rect.size = Vector2(8, 14)
+	rect.size = Vector2(8, 18)
 	shape.shape = rect
-	shape.position = Vector2(0, -7)
+	shape.position = Vector2(0, -9)
 	add_child(shape)
 
 	sprite = AnimatedSprite2D.new()
 	sprite.sprite_frames = _build_frames()
 	sprite.centered = true
-	sprite.offset = Vector2(0, -16) # lienzo de 48x48: los pies quedan en la fila 40
+	sprite.offset = Vector2(0, -23) # lienzo de 48x48: los pies quedan en la fila 46
 	sprite.scale = Vector2(0.5, 0.5) # píxeles HD: se dibuja a la mitad, como en el original
 	add_child(sprite)
 	sprite.play("idle")
@@ -276,7 +276,7 @@ func _shoot(power: bool) -> void:
 	var a := ArrowScript.new()
 	a.power = power
 	a.face = face
-	a.global_position = global_position + Vector2(face * 8, -9)
+	a.global_position = global_position + Vector2(face * 9, -12)
 	get_parent().add_child(a)
 	if power:
 		velocity.x -= face * 90.0
