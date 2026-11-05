@@ -16,11 +16,12 @@ func _ready() -> void:
 	collision_layer = 0
 	collision_mask = 0
 	set_collision_mask_value(1, true)
+	set_collision_mask_value(2, true)
 	set_collision_mask_value(4, true)
 	monitorable = false
 	var shape := CollisionShape2D.new()
 	var rect := RectangleShape2D.new()
-	rect.size = Vector2(8, 3)
+	rect.size = Vector2(6, 2)
 	shape.shape = rect
 	add_child(shape)
 	vel = Vector2(face * (380.0 if power else 220.0), -4.0 if power else -12.0)

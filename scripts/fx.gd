@@ -57,6 +57,7 @@ func afterimage(parent: Node, src: AnimatedSprite2D) -> void:
 	s.texture = src.sprite_frames.get_frame_texture(src.animation, src.frame)
 	s.offset = src.offset
 	s.flip_h = src.flip_h
+	s.scale = src.scale
 	s.global_position = src.global_position
 	s.modulate = Color(0.5, 0.8, 1.0, 0.5)
 	parent.add_child(s)
@@ -68,7 +69,7 @@ func afterimage(parent: Node, src: AnimatedSprite2D) -> void:
 func popup(parent: Node, pos: Vector2, text: String, color: Color) -> void:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", 8)
+	l.add_theme_font_size_override("font_size", 6)
 	l.add_theme_color_override("font_color", color)
 	l.add_theme_color_override("font_outline_color", Color.BLACK)
 	l.add_theme_constant_override("outline_size", 2)

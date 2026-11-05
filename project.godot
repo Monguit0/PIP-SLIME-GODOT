@@ -12,8 +12,8 @@ config/features=PackedStringArray("4.5", "GL Compatibility")
 
 [display]
 
-window/size/viewport_width=256
-window/size/viewport_height=144
+window/size/viewport_width=512
+window/size/viewport_height=288
 window/size/window_width_override=1024
 window/size/window_height_override=576
 window/stretch/mode="viewport"
@@ -34,7 +34,7 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 2d/snap/snap_2d_transforms_to_pixel=true
 2d/snap/snap_2d_vertices_to_pixel=true
-environment/defaults/default_clear_color=Color(0.36, 0.62, 0.85, 1)
+environment/defaults/default_clear_color=Color(0, 0, 0.14, 1)
 
 [autoload]
 

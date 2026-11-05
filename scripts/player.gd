@@ -57,7 +57,9 @@ var squash := Vector2.ONE
 var energy_flash := 0.0
 
 var sprite: AnimatedSprite2D
-var camera: Camera2D
+var prev_bottom := 0.0
+var stomp_inv := 0.0
+var shoot_t := 0.0
 
 
 func _ready() -> void:
@@ -71,15 +73,16 @@ func _ready() -> void:
 
 	var shape := CollisionShape2D.new()
 	var rect := RectangleShape2D.new()
-	rect.size = Vector2(10, 22)
+	rect.size = Vector2(8, 14)
 	shape.shape = rect
-	shape.position = Vector2(0, -11)
+	shape.position = Vector2(0, -7)
 	add_child(shape)
 
 	sprite = AnimatedSprite2D.new()
 	sprite.sprite_frames = _build_frames()
 	sprite.centered = true
 	sprite.offset = Vector2(0, -16) # lienzo de 48x48: los pies quedan en la fila 40
+	sprite.scale = Vector2(0.5, 0.5) # píxeles HD: se dibuja a la mitad, como en el original
 	add_child(sprite)
 	sprite.play("idle")
 
@@ -87,11 +90,11 @@ func _ready() -> void:
 func _build_frames() -> SpriteFrames:
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
-	var anims := {"idle": 6.0, "run": 12.0, "jump": 10.0, "fall": 8.0}
+	var anims := {"idle": 6.0, "run": 12.0, "jump": 10.0, "fall": 8.0, "shoot": 16.0}
 	for anim in anims:
 		sf.add_animation(anim)
 		sf.set_animation_speed(anim, anims[anim])
-		sf.set_animation_loop(anim, anim != "jump")
+		sf.set_animation_loop(anim, anim != "jump" and anim != "shoot")
 		var i := 0
 		while true:
 			var path := "%s%s/frame_%03d.png" % [PIP_DIR, anim, i]
@@ -200,6 +203,7 @@ func _physics_process(dt: float) -> void:
 
 	var fall_speed := velocity.y
 	var was_floor := is_on_floor()
+	prev_bottom = global_position.y
 	move_and_slide()
 	if is_on_floor():
 		double_jumped = false
@@ -214,6 +218,8 @@ func _physics_process(dt: float) -> void:
 
 func _timers(dt: float) -> void:
 	shot_cool -= dt
+	stomp_inv -= dt
+	shoot_t -= dt
 	invuln -= dt
 	ghost_t -= dt
 	hurt_t -= dt
@@ -266,10 +272,11 @@ func _attack(dt: float) -> void:
 
 func _shoot(power: bool) -> void:
 	shot_cool = SHOT_COOL
+	shoot_t = 0.22
 	var a := ArrowScript.new()
 	a.power = power
 	a.face = face
-	a.global_position = global_position + Vector2(face * 7, -12)
+	a.global_position = global_position + Vector2(face * 8, -9)
 	get_parent().add_child(a)
 	if power:
 		velocity.x -= face * 90.0
@@ -297,7 +304,7 @@ func _on_platform() -> bool:
 
 ## Lo llaman los enemigos. Devuelve true si el golpe entró.
 func hurt(from_x: float, dmg: int = 1) -> bool:
-	if dead or invuln > 0.0 or ghost_t > 0.0:
+	if dead or invuln > 0.0 or ghost_t > 0.0 or stomp_inv > 0.0:
 		return false
 	hearts = maxi(0, hearts - dmg)
 	invuln = INVULN
@@ -321,11 +328,13 @@ func hurt(from_x: float, dmg: int = 1) -> bool:
 
 ## Rebote al pisar un slime.
 func bounce() -> void:
-	velocity.y = -210.0
+	var held := Input.is_action_pressed("saltar")
+	velocity.y = -JUMP * 1.05 if held else -210.0
+	jump_cut = not held
+	stomp_inv = 0.22
 	double_jumped = false
 	air_dash = false
-	jump_cut = true
-	squash = Vector2(0.75, 1.3)
+	squash = Vector2(0.8, 1.25)
 
 
 func _animate(dt: float) -> void:
@@ -335,10 +344,22 @@ func _animate(dt: float) -> void:
 		anim = "jump" if velocity.y < 0.0 else "fall"
 	elif absf(velocity.x) > 10.0:
 		anim = "run"
-	if sprite.animation != anim:
+	var shoot_frames := sprite.sprite_frames.get_frame_count("shoot")
+	if shoot_frames >= 5 and charge >= 0.0 and charge >= 0.08:
+		# tensando el arco: levanta (0), apunta (1) y queda tirando de la cuerda (2)
+		if sprite.animation != "shoot":
+			sprite.play("shoot")
+		sprite.pause()
+		sprite.frame = mini(2, int(charge / CHG_ON * 1.5))
+	elif shoot_frames >= 5 and shoot_t > 0.0:
+		# suelta: el arco salta para adelante (3) y vuelve (4)
+		if sprite.animation != "shoot" or (not sprite.is_playing() and sprite.frame < 3):
+			sprite.play("shoot")
+			sprite.frame = 3
+	elif sprite.animation != anim or not sprite.is_playing():
 		sprite.play(anim)
 	squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 12.0))
-	sprite.scale = squash
+	sprite.scale = squash * 0.5
 	# parpadeo de invulnerable, fantasma del dash y brillo de carga
 	var m := Color.WHITE
 	if ghost_t > 0.0:
