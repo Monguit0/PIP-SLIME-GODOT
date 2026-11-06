@@ -26,6 +26,7 @@ window/stretch/scale_mode="integer"
 2d_physics/layer_2="plataformas"
 2d_physics/layer_3="heroe"
 2d_physics/layer_4="enemigos"
+2d_physics/layer_5="blanco_flechas"
 
 [rendering]
 

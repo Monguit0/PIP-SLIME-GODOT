@@ -35,6 +35,7 @@ var phase := 0.0
 var face := -1.0
 var sprite: Sprite2D
 var hurtbox: Area2D
+var target: Area2D  # blanco para las flechas: más alto que el slime, así no le pasan por arriba
 var hero: Player
 
 
@@ -80,6 +81,21 @@ func _ready() -> void:
 	hs.position = Vector2(0, -3.5)
 	hurtbox.add_child(hs)
 	add_child(hurtbox)
+
+	# las flechas salen a la altura del arco (unos 11 px del piso) y el slime mide 7:
+	# el blanco para flechas es más alto (14 px) para que un tiro recto siempre conecte
+	target = Area2D.new()
+	target.collision_layer = 0
+	target.set_collision_layer_value(5, true)
+	target.collision_mask = 0
+	target.monitoring = false
+	var ts := CollisionShape2D.new()
+	var tr := RectangleShape2D.new()
+	tr.size = Vector2(12, 14)
+	ts.shape = tr
+	ts.position = Vector2(0, -7)
+	target.add_child(ts)
+	add_child(target)
 	_set_frame(0)
 	sprite.scale = Vector2.ZERO
 
@@ -220,6 +236,7 @@ func _die(cols: Array) -> void:
 	dead_t = 0.0
 	hurtbox.set_deferred("monitoring", false)
 	hurtbox.set_deferred("monitorable", false)
+	target.set_deferred("monitorable", false)
 	Fx.shake(2.0, 0.15)
 	Fx.hitstop(0.05)
 	Fx.burst(get_parent(), global_position + Vector2(0, -4), 14, cols, 90.0, 60.0, 0.5)

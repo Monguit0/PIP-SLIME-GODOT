@@ -57,6 +57,7 @@ var squash := Vector2.ONE
 var energy_flash := 0.0
 
 var sprite: AnimatedSprite2D
+var bow: Sprite2D  # arco + flecha de la pose de apuntar: quieto mientras el cuerpo respira
 var prev_bottom := 0.0
 var prev_vy := 0.0
 ## pies de los últimos cuadros en el aire bajando (para que el pisotón no dependa de un solo cuadro)
@@ -88,6 +89,13 @@ func _ready() -> void:
 	sprite.scale = Vector2(0.5, 0.5) # píxeles HD: se dibuja a la mitad, como en el original
 	add_child(sprite)
 	sprite.play("idle")
+	bow = Sprite2D.new()
+	bow.texture = load("res://assets/sprites/pip/aim_bow.png")
+	bow.centered = true
+	bow.offset = Vector2(0, -23)
+	bow.scale = Vector2(0.5, 0.5)
+	bow.visible = false
+	add_child(bow)
 
 
 func _build_frames() -> SpriteFrames:
@@ -291,7 +299,7 @@ func _shoot(power: bool) -> void:
 	var a := ArrowScript.new()
 	a.power = power
 	a.face = face
-	a.global_position = global_position + Vector2(face * 9, -12)
+	a.global_position = global_position + Vector2(face * 9, -11)
 	get_parent().add_child(a)
 	if not power:
 		squash = Vector2(1.12, 0.92)  # pequeño retroceso al soltar
@@ -395,6 +403,9 @@ func _animate(dt: float) -> void:
 		breath = Vector2(1.0 + 0.015 * b, 1.0 - 0.025 * b)
 		sprite.offset.y = -23.0 + roundf(b)
 	sprite.scale = squash * breath * 0.5
+	# el arco y la flecha no respiran: quedan clavados para dar tensión
+	bow.visible = sprite.animation == "aim"
+	bow.flip_h = sprite.flip_h
 	# parpadeo de invulnerable, fantasma del dash y brillo de carga
 	var m := Color.WHITE
 	if ghost_t > 0.0:
@@ -407,5 +418,6 @@ func _animate(dt: float) -> void:
 		m = Color(0.6, 0.6, 0.6)
 		sprite.rotation = lerpf(sprite.rotation, PI / 2.0 * -face, dt * 6.0)
 	sprite.modulate = m
+	bow.modulate = m
 	if dash_t > 0.0 and Engine.get_physics_frames() % 2 == 0:
 		Fx.afterimage(get_parent(), sprite)

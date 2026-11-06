@@ -1,7 +1,7 @@
 extends Area2D
 ## Flecha del arquero. Normal: 220 px/s, 1 de daño, se clava. Cargada: 380 px/s, 3 de daño, atraviesa.
 
-const GRAV := 200.0
+const GRAV := 110.0  # caída suave: el tiro normal va casi recto
 
 var power := false
 var face := 1
@@ -17,14 +17,14 @@ func _ready() -> void:
 	collision_mask = 0
 	set_collision_mask_value(1, true)
 	set_collision_mask_value(2, true)
-	set_collision_mask_value(4, true)
+	set_collision_mask_value(5, true)  # blanco de flechas de los slimes
 	monitorable = false
 	var shape := CollisionShape2D.new()
 	var rect := RectangleShape2D.new()
-	rect.size = Vector2(6, 2)
+	rect.size = Vector2(6, 4)
 	shape.shape = rect
 	add_child(shape)
-	vel = Vector2(face * (380.0 if power else 220.0), -4.0 if power else -12.0)
+	vel = Vector2(face * (380.0 if power else 220.0), 0.0)
 	dmg = 3 if power else 1
 	body_entered.connect(_on_body)
 	area_entered.connect(_on_area)
