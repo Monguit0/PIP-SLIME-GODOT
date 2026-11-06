@@ -387,7 +387,14 @@ func _animate(dt: float) -> void:
 	elif sprite.animation != anim or (not sprite.is_playing() and anim in ["idle", "run", "fall"]):
 		sprite.play(anim)
 	squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 12.0))
-	sprite.scale = squash * 0.5
+	# respiración al apuntar: el cuerpo sube y baja y se ensancha apenas, además de la capa del loop
+	var breath := Vector2.ONE
+	sprite.offset.y = -23.0
+	if sprite.animation == "aim":
+		var b := sin(Time.get_ticks_msec() / 1000.0 * TAU * 0.9)
+		breath = Vector2(1.0 + 0.015 * b, 1.0 - 0.025 * b)
+		sprite.offset.y = -23.0 + roundf(b)
+	sprite.scale = squash * breath * 0.5
 	# parpadeo de invulnerable, fantasma del dash y brillo de carga
 	var m := Color.WHITE
 	if ghost_t > 0.0:
