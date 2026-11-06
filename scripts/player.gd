@@ -93,11 +93,11 @@ func _ready() -> void:
 func _build_frames() -> SpriteFrames:
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
-	var anims := {"idle": 6.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 16.0, "hurt": 14.0, "dash": 18.0, "death": 10.0}
+	var anims := {"idle": 6.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 18.0, "aim": 10.0, "release": 18.0, "hurt": 14.0, "dash": 18.0, "death": 10.0}
 	for anim in anims:
 		sf.add_animation(anim)
 		sf.set_animation_speed(anim, anims[anim])
-		sf.set_animation_loop(anim, anim in ["idle", "run", "fall"])
+		sf.set_animation_loop(anim, anim in ["idle", "run", "fall", "aim"])
 		var i := 0
 		while true:
 			var path := "%s%s/frame_%03d.png" % [PIP_DIR, anim, i]
@@ -282,12 +282,19 @@ func _attack(dt: float) -> void:
 
 func _shoot(power: bool) -> void:
 	shot_cool = SHOT_COOL
-	shoot_t = 0.22
+	# lo que dura la animación de soltar (si no hay, un ratito)
+	var rel := sprite.sprite_frames.get_frame_count("release")
+	shoot_t = rel / sprite.sprite_frames.get_animation_speed("release") if rel > 1 else 0.22
+	if sprite.animation == "release":  # disparos seguidos: vuelve a arrancar el retroceso
+		sprite.frame = 0
+		sprite.play("release")
 	var a := ArrowScript.new()
 	a.power = power
 	a.face = face
 	a.global_position = global_position + Vector2(face * 9, -12)
 	get_parent().add_child(a)
+	if not power:
+		squash = Vector2(1.12, 0.92)  # pequeño retroceso al soltar
 	if power:
 		velocity.x -= face * 90.0
 		squash = Vector2(0.7, 1.2)
@@ -356,7 +363,6 @@ func _animate(dt: float) -> void:
 	elif absf(velocity.x) > 10.0:
 		anim = "run"
 	var has := func(a: String) -> bool: return sprite.sprite_frames.get_frame_count(a) > 1
-	var shoot_frames := sprite.sprite_frames.get_frame_count("shoot")
 	if dead and has.call("death"):
 		if sprite.animation != "death":
 			sprite.play("death")
@@ -366,17 +372,18 @@ func _animate(dt: float) -> void:
 	elif dash_t > 0.0 and has.call("dash"):
 		if sprite.animation != "dash":
 			sprite.play("dash")
-	elif shoot_frames >= 5 and charge >= 0.0 and charge >= 0.08:
-		# tensando el arco: levanta (0), apunta (1) y queda tirando de la cuerda (2)
-		if sprite.animation != "shoot":
+	elif charge >= 0.08 and has.call("shoot"):
+		# tensa el arco (shoot, una vez) y después queda apuntando con balanceo y capa al viento (aim, en loop)
+		if sprite.animation == "aim":
+			pass
+		elif sprite.animation != "shoot":
 			sprite.play("shoot")
-		sprite.pause()
-		sprite.frame = mini(2, int(charge / CHG_ON * 1.5))
-	elif shoot_frames >= 5 and shoot_t > 0.0:
-		# suelta: el arco salta para adelante (3) y vuelve (4)
-		if sprite.animation != "shoot" or (not sprite.is_playing() and sprite.frame < 3):
-			sprite.play("shoot")
-			sprite.frame = 3
+		elif not sprite.is_playing() and has.call("aim"):
+			sprite.play("aim")
+	elif shoot_t > 0.0 and has.call("release"):
+		# suelta: retroceso del arco y la capa que vuelve
+		if sprite.animation != "release":
+			sprite.play("release")
 	elif sprite.animation != anim or (not sprite.is_playing() and anim in ["idle", "run", "fall"]):
 		sprite.play(anim)
 	squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 12.0))
