@@ -46,7 +46,7 @@ Al final está el **Salón del Trono**; el Mega Caballero llega en la próxima e
 - `scripts/arrow.gd`, `scripts/fx.gd` (autoload `Fx`: partículas, temblor, hitstop), `scripts/hud.gd`, `scripts/background.gd`.
 - `assets/sprites/slimes.png`: la hoja de slimes de 32 bits sacada tal cual del juego web.
 - `assets/sprites/pip/`: Pip hecho con **PixelLab** (personaje "Pip arquero", vista lateral, 48×48):
-  `east.png` y las carpetas `idle/`, `run/`, `jump/`, `fall/` y `shoot/` (tensar y soltar el arco) con un PNG por cuadro. Mira a la derecha; para la izquierda se espeja.
+  `east.png` y las carpetas `idle/`, `run/`, `jump/`, `fall/`, `shoot/` (tensar y soltar el arco), `dash/`, `hurt/` y `death/` con un PNG por cuadro. Mira a la derecha; para la izquierda se espeja.
   Si falta alguna carpeta, el juego usa el cuadro quieto.
 
 ## Plan

@@ -90,11 +90,11 @@ func _ready() -> void:
 func _build_frames() -> SpriteFrames:
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
-	var anims := {"idle": 6.0, "run": 12.0, "jump": 10.0, "fall": 8.0, "shoot": 16.0}
+	var anims := {"idle": 6.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 16.0, "hurt": 14.0, "dash": 18.0, "death": 10.0}
 	for anim in anims:
 		sf.add_animation(anim)
 		sf.set_animation_speed(anim, anims[anim])
-		sf.set_animation_loop(anim, anim != "jump" and anim != "shoot")
+		sf.set_animation_loop(anim, anim in ["idle", "run", "fall"])
 		var i := 0
 		while true:
 			var path := "%s%s/frame_%03d.png" % [PIP_DIR, anim, i]
@@ -132,7 +132,10 @@ func _placeholder() -> Texture2D:
 func _physics_process(dt: float) -> void:
 	if dead:
 		velocity.y = minf(velocity.y + GRAV * dt, MAX_FALL)
+		if is_on_floor():
+			velocity.x = move_toward(velocity.x, 0.0, 400.0 * dt)
 		move_and_slide()
+		_animate(dt)
 		return
 
 	var dir := int(Input.is_action_pressed("derecha")) - int(Input.is_action_pressed("izquierda"))
@@ -308,7 +311,7 @@ func hurt(from_x: float, dmg: int = 1) -> bool:
 		return false
 	hearts = maxi(0, hearts - dmg)
 	invuln = INVULN
-	hurt_t = 0.25
+	hurt_t = 0.3
 	charge = -1.0
 	dash_t = 0.0
 	var dir := signf(global_position.x - from_x)
@@ -344,8 +347,18 @@ func _animate(dt: float) -> void:
 		anim = "jump" if velocity.y < 0.0 else "fall"
 	elif absf(velocity.x) > 10.0:
 		anim = "run"
+	var has := func(a: String) -> bool: return sprite.sprite_frames.get_frame_count(a) > 1
 	var shoot_frames := sprite.sprite_frames.get_frame_count("shoot")
-	if shoot_frames >= 5 and charge >= 0.0 and charge >= 0.08:
+	if dead and has.call("death"):
+		if sprite.animation != "death":
+			sprite.play("death")
+	elif hurt_t > 0.0 and has.call("hurt"):
+		if sprite.animation != "hurt":
+			sprite.play("hurt")
+	elif dash_t > 0.0 and has.call("dash"):
+		if sprite.animation != "dash":
+			sprite.play("dash")
+	elif shoot_frames >= 5 and charge >= 0.0 and charge >= 0.08:
 		# tensando el arco: levanta (0), apunta (1) y queda tirando de la cuerda (2)
 		if sprite.animation != "shoot":
 			sprite.play("shoot")
@@ -356,7 +369,7 @@ func _animate(dt: float) -> void:
 		if sprite.animation != "shoot" or (not sprite.is_playing() and sprite.frame < 3):
 			sprite.play("shoot")
 			sprite.frame = 3
-	elif sprite.animation != anim or not sprite.is_playing():
+	elif sprite.animation != anim or (not sprite.is_playing() and anim in ["idle", "run", "fall"]):
 		sprite.play(anim)
 	squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 12.0))
 	sprite.scale = squash * 0.5
@@ -368,7 +381,7 @@ func _animate(dt: float) -> void:
 		m.a = 0.3
 	elif charge >= CHG_FULL and int(charge * 16.0) % 2 == 0:
 		m = Color(1.6, 1.6, 1.8)
-	if dead:
+	if dead and not has.call("death"):
 		m = Color(0.6, 0.6, 0.6)
 		sprite.rotation = lerpf(sprite.rotation, PI / 2.0 * -face, dt * 6.0)
 	sprite.modulate = m
