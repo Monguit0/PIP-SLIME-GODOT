@@ -58,6 +58,9 @@ var energy_flash := 0.0
 
 var sprite: AnimatedSprite2D
 var prev_bottom := 0.0
+var prev_vy := 0.0
+## pies de los últimos cuadros en el aire bajando (para que el pisotón no dependa de un solo cuadro)
+var recent_bottoms: Array = []
 var stomp_inv := 0.0
 var shoot_t := 0.0
 
@@ -207,6 +210,10 @@ func _physics_process(dt: float) -> void:
 	var fall_speed := velocity.y
 	var was_floor := is_on_floor()
 	prev_bottom = global_position.y
+	prev_vy = velocity.y
+	recent_bottoms.push_front(prev_bottom if (not was_floor and velocity.y > 0.0) else 1e9)
+	if recent_bottoms.size() > 4:
+		recent_bottoms.pop_back()
 	move_and_slide()
 	if is_on_floor():
 		double_jumped = false
@@ -335,6 +342,7 @@ func bounce() -> void:
 	velocity.y = -JUMP * 1.05 if held else -210.0
 	jump_cut = not held
 	stomp_inv = 0.22
+	recent_bottoms.clear()
 	double_jumped = false
 	air_dash = false
 	squash = Vector2(0.8, 1.25)

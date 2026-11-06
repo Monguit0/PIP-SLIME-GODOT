@@ -177,12 +177,20 @@ func _touch_hero() -> void:
 		var p := body as Player
 		if p == null or p.dead:
 			continue
-		# pisotón: venía cayendo y en el cuadro anterior tenía los pies arriba del slime
+		# pisotón: viene bajando (respecto del slime) y en el cuadro anterior tenía los pies en la mitad
+		# de arriba del slime. Es generoso a propósito: la superposición se detecta con un cuadro de
+		# atraso y cayendo rápido Pip baja ~4,5 px por cuadro.
 		var top := global_position.y - 7.0
-		if p.velocity.y > 0.0 and p.prev_bottom <= top + 4.0:
+		var stomp := p.velocity.y - velocity.y > 0.0 and p.prev_bottom <= top + 6.0
+		for fb in p.recent_bottoms:
+			if fb <= top + 5.0:
+				stomp = true
+		if p.stomp_inv > 0.0:
+			continue  # recién rebotó en un slime: ni otro pisotón ni daño por un instante
+		if stomp:
 			p.bounce()
 			take_hit(1, 0, true)
-		elif p.stomp_inv <= 0.0:
+		else:
 			p.hurt(global_position.x)
 
 
