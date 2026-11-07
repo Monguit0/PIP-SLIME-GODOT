@@ -193,14 +193,14 @@ func afterimage(parent: Node, src: AnimatedSprite2D) -> void:
 func popup(parent: Node, pos: Vector2, text: String, color: Color) -> void:
 	if parent == null:
 		return
-	var l := Popup.new()
+	var l := PopText.new()
 	l.text = text
 	l.color = color
 	l.position = pos
 	parent.add_child(l)
 
 
-class Popup extends Node2D:
+class PopText extends Node2D:
 	var text := ""
 	var color := Color.WHITE
 	var t := 0.0

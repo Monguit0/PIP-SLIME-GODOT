@@ -726,7 +726,7 @@ func _draw() -> void:
 		k += 0.5
 	# hoja ancha: filo claro arriba, lomo oscuro abajo, canal en el medio; se afina en la punta
 	var edge := Pal.C if blink else Pal.W
-	var hi := Pal.W if blink else (Pal.C if glow else Pal.RAMP_S[3])
+	var hi: Color = Pal.W if blink else (Pal.C if glow else Pal.RAMP_S[3])
 	var mid := (Pal.W if blink else Pal.C) if glow else Pal.S
 	var dark := Pal.C if glow else Pal.SS
 	s = 3.0
