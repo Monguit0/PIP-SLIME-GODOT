@@ -39,4 +39,5 @@ environment/defaults/default_clear_color=Color(0, 0, 0.14, 1)
 
 [autoload]
 
+Snd="*res://scripts/snd.gd"
 Fx="*res://scripts/fx.gd"

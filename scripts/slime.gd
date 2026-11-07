@@ -37,6 +37,9 @@ var sprite: Sprite2D
 var hurtbox: Area2D
 var target: Area2D  # blanco para las flechas: más alto que el slime, así no le pasan por arriba
 var hero: Player
+var game  # main.gd
+var ven_t := 0.0  # veneno del Cazador: le saca 1 cada 0,7 s mientras dura
+var ven_k := 0.0
 
 
 func _ready() -> void:
@@ -53,6 +56,7 @@ func _ready() -> void:
 	spawn = 0.5 + randf() * 0.4
 	phase = randf() * 8.0
 	hero = get_tree().get_first_node_in_group("heroe") as Player
+	game = get_tree().get_first_node_in_group("juego")
 
 	var shape := CollisionShape2D.new()
 	var rect := RectangleShape2D.new()
@@ -105,7 +109,9 @@ func _physics_process(dt: float) -> void:
 	if dead:
 		dead_t += dt
 		_set_frame(11 if dead_t < 0.07 else 12)
-		sprite.modulate = Color(1, 1, 1, 1.0 - clampf((dead_t - 0.2) / 0.3, 0.0, 1.0))
+		squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 10.0))
+		sprite.scale = squash * 0.5
+		sprite.modulate = Color(3, 3, 3) if flash > 0.0 else Color(1, 1, 1, 1.0 - clampf((dead_t - 0.2) / 0.3, 0.0, 1.0))
 		if dead_t > 0.5:
 			queue_free()
 		return
@@ -116,6 +122,10 @@ func _physics_process(dt: float) -> void:
 		sprite.modulate.a = k
 		return
 
+	if ven_t > 0.0:
+		_venom_tick(dt)
+		if dead:
+			return
 	if kind == "red":
 		_update_red(dt)
 	else:
@@ -205,41 +215,80 @@ func _touch_hero() -> void:
 			continue  # recién rebotó en un slime: ni otro pisotón ni daño por un instante
 		if stomp:
 			p.bounce()
-			take_hit(1, 0, true)
+			take_hit(1, 0, "stomp")
 		else:
 			p.hurt(global_position.x)
 
 
-func take_hit(dmg: int, from_dir: int, stomp: bool = false) -> void:
+## how: "arrow", "stomp", "trap" (lo aplastó algo que cayó) o "poison" (veneno).
+func take_hit(dmg: int, from_dir: int, how: String = "arrow") -> void:
 	if dead or spawn > 0.0:
 		return
-	hp -= dmg
-	flash = 0.12
-	stun = 0.35
-	if from_dir != 0:
-		knock = from_dir * 110.0
-	squash = Vector2(1.8, 0.35) if stomp else Vector2(1.3, 0.75)
-	var cols := [Pal.L, Pal.G, Pal.W] if kind != "red" else [Pal.O, Pal.R, Pal.W]
-	Fx.burst(get_parent(), global_position + Vector2(0, -4), 6, cols, 60.0, 40.0)
-	Fx.popup(get_parent(), global_position + Vector2(0, -12), str(dmg), Color.WHITE)
-	if stomp:
-		Fx.hitstop(0.055)
-		Fx.shake(2.0, 0.14)
+	var crit := how != "trap" and how != "poison" and Fx.rand_crit()
+	hp -= dmg * 3 if crit else dmg
+	if crit:
+		Fx.crit(get_parent(), global_position + Vector2(0, -4))
 	if hp <= 0:
-		_die(cols)
-	elif not stomp:
-		Fx.hitstop(0.03)
+		_die(how, from_dir, crit)
+		return
+	flash = 0.12
+	stun = 0.4
+	var kd := from_dir if from_dir != 0 else (-1 if randf() < 0.5 else 1)
+	knock = kd * 110.0
+	velocity.y = -120.0
+	squash = Vector2(1.8, 0.35) if how == "stomp" else Vector2(1.45, 0.65)
+	Snd.play("pisoton" if how == "stomp" else "acierto")
+	Fx.hitstop(0.035)
+	Fx.burst(get_parent(), global_position + Vector2(0, -4), 6, [Pal.R, Pal.O, Pal.W], 60.0, 30.0, 0.4)
+	Fx.popup(get_parent(), global_position + Vector2(0, -12), "-%d" % dmg, Pal.W)
 
 
-func _die(cols: Array) -> void:
+func apply_venom() -> void:
+	if dead:
+		return
+	ven_t = 3.0
+	if ven_k <= 0.0:
+		ven_k = 0.7
+
+
+func _venom_tick(dt: float) -> void:
+	ven_t -= dt
+	ven_k -= dt
+	if randf() < 0.3:
+		Fx.part(get_parent(), global_position + Vector2(randf_range(-5, 5), -randf_range(1, 6)), Vector2(0, -18), -10.0, 0.45, Pal.L if randf() < 0.5 else Pal.G)
+	if ven_k <= 0.0:
+		ven_k = 0.7
+		hp -= 1
+		flash = 0.08
+		Snd.play("baba", {"rate": 1.5, "vol": 0.5})
+		Fx.popup(get_parent(), global_position + Vector2(0, -12), "-1", Pal.L)
+		if hp <= 0:
+			_die("poison", 0, false)
+
+
+func _die(how: String, from_dir: int, crit: bool) -> void:
 	dead = true
 	dead_t = 0.0
+	flash = 0.2 if crit else 0.1
 	hurtbox.set_deferred("monitoring", false)
 	hurtbox.set_deferred("monitorable", false)
 	target.set_deferred("monitorable", false)
-	Fx.shake(2.0, 0.15)
-	Fx.hitstop(0.05)
-	Fx.burst(get_parent(), global_position + Vector2(0, -4), 14, cols, 90.0, 60.0, 0.5)
+	var cols := [Pal.R, Pal.O, Pal.P] if kind == "red" else [Pal.G, Pal.L, Pal.RAMP_G[0]]
+	if how == "stomp":
+		squash = Vector2(1.8, 0.35)
+		Fx.hitstop(0.055)
+		Fx.shake(2.0, 0.14)
+	else:
+		squash = Vector2(0.6, 1.45)
+		position.x += from_dir * 3
+		Fx.hitstop(0.04)
+		Fx.shake(1.5, 0.1)
+	if how != "trap":
+		Snd.play("pisoton" if how == "stomp" else "acierto")
+	Snd.play("explotar", {"delay": 0.05, "vol": 0.9})
+	Fx.burst(get_parent(), global_position + Vector2(0, -4), 24 if crit else 14, cols, 120.0 if crit else 80.0, 50.0, 0.6, 260.0)
+	if game != null:
+		game.slime_killed(self, how, crit)
 	killed.emit()
 
 
@@ -251,7 +300,7 @@ func _animate(dt: float) -> void:
 	sprite.flip_h = face < 0.0
 	squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 10.0))
 	sprite.scale = squash * 0.5
-	sprite.modulate = Color(3, 3, 3) if flash > 0.0 else Color.WHITE
+	sprite.modulate = Color(3, 3, 3) if flash > 0.0 else (Color(0.75, 1.25, 0.6) if ven_t > 0.0 else Color.WHITE)
 
 
 func _set_frame(i: int) -> void:
