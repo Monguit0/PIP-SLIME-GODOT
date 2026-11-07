@@ -38,8 +38,9 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
 - **Mega Caballero** (animado con PixelLab, en ciclos de 12 cuadros: respira, camina al paso de lo que avanza, embiste
   corriendo, se marea, cae de rodillas, **ruge con el puño en alto** y **salta entero**: se agacha, despega, encoge las
   piernas, levanta la espada, cae con todo y se levanta. En el barrido el brazo toma 19 poses según el ángulo de la espada).
-  La espada se dibuja en código porque gira con cada ataque, pero **se ve agarrada**: los dedos se dibujan encima del mango
-  y **pesa**: sigue al brazo con un resorte, se atrasa cuando el cuerpo acelera y se pasa un poco al frenar. Cae del techo, ruge y
+  La espada se dibuja en código porque gira con cada ataque, pero **se ve agarrada** (los dedos se dibujan encima del mango)
+  y es **firme**: va rígida con el brazo, entre dos poses gira rápido sin pasarse y el espadazo se clava de golpe. En la
+  lluvia de espadas la levanta, destella con la orden y la deja quieta en alto. Cae del techo, ruge y
   pelea con **barrido**, **salto con ondas de choque**, **embestida** (si choca contra la pared queda mareado y recibe 50% más
   de daño) y **lluvia de espadas** con un hueco para esquivar. Al 50% se enfurece (repite y encadena ataques) y al 25%
   **pierde el casco**. Se le pega con flechas o pisándole la cabeza. Al caer explota y su espada queda clavada en el piso.

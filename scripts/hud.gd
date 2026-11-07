@@ -39,6 +39,9 @@ func _ready() -> void:
 func _process(dt: float) -> void:
 	var real := dt / maxf(Engine.time_scale, 0.001)
 	t += real
+	# la entrada en negro al reiniciar se aclara acá: el HUD sigue andando con el juego en pausa
+	# (al reiniciar se reparten las cartas enseguida y el juego queda en pausa hasta elegir)
+	main.fade = maxf(0.0, main.fade - real)
 	var b = main.boss
 	var on: bool = b != null and is_instance_valid(b) and b.state in ["wait", "drop", "roar", "dying"]
 	cine += ((1.0 if on else 0.0) - cine) * minf(1.0, real * 5.0)

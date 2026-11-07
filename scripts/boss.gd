@@ -12,8 +12,8 @@ extends Node2D
 ## salta entero (se agacha, despega, encoge las piernas, levanta la espada, cae con todo y se levanta).
 ## En el barrido toma la pose del brazo según el ángulo de la espada ("arc": 19 poses del puño, de atrás
 ## de la cabeza hasta abajo). La espada se dibuja en código (como en el original): sale del puño del
-## cuadro que se ve, los dedos se dibujan encima del mango y pesa: sigue al brazo con un resorte, se
-## atrasa cuando el cuerpo acelera y se pasa un poco al frenar.
+## cuadro que se ve, los dedos se dibujan encima del mango y es firme: va rígida con el brazo; solo
+## entre dos poses del salto o del rugido gira rápido y sin pasarse, y al caer el espadazo se clava de golpe.
 
 const BW := 24.0
 const BH := 40.0
@@ -26,10 +26,9 @@ const ORIGIN := Vector2(72, 118)  # los pies en el lienzo de 144x144 de los cuad
 const ANIMS := ["arc", "jump", "roar", "idle", "walk", "charge", "dazed", "death"]
 const LOOPS := ["idle", "walk", "charge", "dazed"]
 const FIST_CELL := 14            # cada puño recortado en fist.png (14x14, el puño en el centro)
-const WALK_CYCLE := 30.0         # lo que avanza en un ciclo de caminata (dos pasos)
-const SPRING := 34.0             # la espada sigue al brazo con un resorte (rad/s)
-const DAMP := 0.5
-const SWAY := 6.0                # cuánto se atrasa la hoja cuando el puño acelera
+const WALK_CYCLE := 19.0         # lo que avanza en un ciclo de caminata (dos pasos, medido en los cuadros)
+const SPRING := 40.0             # entre dos poses la espada gira rápido y sin pasarse (rad/s)
+const ROAR_HOLD := 6             # el cuadro del rugido con el puño bien arriba: ahí se queda quieto
 const REST := 22.0             # la espada en guardia, apuntando un poco hacia abajo
 const DIR := "res://assets/sprites/boss/"
 const COMBO := {"charge": "rain", "slam": "sweep", "sweep": "slam", "rain": "charge"}
@@ -122,9 +121,11 @@ var sword_ang := 40.0  # el ángulo que se ve (sigue a `angle` o a la pose con u
 var sword_v := 0.0
 var pose_ang := 0.0
 var has_pose := false
-var hand_s := Vector2.ZERO
-var hand_prev := Vector2.ZERO
-var hand_v := Vector2.ZERO
+var snap := false   # la espada salta a la pose sin girar (el golpe del espadazo)
+var pose_key := ""
+var ang_from := REST  # de dónde arrancó la espada al empezar el aviso
+var jitter := false  # tiembla todo el cuerpo (el rugido), la espada con él
+var order_t := 0.0   # destello de la espada al dar la orden de la lluvia
 var walk_dist := 0.0
 var tmul := 1.0
 var kick := 0.0      # retroceso al recibir un golpe (solo visual)
@@ -171,8 +172,6 @@ func _ready() -> void:
 	add_child(target)
 	_visuals(0.0)
 	sword_ang = pose_ang if has_pose else angle
-	hand_s = hand()
-	hand_prev = hand_s
 
 
 # ---------------------------------------------------------------- ayudas
@@ -196,6 +195,8 @@ func head() -> Rect2:
 func _to(s: String) -> void:
 	state = s
 	t = 0.0
+	if s == "tele":
+		ang_from = angle
 
 
 func _face_player() -> void:
@@ -262,7 +263,7 @@ func damage(dmg: int, hx: float, hy: float, force: bool = false, no_crit: bool =
 	show_t = 0.45
 	bar_shake = 0.2
 	flash = 0.07
-	kick = minf(2.5, kick + 1.5)
+	kick = minf(1.5, kick + 1.0)
 	kick_dir = signf(cx() - hx) if absf(cx() - hx) > 0.5 else float(-face)
 	game.add_score(total * 10)
 	Snd.play("metal")
@@ -342,7 +343,8 @@ func _physics_process(dt: float) -> void:
 	var tm := 0.6 if phase >= 3 else (0.72 if ph2 else 1.0)
 	tmul = tm
 	t += dt
-	kick = maxf(0.0, kick - dt * 14.0)
+	kick = maxf(0.0, kick - dt * 10.0)
+	order_t -= dt
 	walking = false
 	if ven_t > 0.0 and state != "dying" and state != "gone":
 		ven_t -= dt
@@ -398,11 +400,12 @@ func _physics_process(dt: float) -> void:
 		"idle":
 			_face_player()
 			var dist := player.global_position.x - cx()
-			if absf(dist) > 36.0:
+			var lowering := absf(angle - REST) > 12.0  # primero baja la espada, después camina
+			if absf(dist) > 36.0 and not lowering:
 				x += signf(dist) * (32.0 if ph2 else 22.0) * dt
 				walk_dist += (32.0 if ph2 else 22.0) * dt
 				walking = true
-			angle = _lerp(angle, REST + sin(clock * 3.0) * 4.0, dt * 6.0)
+			angle = _lerp(angle, REST, dt * 8.0)
 			crouch = 0.0
 			if t > idle_dur:
 				_choose_attack()
@@ -523,7 +526,7 @@ func _tele(dt: float, tm: float) -> void:
 		Fx.part(get_parent(), tip + Vector2(cos(a), sin(a)) * r, -Vector2(cos(a), sin(a)) * r * 4.0, 0.0, 0.22, Pal.C if randf() < 0.5 else Pal.W)
 	match atk:
 		"sweep":
-			angle = _lerp(REST, -165.0, _ease_out(k * 1.3))
+			angle = _lerp(ang_from, -165.0, _ease_out(k * 1.3))
 			crouch = roundf(_lerp(0.0, 2.0, k))
 		"slam":
 			angle = _lerp(angle, -90.0, dt * 10.0)
@@ -561,6 +564,7 @@ func _tele(dt: float, tm: float) -> void:
 				Snd.play("tajo", {"rate": 0.5, "vary": false})
 			"rain":
 				_rain_swords()
+				_order()
 			"sweep":
 				swing_t = 0.0
 				swing_fx = false
@@ -640,10 +644,19 @@ func _act(dt: float) -> void:
 				if rep > 1:
 					rep -= 1
 					_rain_swords()
+					_order()
 					_to("act")
 				else:
 					_to("rec")
 					rec_dur = 0.7
+
+
+## La orden de la lluvia: la espada en alto destella y el cuerpo se estira; después queda quieta.
+func _order() -> void:
+	order_t = 0.1
+	sx = 0.92
+	sy = 1.1
+	Fx.ring(get_parent(), sword_tip(), Pal.C)
 
 
 ## Lluvia de espadas: todo el salón menos un hueco de dos lugares.
@@ -739,7 +752,8 @@ func _dying(dt: float) -> void:
 # ---------------------------------------------------------------- dibujo
 
 func _visuals(dt: float) -> void:
-	position = Vector2(roundf((cx() + kick * kick_dir) * 2.0) / 2.0, roundf((y + BH) * 2.0) / 2.0)
+	var shake := (0.5 if int(clock * 30.0) % 2 == 0 else -0.5) if jitter else 0.0
+	position = Vector2(roundf((cx() + kick * kick_dir + shake) * 2.0) / 2.0, roundf((y + BH) * 2.0) / 2.0)
 	if target.monitorable != active():
 		target.set_deferred("monitorable", active())
 	_pick_frame()
@@ -762,25 +776,22 @@ func _visuals(dt: float) -> void:
 	queue_redraw()
 
 
-## La espada pesa: sigue al ángulo que pide el ataque (o la pose del cuadro) con un resorte,
-## se atrasa cuando el puño acelera (al saltar, frenar, dar un paso) y se pasa un poco al frenar.
+## La espada es firme: va rígida con el brazo (el ángulo que pide el ataque elige la pose del brazo).
+## Solo cuando el cuadro marca la pose (salto, rugido) gira hacia ella rápido y sin pasarse, y el
+## espadazo al caer se clava de golpe.
 func _swing_sword(dt: float) -> void:
-	var want := pose_ang if has_pose else angle
-	if dt <= 0.0:  # congelado (golpe fuerte): la espada también
+	if not has_pose:
+		sword_ang = angle
+		sword_v = 0.0
 		return
-	hand_s = hand_s.lerp(hand(), minf(1.0, dt * 30.0))
-	var hv := (hand_s - hand_prev) / dt
-	var ha := ((hv - hand_v) / dt).limit_length(3000.0)
-	hand_prev = hand_s
-	hand_v = hv
-	var a := deg_to_rad(sword_ang)
-	var along_tip := Vector2(-sin(a) * face, cos(a))  # hacia dónde se mueve la punta si el ángulo crece
-	var acc := SPRING * SPRING * (want - sword_ang) - 2.0 * DAMP * SPRING * sword_v - ha.dot(along_tip) * SWAY
-	sword_v += acc * dt
-	sword_ang += sword_v * dt
-	if absf(sword_ang - want) > 70.0:  # nunca se va demasiado lejos del brazo
-		sword_ang = want + signf(sword_ang - want) * 70.0
-		sword_v *= 0.5
+	if snap:
+		sword_ang = pose_ang
+		sword_v = 0.0
+	elif dt > 0.0:  # congelado por un golpe fuerte: queda donde está
+		var acc := SPRING * SPRING * (pose_ang - sword_ang) - 2.0 * SPRING * sword_v
+		sword_v += acc * dt
+		sword_ang += sword_v * dt
+	angle = sword_ang  # el ataque sigue desde donde quedó la espada
 
 
 ## Elige animación y cuadro según lo que esté haciendo, y guarda dónde quedó el puño.
@@ -797,7 +808,10 @@ func _pick_frame() -> void:
 			anim = "roar"
 			i = _roar_frame()
 		"idle":
-			if walking:
+			if absf(angle - REST) > 12.0:
+				anim = "arc"  # viene con la espada alta: la baja con el brazo
+				by_angle = true
+			elif walking:
 				anim = "walk"
 				i = int(walk_dist / WALK_CYCLE * 12.0)  # al paso de lo que avanza: los pies no patinan
 			else:
@@ -807,13 +821,15 @@ func _pick_frame() -> void:
 			match atk:
 				"charge":
 					anim = "charge"
-					i = int(clock * (12.0 if state == "tele" else 20.0))
+					# avisando: pisotea en el lugar, un pie en cada pisotón; embistiendo: corre
+					i = 6 * (int(t / 0.18) % 2) if state == "tele" else int(clock * 22.0)
 				"slam":
 					anim = "jump"
 					i = _jump_frame()
 				"rain":
 					anim = "roar"
-					i = 6 + int(clock * 14.0) % 6  # el puño en alto, temblando
+					# levanta la espada y la deja quieta en alto: la orden y mientras caen las espadas
+					i = (4 if t < 0.1 else (5 if t < 0.2 else ROAR_HOLD)) if state == "tele" else ROAR_HOLD
 				_:
 					anim = "arc"
 					by_angle = true
@@ -846,10 +862,10 @@ func _pick_frame() -> void:
 	var n := list.size()
 	var angs: Array = ANGS.get(anim, [])
 	if by_angle and angs.size() == n:
-		# la pose del brazo que va con el ángulo de la espada que se ve
+		# la pose del brazo que va con el ángulo de la espada (la espada va rígida con él)
 		var best := 0
 		for k in n:
-			if absf(float(angs[k]) - sword_ang) < absf(float(angs[best]) - sword_ang):
+			if absf(float(angs[k]) - angle) < absf(float(angs[best]) - angle):
 				best = k
 		i = best
 	elif anim in LOOPS:
@@ -859,6 +875,13 @@ func _pick_frame() -> void:
 	has_pose = not by_angle and angs.size() == n
 	if has_pose:
 		pose_ang = angs[i]
+		if anim == "roar" and i == ROAR_HOLD:
+			pose_ang = -90.0  # bien derecha para arriba
+	# el espadazo al caer: la espada se clava de golpe, sin girar
+	var key := "%s%d" % [anim, i]
+	snap = anim == "jump" and i == 9 and key != pose_key
+	pose_key = key
+	jitter = anim == "roar" and i == ROAR_HOLD and state in ["roar", "rage"]
 	sprite.texture = list[i]
 	var hs: Array = HANDS.get(look, {}).get(anim, [])
 	if i < hs.size():
@@ -877,7 +900,7 @@ func _pick_frame() -> void:
 func _jump_frame() -> int:
 	if state == "tele":
 		var dur: float = TELE["slam"] * tmul * (0.55 if quick else 1.0)
-		return mini(3, int(t / maxf(0.01, dur) * 4.0))
+		return 1 + mini(2, int(t / maxf(0.01, dur) * 3.0))
 	if landed:
 		return 9
 	if t < 0.07:
@@ -913,7 +936,7 @@ func _roar_frame() -> int:
 		return 4
 	if t < 0.6:
 		return 5
-	return 6 + int((t - 0.6) * 14.0) % 6
+	return ROAR_HOLD
 
 
 func _draw() -> void:
@@ -926,7 +949,7 @@ func _draw() -> void:
 	var d := Vector2(cos(a) * face, sin(a))
 	var n := Vector2(d.y, -d.x) * face  # hacia "arriba" de la hoja: ahí va el filo con luz
 	var blink := glow and int(clock * 20.0) % 2 == 1
-	var white := flash > 0.0
+	var white := flash > 0.0 or order_t > 0.0
 	var s := -4.0
 	while s <= 1.5:  # mango (con pomo)
 		var pommel := s < -3.0

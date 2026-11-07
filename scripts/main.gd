@@ -119,7 +119,6 @@ func _process(dt: float) -> void:
 	t += dt
 	banner.t += dt
 	var real := dt / maxf(Engine.time_scale, 0.001)
-	fade = maxf(0.0, fade - real)
 	shown_score += (score - shown_score) * minf(1.0, real * 12.0)
 	if absf(score - shown_score) < 0.5:
 		shown_score = score
