@@ -17,6 +17,7 @@ const BEST_FILE := "user://record.txt"
 
 const PlayerScript := preload("res://scripts/player.gd")
 const SlimeScript := preload("res://scripts/slime.gd")
+const SkelScript := preload("res://scripts/skeleton.gd")
 const HudScript := preload("res://scripts/hud.gd")
 const BgScript := preload("res://scripts/background.gd")
 const CoinScript := preload("res://scripts/coin.gd")
@@ -24,9 +25,9 @@ const HazardScript := preload("res://scripts/hazard.gd")
 const BossScript := preload("res://scripts/boss.gd")
 
 const ZONES := [
-	{"start": 0, "end": 512, "name": "PRADERA", "green": 4, "red": 1, "haz": 0.55},
-	{"start": 512, "end": 1024, "name": "RUINAS", "green": 4, "red": 2, "haz": 0.85},
-	{"start": 1024, "end": 1536, "name": "MURALLAS", "green": 3, "red": 3, "haz": 1.15},
+	{"start": 0, "end": 512, "name": "PRADERA", "green": 4, "red": 1, "arch": 0, "axe": 1, "haz": 0.55},
+	{"start": 512, "end": 1024, "name": "RUINAS", "green": 3, "red": 2, "arch": 2, "axe": 1, "haz": 0.85},
+	{"start": 1024, "end": 1536, "name": "MURALLAS", "green": 2, "red": 2, "arch": 2, "axe": 2, "haz": 1.15},
 	{"start": 1536, "end": 1792, "name": "SALÓN DEL TRONO", "boss": true},
 ]
 # plataformas de un solo sentido, copiadas de PLATS del original (x, y, ancho; 8 de alto)
@@ -172,13 +173,17 @@ func collect_coin(c: Node2D) -> void:
 	gain_xp(1)
 
 
-func slime_killed(s: Slime, how: String, crit: bool) -> void:
-	var base := 10 if how == "trap" else (25 if how == "stomp" else 15) + (10 if s.kind == "red" else 0)
+## Lo llaman los slimes y los esqueletos al morir.
+func slime_killed(s: Node2D, how: String, crit: bool) -> void:
+	var kind: String = s.get("kind")
+	var extra: int = {"red": 10, "skarch": 20, "skaxe": 25}.get(kind, 0)
+	var base := 10 if how == "trap" else (25 if how == "stomp" else 15) + extra
 	var pts := base * (2 if crit else 1)
 	add_score(pts)
-	var top := s.global_position + Vector2(0, -7)
+	var top := s.global_position + Vector2(0, -20 if kind.begins_with("sk") else -7)
 	Fx.popup(self, top + Vector2(0, -12 if crit else -4), "+%d" % pts, Pal.Y if crit else Pal.L)
-	gain_xp(5 if s.kind == "red" else 4, top + Vector2(0, -4))
+	var exp_pts: int = {"red": 5, "skarch": 7, "skaxe": 8}.get(kind, 4)
+	gain_xp(exp_pts, top + Vector2(0, -4))
 
 
 func gain_xp(n: int, at = null) -> void:
@@ -401,6 +406,10 @@ func _spawn_slimes(n: int) -> void:
 		kinds.append("green")
 	for i in zd.red:
 		kinds.append("red")
+	for i in zd.get("arch", 0):
+		kinds.append("skarch")
+	for i in zd.get("axe", 0):
+		kinds.append("skaxe")
 	var plats := PLATS.filter(func(p): return p[0] >= zd.start and p[0] < zd.end)
 	var ground := [zd.start + 10, GROUND, zd.end - zd.start - 20]
 	var made := 0
@@ -411,16 +420,21 @@ func _spawn_slimes(n: int) -> void:
 		var x: float = surf[0] + 4 + randf() * (surf[2] - 18)
 		if absf(x - player.global_position.x) < 90.0:
 			continue
-		var s := SlimeScript.new()
-		s.kind = kinds[made]
-		s.zone = n
-		s.position = Vector2(x + 5, surf[1])
-		if s.kind == "red":
-			s.min_x = zd.start + 11
-			s.max_x = zd.end - 11
+		var kind: String = kinds[made]
+		var s: Node2D
+		if kind.begins_with("sk"):
+			s = SkelScript.new()
 		else:
-			s.min_x = surf[0] + 6
-			s.max_x = surf[0] + surf[2] - 6
+			s = SlimeScript.new()
+		s.set("kind", kind)
+		s.set("zone", n)
+		s.position = Vector2(x + 5, surf[1])
+		if kind == "red" or (kind.begins_with("sk") and surf == ground):
+			s.set("min_x", float(zd.start + 11))
+			s.set("max_x", float(zd.end - 11))
+		else:
+			s.set("min_x", float(surf[0] + 6))
+			s.set("max_x", float(surf[0] + surf[2] - 6))
 		add_child(s)
 		made += 1
 

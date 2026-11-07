@@ -62,7 +62,7 @@ func _physics_process(dt: float) -> void:
 				queue_free()
 				return
 			for s in get_tree().get_nodes_in_group("enemigos"):
-				if s is Slime and not s.dead and s.spawn <= 0.0 and Rect2(s.global_position.x - 5, s.global_position.y - 7, 10, 7).intersects(b):
+				if s.has_method("hit_rect") and not s.dead and s.spawn <= 0.0 and s.hit_rect().intersects(b):
 					s.take_hit(99, 0, "trap")
 			if y + b.size.y >= land_y + 2.0:
 				y = land_y + 2.0 - b.size.y

@@ -243,6 +243,11 @@ func take_hit(dmg: int, from_dir: int, how: String = "arrow") -> void:
 	Fx.popup(get_parent(), global_position + Vector2(0, -12), "-%d" % dmg, Pal.W)
 
 
+## Rectángulo del cuerpo (para las trampas que caen).
+func hit_rect() -> Rect2:
+	return Rect2(global_position.x - 5, global_position.y - 7, 10, 7)
+
+
 func apply_venom() -> void:
 	if dead:
 		return

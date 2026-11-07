@@ -163,6 +163,7 @@ func ghost(parent: Node, src: Sprite2D) -> void:
 		return
 	var s := Sprite2D.new()
 	s.texture = src.texture
+	s.centered = src.centered
 	s.offset = src.offset
 	s.flip_h = src.flip_h
 	s.scale = src.scale

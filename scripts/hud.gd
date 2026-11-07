@@ -159,7 +159,7 @@ func _draw_status() -> void:
 	# zona y slimes que quedan
 	if main.z < 3:
 		var left: int = main.alive_in_zone(main.z)
-		_text("ZONA %d" % (main.z + 1) + ("" if main.cleared else " · SLIMES %d" % left), W / 2.0, 4, Pal.S)
+		_text("ZONA %d" % (main.z + 1) + ("" if main.cleared else " · ENEMIGOS %d" % left), W / 2.0, 4, Pal.S)
 		if main.cleared and main.gates[main.z].open > 0.5 and int(t * 4.0) % 2 == 1:
 			_text("SEGUÍ >", W - 6, 96, Pal.Y, 1, 2)
 	# barra del jefe

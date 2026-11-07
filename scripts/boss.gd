@@ -7,8 +7,10 @@ extends Node2D
 ## - charge: embestida hasta la pared; si choca queda aturdido (y recibe 50% más de daño).
 ## - rain: llueven espadas del techo con un hueco de dos lugares para esquivarlas.
 ## Al 50% se enfurece (repite ataques y los encadena) y al 25% pierde el casco y pelea con todo.
-## Se le pega con flechas o pisándole la cabeza. El cuerpo es arte de PixelLab; la espada se dibuja
-## en código (como en el original) porque gira con cada ataque.
+## Se le pega con flechas o pisándole la cabeza. El cuerpo es arte de PixelLab animado (respira, camina,
+## embiste, se marea, cae de rodillas) y en los ataques toma la pose del brazo según el ángulo de la
+## espada ("arc": 12 poses del puño, de atrás de la cabeza hasta abajo). La espada se dibuja en código
+## (como en el original) y sale del puño del cuadro que se ve.
 
 const BW := 24.0
 const BH := 40.0
@@ -17,12 +19,35 @@ const ARENA_MIN := 1546.0
 const ARENA_MAX := 1782.0
 const GROUND := 128.0
 const SWORD_LEN := 36.0
-const HAND := Vector2(6, -15)  # el puño, desde los pies (mirando a la derecha)
+const ORIGIN := Vector2(72, 118)  # los pies en el lienzo de 144x144 de los cuadros
+const ARC_FIRST := -165.0        # ángulo de la espada en la primera pose de "arc"
+const ARC_STEP := 260.0 / 11.0   # grados entre poses de "arc"
+const ANIMS := ["arc", "idle", "walk", "charge", "dazed", "death"]
 const REST := 22.0             # la espada en guardia, apuntando un poco hacia abajo
 const DIR := "res://assets/sprites/boss/"
 const COMBO := {"charge": "rain", "slam": "sweep", "sweep": "slam", "rain": "charge"}
 const TELE := {"sweep": 0.68, "slam": 0.55, "charge": 0.75, "rain": 0.85}
 const WaveScript := preload("res://scripts/wave.gd")
+
+## Puño de la espada en cada cuadro del Mega Caballero (detectado en los cuadros de PixelLab):
+## en píxeles del mundo desde los pies, mirando a la derecha. Los genera la herramienta de cuadros.
+const HANDS := {
+	"helm": {
+		"arc": [Vector2(-16.1, -37.45), Vector2(-12.95, -41.95), Vector2(-6.4, -46.1), Vector2(0.05, -47.5), Vector2(7.0, -46.1), Vector2(11.55, -43.35), Vector2(14.2, -39.3), Vector2(15.5, -34.35), Vector2(15.55, -26.45), Vector2(12.4, -20.5), Vector2(15.3, -20.45)],
+		"idle": [Vector2(10.25, -21.9), Vector2(10.25, -22.0), Vector2(10.3, -22.4), Vector2(10.3, -22.4), Vector2(10.3, -22.4), Vector2(10.3, -21.9), Vector2(10.25, -21.5), Vector2(10.25, -21.5)],
+		"walk": [Vector2(9.85, -21.5), Vector2(9.9, -21.45), Vector2(9.85, -22.45), Vector2(9.9, -22.45), Vector2(9.85, -21.5), Vector2(9.85, -21.5), Vector2(9.85, -22.5), Vector2(9.85, -22.5)],
+		"charge": [Vector2(16.8, -27.5), Vector2(16.85, -28.5), Vector2(16.8, -30.45), Vector2(16.8, -29.9), Vector2(16.75, -27.95), Vector2(16.85, -28.5), Vector2(16.8, -30.45), Vector2(16.85, -29.55)],
+		"dazed": [Vector2(10.8, -17.55), Vector2(11.25, -17.6), Vector2(11.25, -17.9), Vector2(11.25, -17.9), Vector2(9.9, -18.45), Vector2(9.85, -18.05), Vector2(10.35, -17.5), Vector2(9.8, -17.45)],
+	},
+	"bare": {
+		"arc": [Vector2(-15.6, -37.95), Vector2(-12.95, -43.45), Vector2(-6.4, -47.1), Vector2(0.05, -48.0), Vector2(7.5, -47.1), Vector2(10.55, -44.85), Vector2(14.7, -39.8), Vector2(16.0, -34.85), Vector2(16.05, -26.95)],
+		"idle": [Vector2(9.85, -22.0), Vector2(9.8, -22.0), Vector2(9.85, -22.45), Vector2(9.85, -22.5), Vector2(9.85, -22.45), Vector2(9.85, -22.45), Vector2(9.75, -21.95), Vector2(9.75, -21.95)],
+		"walk": [Vector2(10.25, -21.5), Vector2(10.2, -21.05), Vector2(10.2, -22.45), Vector2(9.85, -22.5), Vector2(10.25, -21.5), Vector2(10.2, -21.45), Vector2(9.85, -22.5), Vector2(9.85, -22.5)],
+		"charge": [Vector2(16.8, -27.4), Vector2(16.8, -28.4), Vector2(16.8, -30.4), Vector2(16.8, -29.95), Vector2(16.4, -27.95), Vector2(16.85, -29.0), Vector2(16.8, -30.4), Vector2(16.85, -29.05)],
+		"dazed": [Vector2(10.85, -18.0), Vector2(11.25, -18.4), Vector2(11.25, -18.4), Vector2(10.85, -18.5), Vector2(10.25, -18.9), Vector2(10.3, -18.45), Vector2(10.35, -18.0), Vector2(10.25, -18.0)],
+		"death": [Vector2(10.25, -16.9), Vector2(10.35, -15.0), Vector2(10.3, -13.45), Vector2(9.85, -12.45), Vector2(10.0, -13.0), Vector2(10.5, -13.0), Vector2(11.0, -13.0), Vector2(10.0, -12.5)],
+	},
+}
 
 var game  # main.gd
 var player: Player
@@ -70,25 +95,24 @@ var clock := 0.0
 
 var sprite: Sprite2D
 var target: Area2D
-var frames := {}  # "helm"/"bare" -> {"idle": [tex], "walk": [tex...]}
+var frames := {}  # "helm"/"bare" -> {"idle": [tex...], "walk": [...], "arc": [...], ...}
+var cur_hand := Vector2(10, -22)  # puño del cuadro actual, desde los pies, mirando a la derecha
 
 
 func _ready() -> void:
 	z_index = -1
 	for look in ["helm", "bare"]:
 		frames[look] = {}
-		for anim in ["idle", "walk"]:
+		for anim in ANIMS:
 			var list: Array = []
 			var i := 0
 			while ResourceLoader.exists("%s%s/%s/frame_%03d.png" % [DIR, look, anim, i]):
 				list.append(load("%s%s/%s/frame_%03d.png" % [DIR, look, anim, i]))
 				i += 1
-			if list.is_empty() and ResourceLoader.exists("%s%s.png" % [DIR, look]):
-				list.append(load("%s%s.png" % [DIR, look]))
 			frames[look][anim] = list
 	sprite = Sprite2D.new()
-	sprite.centered = true
-	sprite.offset = Vector2(0, -46)  # lienzo de 96: los pies en la fila 93
+	sprite.centered = false
+	sprite.offset = -ORIGIN
 	sprite.show_behind_parent = true  # la espada (dibujada por este nodo) va adelante
 	add_child(sprite)
 	# blanco para las flechas
@@ -142,23 +166,14 @@ func _ease_out(k: float) -> float:
 	return 1.0 - pow(1.0 - clampf(k, 0.0, 1.0), 3.0)
 
 
-## el puño de la espada, en coordenadas del mundo
+## el puño de la espada, en coordenadas del mundo (sale del cuadro que se está viendo)
 func hand() -> Vector2:
-	var breath := _breath()
-	return Vector2(cx() + face * HAND.x, y + BH + HAND.y + crouch * 0.6 + breath)
+	return Vector2(cx() + face * cur_hand.x * sx, y + BH + cur_hand.y * sy)
 
 
 func sword_tip() -> Vector2:
 	var a := deg_to_rad(angle)
 	return hand() + Vector2(cos(a) * face, sin(a)) * SWORD_LEN
-
-
-func _breath() -> float:
-	if state != "idle":
-		return 0.0
-	if walking:
-		return float(int(clock * 8.0) % 2)
-	return 1.0 if sin(clock * 3.0) > 0.3 else 0.0
 
 
 func _clear_attacks() -> void:
@@ -669,18 +684,9 @@ func _visuals(_dt: float) -> void:
 	position = Vector2(roundf(cx() * 2.0) / 2.0, roundf((y + BH) * 2.0) / 2.0)
 	if target.monitorable != active():
 		target.set_deferred("monitorable", active())
-	var look := "bare" if phase >= 3 else "helm"
-	var anim := "walk" if walking and frames[look]["walk"].size() > 1 else "idle"
-	var list: Array = frames[look][anim]
-	if list.is_empty():
-		list = frames["helm"]["idle"]
-	if not list.is_empty():
-		var fps := 9.0 if anim == "walk" else 5.0
-		sprite.texture = list[int(clock * fps) % list.size()]
-	sprite.flip_h = face < 0
-	# respiración, agacharse (la espada baja con el cuerpo) y estirar/aplastar desde los pies
-	var down := crouch + _breath()
-	sprite.scale = Vector2(0.5 * sx * (1.0 + down * 0.01), 0.5 * sy * (1.0 - down / 44.0))
+	_pick_frame()
+	# estirar/aplastar desde los pies; mirando a la izquierda se espeja con la escala
+	sprite.scale = Vector2(0.5 * sx * face, 0.5 * sy)
 	var m := Color.WHITE
 	if flash > 0.0:
 		m = Color(3, 3, 3)
@@ -693,6 +699,59 @@ func _visuals(_dt: float) -> void:
 		m = m * Color(0.8, 1.15, 0.7)
 	sprite.modulate = m
 	queue_redraw()
+
+
+## Elige animación y cuadro según lo que esté haciendo, y guarda dónde quedó el puño.
+func _pick_frame() -> void:
+	var look := "bare" if phase >= 3 else "helm"
+	var anim := "idle"
+	var i := 0
+	var loop := true
+	match state:
+		"roar", "rage":
+			anim = "arc"
+		"idle":
+			anim = "walk" if walking else "idle"
+			i = int(clock * (8.0 if walking else 6.0))
+		"tele":
+			anim = "charge" if atk == "charge" else "arc"
+			i = int(clock * 7.0)
+		"act":
+			anim = "charge" if atk == "charge" else "arc"
+			i = int(clock * 14.0)
+		"rec":
+			if absf(angle - REST) < 12.0:
+				anim = "idle"
+				i = int(clock * 6.0)
+			else:
+				anim = "arc"
+		"stun":
+			anim = "dazed"
+			i = int(clock * 8.0)
+		"dying":
+			anim = "death"
+			i = int(t / 0.2)
+			loop = false
+	var list: Array = frames[look].get(anim, [])
+	if list.is_empty():
+		look = "helm"
+		list = frames["helm"].get(anim, [])
+	if list.is_empty():
+		anim = "idle"
+		list = frames[look].get("idle", [])
+	if list.is_empty():
+		return
+	var n := list.size()
+	if anim == "arc":
+		i = clampi(roundi((angle - ARC_FIRST) / ARC_STEP), 0, n - 1)
+	elif loop:
+		i = i % n
+	else:
+		i = mini(i, n - 1)
+	sprite.texture = list[i]
+	var hs: Array = HANDS.get(look, {}).get(anim, [])
+	if i < hs.size():
+		cur_hand = hs[i]
 
 
 func _draw() -> void:
