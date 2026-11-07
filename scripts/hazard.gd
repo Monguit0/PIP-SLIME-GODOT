@@ -71,7 +71,9 @@ func _physics_process(dt: float) -> void:
 				wob = 0.3
 				Snd.play("clavar", {"vol": 0.9, "rate": 0.7 if big else 1.0})
 				Fx.shake(2.0 if big else 1.5, 0.1)
-				Fx.burst(get_parent(), Vector2(position.x, land_y), 6, [Pal.SS, Pal.S, Pal.C if big else Pal.O], 45.0, 25.0, 0.35, 220.0)
+				Fx.burst(get_parent(), Vector2(position.x, land_y), 5, [Pal.SS, Pal.S, Pal.C if big else Pal.O], 45.0, 25.0, 0.35, 220.0)
+				Fx.dust(get_parent(), Vector2(position.x, land_y), 2, 18.0, 3.0, 1.4)
+				Fx.twinkle(get_parent(), Vector2(position.x, land_y), Pal.C if big else Pal.W, 3.5 if big else 2.5, 0.16)
 		"stuck":
 			life -= dt
 			wob -= dt

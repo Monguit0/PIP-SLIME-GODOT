@@ -167,8 +167,10 @@ func collect_coin(c: Node2D) -> void:
 	add_score(pts)
 	var semi: int = SCALE[mini(combo, SCALE.size()) - 1]
 	Snd.play("moneda", {"rate": pow(2.0, semi / 12.0), "vary": false})
-	Fx.burst(self, c.global_position, 8, [Pal.Y, Pal.W, Pal.O], 55.0, 30.0, 0.45, 160.0)
-	Fx.popup(self, c.global_position + Vector2(0, -6), "+%d" % pts, Pal.C if combo > 1 else Pal.Y)
+	Fx.twinkle(self, c.global_position, Pal.Y, 5.0 + minf(combo, 6) * 0.5, 0.3)
+	Fx.ring(self, c.global_position, Pal.Y if combo <= 1 else Pal.C, 0.0, 9.0 + minf(combo, 6), 1.0, 0.25)
+	Fx.burst(self, c.global_position, 6, [Pal.Y, Pal.W, Pal.O], 60.0, 30.0, 0.4, 160.0)
+	Fx.popup(self, c.global_position + Vector2(0, -6), "+%d" % pts, Pal.C if combo > 1 else Pal.Y, combo >= 5)
 	gain_xp(1)
 
 
@@ -199,7 +201,7 @@ func gain_xp(n: int, at = null) -> void:
 
 func boss_defeated(at: Vector2) -> void:
 	add_score(1000)
-	Fx.popup(self, at, "+1000", Pal.Y)
+	Fx.popup(self, at, "+1000", Pal.Y, true)
 	Snd.play("oleada", {"delay": 0.6, "vary": false})
 	Snd.play("oleada", {"delay": 1.1, "rate": 1.26, "vary": false})
 	state = "win"
@@ -369,7 +371,8 @@ func _update_gates(dt: float) -> void:
 			if g.open == 0.0 and before > 0.0:
 				Fx.shake(3.0, 0.2)
 				Snd.play("metal", {"rate": 0.6, "vol": 0.8, "vary": false})
-				Fx.burst(self, Vector2(g.x + 4, GROUND), 10, [Pal.SS, Pal.S, Pal.D], 60.0, 30.0, 0.5)
+				Fx.burst(self, Vector2(g.x + 4, GROUND), 8, [Pal.SS, Pal.S, Pal.D], 60.0, 30.0, 0.5)
+				Fx.dust(self, Vector2(g.x + 4, GROUND), 6, 40.0, 4.0, 2.4)
 		# se puede pasar por abajo del arco cuando el portón subió casi todo
 		var door: CollisionShape2D = g.door
 		door.set_deferred("disabled", g.open >= 0.85)

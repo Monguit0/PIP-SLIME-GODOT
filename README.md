@@ -26,6 +26,17 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   y en las plataformas si les caen desde arriba. La punta queda adentro, vibran un instante y quedan ahí un rato;
   si el portón sube, la flecha sube con las rejas y se cae al llegar al arco.
 - **Críticos** (20%): triple daño, congelado, cámara lenta, zoom, cuadro de impacto en blanco y negro, ¡CRÍTICO!, bombo y chispas.
+- **Efectos a medio píxel**, con el mismo píxel que los sprites HD y las rampas de la paleta: las chispas nacen blancas y
+  se enfrían hacia su color, el polvo son bollitos que crecen y se deshacen en damero, los cascotes y huesitos rebotan,
+  el slime salpica gotas y deja un charco, cada golpe tiene su **estrella** (destello blanco y rayos hacia donde iba el
+  golpe), el barrido del jefe deja una **media luna** que sigue a la espada, las explosiones son bollos de fuego, los
+  anillos y las ondas en el piso son de píxeles y los números saltan con borde (los grandes con degradé). Al recibir un
+  golpe la silueta entera se pone blanca.
+- **Juice**: polvo al saltar, caer, correr y derrapar; anillo de aire en el doble salto; líneas de velocidad y estela de
+  silueta en el dash; chispitas que se juntan en el arco mientras carga y destello cuando está listo; retroceso de cámara
+  al disparar y al recibir golpes; destellito en las monedas; el jefe ruge con ondas, embiste levantando polvo, choca
+  contra la pared largando piedras y al caer de un salto parte el piso con dos ondas. Los slimes se agachan antes de
+  saltar, suben con la boca abierta y parpadean cada tanto; la carrera de Pip va al ritmo de su velocidad.
 - **Puntos y combo**: monedas seguidas suben el combo (y la nota, por la escala mayor); pisar slimes da más que flecharlos.
 - **Experiencia**: monedas, slimes y el jefe dan EXP; al llenar la barra Pip **evoluciona a Cazador**: vida llena,
   **dos flechas por disparo** y **veneno** (C): mientras está prendido gasta energía y las flechas envenenan (1 de daño cada 0,7 s).
@@ -33,7 +44,7 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   concentración, flecha triple y paso fantasma.
 - **Esqueletos** (los del modo villano del original, hechos con PixelLab): el **arquero** guarda distancia y te tira
   flechas rectas; el **hachero** te persigue, levanta el hacha (titila) y pega un hachazo adelante. Salen de la tierra,
-  se pueden pisar o flechar y se desarman en una pila de huesos. Uno en la Pradera, tres en las Ruinas, cuatro en las Murallas.
+  respiran mientras esperan, se doblan con cada golpe, se pueden pisar o flechar y se desarman en una pila de huesos. Uno en la Pradera, tres en las Ruinas, cuatro en las Murallas.
 - **Flechas que caen** del cielo con aviso (más seguido en cada zona; de a tres en las murallas). Si le caen a un enemigo, lo aplastan.
 - **Mega Caballero** (animado con PixelLab, en ciclos de 12 cuadros: respira, camina al paso de lo que avanza, embiste
   corriendo, se marea, cae de rodillas, **ruge con el puño en alto** y **salta entero**: se agacha, despega, encoge las
@@ -56,7 +67,9 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
 - `scripts/skeleton.gd`: esqueleto arquero y hachero (`aiMob`, `mobShoot` y `mobSwing` del original); `scripts/enemy_arrow.gd` su flecha.
 - `scripts/coin.gd`, `scripts/hazard.gd` (flechas y espadas que caen), `scripts/wave.gd` (ondas de choque), `scripts/arrow.gd`,
   `scripts/stick.gd` (dónde se clavan las flechas).
-- `scripts/fx.gd` (autoload `Fx`: partículas, temblor, hitstop, cámara lenta, críticos), `scripts/snd.gd` (autoload `Snd`:
+- `scripts/fx.gd` (autoload `Fx`: partículas, polvo, cascotes, gotas, estrellas de golpe, tajos, explosiones, anillos,
+  textos, temblor y empujón de cámara, hitstop, cámara lenta, críticos), `scripts/pix.gd` (dibujo a medio píxel y rampas
+  de color para los efectos), `scripts/snd.gd` (autoload `Snd`:
   efectos y música), `scripts/ptext.gd` (la fuente del original), `scripts/hud.gd`, `scripts/background.gd`.
 - `assets/audio/`: los sonidos (`sfx/`, WAV) y la música (`music/`, OGG, una vuelta de la canción por ánimo), exportados del juego web.
 - `assets/sprites/items/`: moneda, corazones, flecha y espada que caen, y los dibujos de las cartas (sacados del original).
@@ -65,7 +78,7 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   `arc/` (19 poses del brazo, de atrás de la cabeza hasta adelante). Lienzo de 144×144 con los pies en (72, 118); dónde
   está el puño en cada cuadro va en `HANDS` (y el ángulo de la espada de cada pose en `ANGS`), arriba de `boss.gd`.
   Cada carpeta tiene además `fist.png`: el puño de cada cuadro recortado (14×14), que se dibuja encima del mango.
-- `assets/sprites/skel/`: los esqueletos de **PixelLab** (`arch/` y `axe/`, con `idle/`, `walk/`, `atk/` y `death/`, lienzo de 68×68).
+- `assets/sprites/skel/`: los esqueletos de **PixelLab** (`arch/` y `axe/`, con `idle/` (respira), `walk/`, `atk/`, `hurt/` y `death/`, lienzo de 68×68).
 - `assets/sprites/slimes.png`: la hoja de slimes de 32 bits sacada tal cual del juego web.
 - `assets/sprites/pip/`: Pip hecho con **PixelLab** (personaje "Pip arquero", vista lateral, 48×48):
   `east.png` y las carpetas `idle/`, `run/`, `jump/`, `fall/`, `shoot/` (tensar el arco), `aim/` (apuntando en loop, con la capa al viento), `release/` (soltar con retroceso), `dash/`, `hurt/` y `death/` con un PNG por cuadro. Mira a la derecha; para la izquierda se espeja.

@@ -4,7 +4,8 @@ extends CharacterBody2D
 ## - verde (updateGreen): patrulla su superficie a saltitos, 1 de vida.
 ## - rojo (updateRed): te persigue por toda la zona y salta para alcanzarte, 2 de vida.
 ## Hoja HD: assets/sprites/slimes.png, 13 cuadros de 32x26 por fila (verde, rojo, tóxico, hielo),
-## dibujada a la mitad (16x13 en el mundo). Cuadros: 0-7 respirar, 8 carga, 9 boca, 10 golpe, 11-12 reventar.
+## dibujada a la mitad (16x13 en el mundo). Cuadros: 0-7 respirar (el 6 es el parpadeo, que va al azar),
+## 8 agachado (antes de saltar y al caer), 9 boca abierta (subiendo en el salto), 10 golpe, 11-12 reventar.
 
 signal killed
 
@@ -14,6 +15,8 @@ const FH := 26
 const SHEET := preload("res://assets/sprites/slimes.png")
 const ROWS := {"green": 0, "red": 1, "toxic": 2, "ice": 3}
 const HP := {"green": 1, "red": 2, "toxic": 1, "ice": 2}
+const COL := {"green": Pal.G, "red": Pal.R, "toxic": Pal.P, "ice": Pal.B}  # color de la baba
+const Pix := preload("res://scripts/pix.gd")
 
 var kind := "green"
 var zone := 0
@@ -40,6 +43,11 @@ var hero: Player
 var game  # main.gd
 var ven_t := 0.0  # veneno del Cazador: le saca 1 cada 0,7 s mientras dura
 var ven_k := 0.0
+var prep := 0.0     # se agacha un instante antes de saltar
+var jump_up := false
+var land_t := 0.0
+var blink_t := 0.0
+var blink := 0.0
 
 
 func _ready() -> void:
@@ -55,6 +63,7 @@ func _ready() -> void:
 	jump_t = 0.6 + randf()
 	spawn = 0.5 + randf() * 0.4
 	phase = randf() * 8.0
+	blink_t = randf_range(1.0, 4.0)
 	hero = get_tree().get_first_node_in_group("heroe") as Player
 	game = get_tree().get_first_node_in_group("juego")
 
@@ -111,7 +120,8 @@ func _physics_process(dt: float) -> void:
 		_set_frame(11 if dead_t < 0.07 else 12)
 		squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 10.0))
 		sprite.scale = squash * 0.5
-		sprite.modulate = Color(3, 3, 3) if flash > 0.0 else Color(1, 1, 1, 1.0 - clampf((dead_t - 0.2) / 0.3, 0.0, 1.0))
+		sprite.material = Fx.silhouette(Color.WHITE) if flash > 0.0 else null
+		sprite.modulate = Color.WHITE if flash > 0.0 else Color(1, 1, 1, 1.0 - clampf((dead_t - 0.2) / 0.3, 0.0, 1.0))
 		if dead_t > 0.5:
 			queue_free()
 		return
@@ -142,6 +152,8 @@ func _physics_process(dt: float) -> void:
 		velocity.x -= knock
 	if is_on_floor() and not was_floor and fall > 120.0:
 		squash = Vector2(1.4, 0.6)
+		land_t = 0.1
+		Fx.dust(get_parent(), global_position, 2, 14.0, 2.0, 1.1)
 	if position.x < min_x:
 		position.x = min_x
 		dir = 1.0
@@ -162,14 +174,21 @@ func _update_green(dt: float) -> void:
 	if stun > 0.0:
 		stun -= dt
 		velocity.x = 0.0
+		prep = 0.0
 	else:
-		velocity.x = dir * speed
+		velocity.x = dir * speed * (0.3 if prep > 0.0 else 1.0)
 		face = dir
 	hop_t -= dt
-	if hop_t <= 0.0 and is_on_floor():
-		velocity.y = -150.0
+	if hop_t <= 0.0 and is_on_floor() and prep <= 0.0 and stun <= 0.0:
+		prep = 0.13  # se agacha antes del saltito
 		hop_t = 1.6 + randf() * 2.6
-		squash = Vector2(0.7, 1.4)
+		squash = Vector2(1.3, 0.72)
+	if prep > 0.0:
+		prep -= dt
+		if prep <= 0.0 and is_on_floor():
+			velocity.y = -150.0
+			squash = Vector2(0.7, 1.4)
+			Fx.dust(get_parent(), global_position, 2, 16.0, 3.0, 1.2)
 	velocity.y = minf(velocity.y + GRAV * dt, 280.0)
 
 
@@ -182,8 +201,17 @@ func _update_red(dt: float) -> void:
 	var speed := 34.0 + zone * 5.0
 	if stun > 0.0:
 		stun -= dt
+		prep = 0.0
 		if is_on_floor():
 			velocity.x *= maxf(0.0, 1.0 - 8.0 * dt)
+	elif is_on_floor() and prep > 0.0:  # agachado, juntando fuerza
+		velocity.x *= maxf(0.0, 1.0 - 12.0 * dt)
+		prep -= dt
+		if prep <= 0.0:
+			velocity.y = -285.0 if jump_up else -175.0
+			velocity.x = (signf(dx) if dx != 0.0 else face) * speed * 1.5
+			squash = Vector2(0.65, 1.45)
+			Fx.dust(get_parent(), global_position, 3, 22.0, 3.0, 1.4)
 	elif is_on_floor():
 		var want := 0.0 if absf(dx) > 220.0 else signf(dx) * speed
 		velocity.x += signf(want - velocity.x) * minf(absf(want - velocity.x), 320.0 * dt)
@@ -191,10 +219,10 @@ func _update_red(dt: float) -> void:
 			face = signf(dx) if dx != 0.0 else face
 		jump_t -= dt
 		if jump_t <= 0.0 and absf(dx) < 220.0 and ((above and absf(dx) < 80.0) or absf(dx) < 34.0):
-			velocity.y = -285.0 if above else -175.0
-			velocity.x = signf(dx) * speed * 1.5
+			prep = 0.1
+			jump_up = above
 			jump_t = 0.8 + randf() * 0.7
-			squash = Vector2(0.65, 1.45)
+			squash = Vector2(1.35, 0.7)
 	velocity.y = minf(velocity.y + GRAV * dt, 280.0)
 
 
@@ -237,9 +265,12 @@ func take_hit(dmg: int, from_dir: int, how: String = "arrow") -> void:
 	knock = kd * 110.0
 	velocity.y = -120.0
 	squash = Vector2(1.8, 0.35) if how == "stomp" else Vector2(1.45, 0.65)
+	prep = 0.0
 	Snd.play("pisoton" if how == "stomp" else "acierto")
 	Fx.hitstop(0.035)
-	Fx.burst(get_parent(), global_position + Vector2(0, -4), 6, [Pal.R, Pal.O, Pal.W], 60.0, 30.0, 0.4)
+	var col: Color = COL.get(kind, Pal.G)
+	Fx.hit(get_parent(), global_position + Vector2(-kd * 3.0, -4), Vector2(0, 1) if how == "stomp" else Vector2(kd, 0), Pal.W)
+	Fx.goo(get_parent(), global_position + Vector2(0, -4), 4, col, 70.0, global_position.y)
 	Fx.popup(get_parent(), global_position + Vector2(0, -12), "-%d" % dmg, Pal.W)
 
 
@@ -291,7 +322,19 @@ func _die(how: String, from_dir: int, crit: bool) -> void:
 	if how != "trap":
 		Snd.play("pisoton" if how == "stomp" else "acierto")
 	Snd.play("explotar", {"delay": 0.05, "vol": 0.9})
-	Fx.burst(get_parent(), global_position + Vector2(0, -4), 24 if crit else 14, cols, 120.0 if crit else 80.0, 50.0, 0.6, 260.0)
+	# revienta: estrella, gotas que vuelan y quedan como manchitas, charco y un anillo de su color
+	var col: Color = COL.get(kind, Pal.G)
+	var at := global_position + Vector2(0, -4)
+	Fx.hit(get_parent(), at, Vector2(0, 1) if how == "stomp" else Vector2(from_dir if from_dir != 0 else 1, -0.2), Pal.W, crit)
+	Fx.goo(get_parent(), at, 14 if crit else 9, col, 120.0 if crit else 85.0, global_position.y)
+	Fx.burst(get_parent(), at, 10 if crit else 6, cols, 120.0 if crit else 80.0, 50.0, 0.5, 260.0)
+	if crit:
+		Fx.ring(get_parent(), at, col, 0.0, 16.0, 1.0, 0.3)
+	Fx.shock(get_parent(), global_position, Pix.shade(col, 1), 12.0, 0.25)  # salpicón en el piso
+	if is_on_floor():
+		Fx.splat(get_parent(), global_position, col, 11.0 if how == "stomp" else 8.0)
+		if how == "stomp":
+			Fx.dust(get_parent(), global_position, 4, 30.0, 3.0, 1.6)
 	if game != null:
 		game.slime_killed(self, how, crit)
 	killed.emit()
@@ -300,12 +343,31 @@ func _die(how: String, from_dir: int, crit: bool) -> void:
 func _animate(dt: float) -> void:
 	var tt := Time.get_ticks_msec() / 1000.0
 	var fps := 12.0 if kind == "red" else 8.0
-	var f := 10 if stun > 0.0 else int(tt * fps + phase) % 8
+	var f := int(tt * fps + phase) % 8
+	if f == 6:
+		f = 5  # el parpadeo no va en cada vuelta: va aparte, cada tanto
+	blink_t -= dt
+	if blink_t <= 0.0:
+		blink_t = randf_range(1.8, 4.5)
+		blink = 0.12
+	if blink > 0.0:
+		blink -= dt
+		f = 6
+	land_t -= dt
+	if stun > 0.0:
+		f = 10
+	elif prep > 0.0 or land_t > 0.0:
+		f = 8   # agachado
+	elif not is_on_floor() and velocity.y < -20.0:
+		f = 9   # subiendo con la boca abierta
 	_set_frame(f)
 	sprite.flip_h = face < 0.0
-	squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 10.0))
+	var rest := Vector2(1.2, 0.82) if prep > 0.0 else Vector2.ONE
+	squash = squash.lerp(rest, minf(1.0, dt * 10.0))
 	sprite.scale = squash * 0.5
-	sprite.modulate = Color(3, 3, 3) if flash > 0.0 else (Color(0.75, 1.25, 0.6) if ven_t > 0.0 else Color.WHITE)
+	var white := flash > 0.0
+	sprite.material = Fx.silhouette(Color.WHITE) if white else null
+	sprite.modulate = Color.WHITE if white else (Color(0.75, 1.25, 0.6) if ven_t > 0.0 else Color.WHITE)
 
 
 func _set_frame(i: int) -> void:

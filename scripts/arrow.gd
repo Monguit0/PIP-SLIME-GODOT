@@ -85,8 +85,14 @@ func _physics_process(dt: float) -> void:
 	trail -= dt
 	if trail <= 0.0:
 		trail = 0.012 if power else 0.02
-		var c := Pal.L if venom else (Pal.C if randf() < 0.5 else Pal.W) if power else Pal.SS
-		Fx.part(get_parent(), global_position - Vector2(face * 4, 0), Vector2(-face * 20.0 if power else 0.0, randf_range(-8, 8) if power else 0.0), 0.0, 0.22 if power else 0.14, c)
+		var c := Pal.L if venom else (Pal.C if randf() < 0.5 else Pal.W) if power else Pal.S
+		var back := global_position - dir * 5.0
+		if power:  # estela de energía: rayitas que quedan atrás y se enfrían
+			Fx.streak(get_parent(), back + Vector2(0, randf_range(-1.5, 1.5)), -dir * 70.0 + Vector2(0, randf_range(-12, 12)), 0.2, c, 4.0)
+		else:
+			Fx.part(get_parent(), back, Vector2.ZERO, 0.0, 0.14, c)
+		if venom and randf() < 0.5:
+			Fx.part(get_parent(), back, Vector2(randf_range(-6, 6), 12), 60.0, 0.4, Pal.G, 1, 4)
 	# monedas al paso
 	for coin in get_tree().get_nodes_in_group("monedas"):
 		if coin.can_take() and absf(coin.global_position.x - global_position.x) < 5.0 and absf(coin.global_position.y - global_position.y) < 5.0:
@@ -137,24 +143,43 @@ func _on_area(a: Area2D) -> void:
 	if venom and enemy.has_method("apply_venom"):
 		enemy.call("apply_venom")
 	enemy.call("take_hit", dmg, face, "arrow")
+	# la estrella del golpe la pone el enemigo; la cargada además larga chispas celestes al atravesar
 	if power:
-		Fx.burst(get_parent(), global_position, 5, [Pal.C, Pal.W, Pal.O], 50.0, 20.0, 0.3, 200.0)
+		var at := global_position + vel.normalized() * TIP
+		Fx.burst(get_parent(), at, 5, [Pal.C, Pal.W, Pal.O], 60.0, 20.0, 0.3, 200.0)
+		Fx.twinkle(get_parent(), at, Pal.C, 4.0, 0.16)
 	else:
 		queue_free()
 
 
+## Flecha a medio píxel: palo de madera con luz arriba, plumas de dos tonos y punta de metal con brillo.
 func _draw() -> void:
-	var c := Color("e8e0c8") if not power else Color("bff0ff")
 	if stuck:
 		# vibra desde la punta, que quedó adentro (no se dibuja)
 		var w := sin(life * 70.0) * 0.22 * wobble
 		draw_set_transform(Vector2(TIP, 0), w, Vector2.ONE)
-		draw_line(Vector2(-5 - TIP, 0), Vector2(0, 0), Color("8a5a2b"), 1.0)
-		draw_rect(Rect2(-6 - TIP, -1, 2, 2), Pal.L if venom else Color("d9473f"))
+		_body(-TIP, false)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return
-	draw_line(Vector2(-5, 0), Vector2(3, 0), Color("8a5a2b"), 1.0)
-	draw_rect(Rect2(3, -1, 2, 2), c)
-	draw_rect(Rect2(-6, -1, 2, 2), Pal.L if venom else Color("d9473f"))
+	_body(0.0, true)
+
+
+func _body(ox: float, head: bool) -> void:
+	var fl := Pal.L if venom else Color("d9473f")
+	var fl_dk := Pal.G if venom else Color("8a2430")
+	draw_rect(Rect2(ox - 5.0, -0.5, 8.0, 0.5), Color("c08a4a"))  # palo: luz arriba
+	draw_rect(Rect2(ox - 5.0, 0.0, 8.0, 0.5), Color("6b4220"))
+	draw_rect(Rect2(ox - 6.5, -1.5, 1.5, 0.5), fl)  # plumas
+	draw_rect(Rect2(ox - 6.0, -1.0, 2.0, 0.5), fl)
+	draw_rect(Rect2(ox - 6.0, 0.5, 2.0, 0.5), fl_dk)
+	draw_rect(Rect2(ox - 6.5, 1.0, 1.5, 0.5), fl_dk)
 	if venom:
-		draw_rect(Rect2(-1, -1, 4, 0.5), Pal.L)
+		draw_rect(Rect2(ox - 1.0, -1.0, 3.0, 0.5), Pal.L)  # gota de veneno en el palo
+	if not head:
+		return
+	var m := Pal.RAMP_C if power else Pal.RAMP_S
+	draw_rect(Rect2(3.0, -1.0, 1.0, 2.0), m[1])  # punta: base, filo y brillo
+	draw_rect(Rect2(3.0, -1.0, 1.0, 0.5), m[3])
+	draw_rect(Rect2(4.0, -0.5, 1.0, 1.0), m[2])
+	draw_rect(Rect2(4.0, -0.5, 0.5, 0.5), m[4])
+	draw_rect(Rect2(5.0, -0.5, 0.5, 0.5), m[3])

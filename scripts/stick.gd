@@ -40,9 +40,15 @@ static func gate_lift(body: Object) -> float:
 	return roundf(float(art.get("open")) * 44.0)
 
 
-## Polvo y astillas donde pega: tierra en el piso, piedra en las paredes, chispas en el portón.
+## Polvo y astillas donde pega: un bollito de tierra y piedritas en el piso y las paredes, chispas
+## doradas en el portón.
 static func dust(parent: Node, at: Vector2, normal: Vector2, body: Object) -> void:
-	var cols: Array = [Pal.SS, Pal.S, Color("c8b090")]
-	if body != null and body.has_meta("gate_art"):
-		cols = [Pal.Y, Pal.W, Pal.S]
-	Fx.burst(parent, at + normal, 4, cols, 35.0, 20.0, 0.3, 160.0)
+	if body != null and is_instance_valid(body) and body.has_meta("gate_art"):
+		Fx.burst(parent, at + normal, 4, [Pal.Y, Pal.W], 55.0, 20.0, 0.25, 200.0)
+		Fx.twinkle(parent, at + normal, Pal.Y, 3.0, 0.14)
+		return
+	var floor_hit := normal.y < -0.5
+	var side := normal.x if absf(normal.x) > 0.5 else 0.0
+	var earth := Color("c8b090")
+	Fx.dust(parent, at + normal * 1.5, 2, 12.0, 5.0 if floor_hit else 2.0, 1.3, earth if floor_hit else Pal.S, side)
+	Fx.chunks(parent, at + normal, 3, [Pal.SS, Pal.S, earth], 45.0, 15.0, at.y if floor_hit else 127.0, 0.5, 0.45)

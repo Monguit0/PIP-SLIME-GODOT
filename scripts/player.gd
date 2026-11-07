@@ -72,6 +72,8 @@ var venom := false          # veneno prendido (gasta energía)
 var cure_used := false      # la poción, una vez por zona
 var flash_t := 0.0
 var dust_t := 0.0
+var skid_t := 0.0
+var chg_fx := 0.0           # chispitas que se juntan en el arco mientras carga
 
 
 func has_card(id: String) -> bool:
@@ -232,7 +234,7 @@ func _physics_process(dt: float) -> void:
 			jump_cut = false
 			squash = Vector2(0.7, 1.35)
 			Snd.play("salto")
-			Fx.burst(get_parent(), global_position, 5, [Pal.S, Pal.W], 30.0, 10.0, 0.3, 120.0)
+			Fx.dust(get_parent(), global_position, 4, 26.0, 5.0, 1.6)
 	elif buffer > 0.0 and not is_on_floor() and not double_jumped and not dashing:
 		double_jumped = true
 		velocity.y = -JUMP * DJ
@@ -241,9 +243,12 @@ func _physics_process(dt: float) -> void:
 		charge = -1.0
 		squash = Vector2(0.75, 1.3)
 		Snd.play("salto", {"rate": 1.35})
-		for i in 8:  # abanico de aire bajo los pies
-			var a := PI * (0.15 + 0.7 * i / 7.0)
-			Fx.part(get_parent(), global_position, Vector2(cos(a) * 55.0, sin(a) * 18.0 + 10.0), 0.0, 0.25, Pal.W if i % 2 == 1 else Pal.C)
+		# anillo de aire aplastado bajo los pies y unas estelas que bajan
+		Fx.ring(get_parent(), global_position + Vector2(0, 1), Pal.C, 0.0, 9.0, 0.3, 0.24)
+		Fx.ring(get_parent(), global_position + Vector2(0, 3), Pal.W, -0.04, 6.0, 0.3, 0.2)
+		for i in 4:
+			var a := PI * (0.25 + 0.5 * i / 3.0)
+			Fx.streak(get_parent(), global_position + Vector2(0, 1), Vector2(cos(a) * 70.0, sin(a) * 90.0), 0.16, Pal.W if i % 2 == 1 else Pal.C, 4.0)
 	if not jump_held and velocity.y < -60.0 and not jump_cut:
 		velocity.y *= 0.45
 		jump_cut = true
@@ -269,14 +274,23 @@ func _physics_process(dt: float) -> void:
 		if not was_floor and fall_speed > 140.0:
 			var k := minf(1.0, (fall_speed - 140.0) / 130.0)
 			squash = Vector2(1.1 + 0.4 * k, 0.92 - 0.32 * k)
-			Fx.burst(get_parent(), global_position, 4 + roundi(4 * k), [Pal.S, Pal.W, Pal.SS], 45.0, 8.0, 0.35, 150.0)
+			Fx.dust(get_parent(), global_position, 2 + roundi(4 * k), 22.0 + 30.0 * k, 3.0, 1.4 + 1.0 * k)
+			if k > 0.55:
+				Fx.shock(get_parent(), global_position, Pal.S, 10.0 + 6.0 * k, 0.25)
+				Fx.chunks(get_parent(), global_position, 2, [Pal.S, Pal.SS], 40.0, 30.0, global_position.y)
 			Snd.play("aterrizar", {"vol": 0.5 + 0.5 * k})
-		# polvito al correr
+		# polvito al correr (al pisar) y derrape al dar la vuelta corriendo
 		if absf(velocity.x) > 60.0:
 			dust_t -= dt
 			if dust_t <= 0.0:
-				dust_t = 0.13
-				Fx.part(get_parent(), global_position + Vector2(-face * 4, -1), Vector2(-face * 12, -12), 0.0, 0.28, Pal.SS)
+				dust_t = 0.16
+				Fx.dust(get_parent(), global_position + Vector2(-face * 3, 0), 1, 14.0, 7.0, 1.2, Pal.S, -signf(velocity.x))
+		if dir != 0 and signf(velocity.x) == -dir and absf(velocity.x) > 50.0:
+			skid_t -= dt
+			if skid_t <= 0.0:
+				skid_t = 0.05
+				Fx.dust(get_parent(), global_position + Vector2(signf(velocity.x) * 3.0, 0), 1, 20.0, 5.0, 1.5, Pal.S, signf(velocity.x))
+				squash = Vector2(1.08, 0.94)
 
 	_attack(dt)
 	_animate(dt)
@@ -322,7 +336,10 @@ func _special(_dt: float, pressed: bool) -> void:
 	jump_cut = true
 	squash = Vector2(1.35, 0.75)
 	Snd.play("dash")
-	Fx.burst(get_parent(), global_position + Vector2(-face * 4, -7), 6, [Pal.C, Pal.W, Pal.B], 50.0, 10.0, 0.25, 0.0)
+	Fx.kick(Vector2(face, 0), 1.0)
+	Fx.ring(get_parent(), global_position + Vector2(-face * 4, -8), Pal.C, 0.0, 8.0, 1.0, 0.2)
+	if is_on_floor():
+		Fx.dust(get_parent(), global_position + Vector2(-face * 3, 0), 3, 30.0, 6.0, 1.8, Pal.S, -face)
 
 
 func no_energy() -> void:
@@ -347,6 +364,7 @@ func _venom_step(dt: float, pressed: bool) -> void:
 			Fx.popup(get_parent(), global_position + Vector2(0, -24), "VENENO", Pal.L)
 			squash = Vector2(0.85, 1.15)
 			Fx.burst(get_parent(), global_position + Vector2(0, -9), 10, [Pal.L, Pal.G, Pal.W], 60.0, 20.0, 0.35, 0.0)
+			Fx.ring(get_parent(), global_position + Vector2(0, -9), Pal.L, 0.0, 12.0, 1.0, 0.3)
 	if venom:
 		energy -= 16.0 * dt
 		energy_delay = maxf(energy_delay, EN_DELAY)
@@ -369,8 +387,21 @@ func _attack(dt: float) -> void:
 			charge += dt
 			if was < CHG_ON and charge >= CHG_ON:
 				Snd.play("menu", {"rate": 0.75, "vol": 0.3, "vary": false})
+			var bow_at := global_position + Vector2(face * 9, -11)
 			if was < chg_full() and charge >= chg_full():
 				Snd.play("cargado", {"vary": false})
+				Fx.twinkle(get_parent(), bow_at, Pal.C, 6.0, 0.3)
+				Fx.ring(get_parent(), bow_at, Pal.C, 0.0, 9.0, 1.0, 0.22)
+			# chispitas que se juntan en el arco mientras tensa; cargado, alguna que se escapa
+			if charge >= CHG_ON:
+				chg_fx -= dt
+				if chg_fx <= 0.0:
+					var full := charge >= chg_full()
+					chg_fx = 0.09 if full else 0.035
+					if full:
+						Fx.part(get_parent(), bow_at + Vector2(randf_range(-2, 2), randf_range(-3, 3)), Vector2(randf_range(-8, 8), -22), -30.0, 0.35, Pal.C)
+					else:
+						Fx.converge(get_parent(), bow_at, 9.0 + randf() * 5.0, Pal.C if randf() < 0.6 else Pal.W, 0.18)
 		else:
 			if charge >= chg_full():
 				_shoot(true)
@@ -413,7 +444,10 @@ func _shoot(power: bool) -> void:
 		squash = Vector2(1.12, 0.92)  # pequeño retroceso al soltar
 		velocity.x -= face * 34.0
 		Snd.play("disparo")
-		Fx.burst(get_parent(), a.global_position, 3, [Pal.W, Pal.S], 25.0, 0.0, 0.16, 0.0)
+		Fx.kick(Vector2(-face, 0), 0.6)
+		Fx.twinkle(get_parent(), a.global_position + Vector2(face * 2, 0), Pal.W, 2.5, 0.12)
+		Fx.streak(get_parent(), a.global_position, Vector2(face * 120.0, -15.0), 0.1, Pal.W, 3.0)
+		Fx.streak(get_parent(), a.global_position, Vector2(face * 120.0, 15.0), 0.1, Pal.W, 3.0)
 		if evo:  # la ballesta del Cazador tira dos seguidas
 			_arrow(false, 0.0, 0.09)
 			Snd.play("disparo", {"delay": 0.09, "rate": 1.1})
@@ -426,7 +460,11 @@ func _shoot(power: bool) -> void:
 		Snd.play("poder")
 		Snd.play("disparo", {"rate": 0.7, "vol": 0.8})
 		Fx.shake(2.0, 0.12)
-		Fx.burst(get_parent(), a.global_position, 8, [Pal.C, Pal.W, Pal.B], 70.0, 0.0, 0.25, 0.0)
+		Fx.kick(Vector2(-face, 0), 1.8)
+		Fx.hit(get_parent(), a.global_position + Vector2(face * 2, 0), Vector2(face, 0), Pal.C, true)
+		Fx.ring(get_parent(), a.global_position, Pal.C, 0.0, 10.0, 1.0, 0.25)
+		if is_on_floor():
+			Fx.dust(get_parent(), global_position, 3, 30.0, 4.0, 1.6, Pal.S, -face)
 
 
 func _drop() -> void:
@@ -467,7 +505,9 @@ func hurt(from_x: float, amount: int = 1) -> bool:
 	Fx.hitstop(0.09)
 	Fx.shake(5.0, 0.28)
 	Fx.flash_red = 0.18
-	Fx.burst(get_parent(), global_position + Vector2(0, -9), 10, [Pal.R, Pal.O, Pal.W], 70.0, 40.0, 0.5, 200.0)
+	Fx.kick(Vector2(dir, 0), 2.5)
+	Fx.hit(get_parent(), global_position + Vector2(-dir * 3.0, -10), Vector2(dir, -0.3), Pal.R, true)
+	Fx.burst(get_parent(), global_position + Vector2(0, -9), 8, [Pal.R, Pal.O, Pal.W], 80.0, 40.0, 0.45, 220.0)
 	hearts_changed.emit()
 	if hearts <= 0:
 		dead = true
@@ -487,8 +527,11 @@ func _try_cure() -> void:
 	hearts_changed.emit()
 	Snd.play("moneda", {"rate": 0.7, "vary": false})
 	Snd.play("oleada", {"rate": 1.6, "vol": 0.5, "vary": false})
-	Fx.popup(get_parent(), global_position + Vector2(0, -24), "¡POCIÓN!", Pal.L)
+	Fx.popup(get_parent(), global_position + Vector2(0, -24), "¡POCIÓN!", Pal.L, true)
 	Fx.burst(get_parent(), global_position + Vector2(0, -9), 14, [Pal.L, Pal.G, Pal.W], 60.0, 40.0, 0.6, 60.0)
+	Fx.ring(get_parent(), global_position + Vector2(0, -9), Pal.L, 0.0, 16.0)
+	for i in 6:
+		Fx.part(get_parent(), global_position + Vector2(randf_range(-6, 6), -randf_range(2, 16)), Vector2(0, -25), -20.0, 0.6, Pal.L)
 
 
 ## ¡Evolución! Ahora es Cazador: vida llena, dos flechas por disparo y veneno con el botón de poder.
@@ -500,7 +543,7 @@ func evolve() -> void:
 	charge = -1.0
 	flash_t = 0.2
 	squash = Vector2(0.6, 1.5)
-	Fx.popup(get_parent(), global_position + Vector2(0, -26), "CAZADOR", Pal.Y)
+	Fx.popup(get_parent(), global_position + Vector2(0, -26), "CAZADOR", Pal.Y, true)
 	Snd.play("oleada", {"vary": false})
 	Snd.play("critico", {"rate": 1.2, "vary": false})
 	Snd.play("oleada", {"delay": 0.25, "rate": 1.26, "vary": false})
@@ -509,7 +552,10 @@ func evolve() -> void:
 	Fx.shake(3.0, 0.3)
 	Fx.burst(get_parent(), global_position + Vector2(0, -9), 30, [Pal.Y, Pal.W, Pal.C, Pal.O], 140.0, 60.0, 0.9, 60.0)
 	for i in 3:
-		Fx.ring(get_parent(), global_position + Vector2(0, -9), [Pal.W, Pal.Y, Pal.C][i], -0.1 * i)
+		Fx.ring(get_parent(), global_position + Vector2(0, -9), [Pal.W, Pal.Y, Pal.C][i], -0.1 * i, 26.0 + 6.0 * i)
+	Fx.shock(get_parent(), global_position, Pal.Y, 30.0, 0.45)
+	for i in 5:
+		Fx.twinkle(get_parent(), global_position + Vector2(randf_range(-12, 12), -randf_range(4, 26)), Pal.Y, randf_range(3.0, 5.0), 0.3 + 0.06 * i)
 
 
 ## Rebote al pisarle el yelmo al jefe.
@@ -523,6 +569,7 @@ func boss_bounce() -> void:
 	air_dash = false
 	squash = Vector2(0.8, 1.25)
 	Snd.play("pisoton", {"rate": 0.8})
+	Fx.ring(get_parent(), global_position, Pal.W, 0.0, 8.0, 0.35, 0.2)
 
 
 ## Rebote al pisar un slime.
@@ -568,6 +615,8 @@ func _animate(dt: float) -> void:
 			sprite.play("release")
 	elif sprite.animation != anim or (not sprite.is_playing() and anim in ["idle", "run", "fall"]):
 		sprite.play(anim)
+	# el ciclo de correr va con la velocidad (sin patinar al arrancar o frenar)
+	sprite.speed_scale = clampf(absf(velocity.x) / SPEED, 0.55, 1.3) if sprite.animation == "run" else 1.0
 	squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 12.0))
 	# respiración al apuntar: el cuerpo sube y baja y se ensancha apenas, además de la capa del loop
 	var breath := Vector2.ONE
@@ -588,15 +637,23 @@ func _animate(dt: float) -> void:
 		m.a = 0.3
 	elif charge >= chg_full() and int(charge * 16.0) % 2 == 0:
 		m = Color(1.6, 1.6, 1.8)
-	if flash_t > 0.0:
-		m = Color(3, 3, 3)
+	# destello: la silueta entera en blanco (como el pixel art de antes), no un brillo lavado
+	var white := flash_t > 0.0
+	if white:
+		m = Color.WHITE
+	sprite.material = Fx.silhouette(Color.WHITE) if white else null
+	bow.material = sprite.material
 	if dead and not has.call("death"):
 		m = Color(0.6, 0.6, 0.6)
 		sprite.rotation = lerpf(sprite.rotation, PI / 2.0 * -face, dt * 6.0)
 	sprite.modulate = m
 	bow.modulate = m
-	if dash_t > 0.0 and Engine.get_physics_frames() % 2 == 0:
-		Fx.afterimage(get_parent(), sprite)
+	if dash_t > 0.0:
+		var fr := Engine.get_physics_frames()
+		if fr % 2 == 0:
+			Fx.afterimage(get_parent(), sprite, Pal.C if fr % 4 == 0 else Pal.B)
+		Fx.streak(get_parent(), global_position + Vector2(-face * randf_range(2, 8), -randf_range(2, 17)),
+			Vector2(-face * 200.0, 0), 0.12, Pal.W if randf() < 0.4 else Pal.C, 7.0)
 	# Cazador: chispitas doradas de vez en cuando; con veneno, gotitas verdes
 	if evo and not dead and randf() < 0.08:
 		Fx.part(get_parent(), global_position + Vector2(randf_range(-5, 5), -randf_range(4, 18)), Vector2(0, -14), -10.0, 0.4, Pal.Y if randf() < 0.6 else Pal.W)

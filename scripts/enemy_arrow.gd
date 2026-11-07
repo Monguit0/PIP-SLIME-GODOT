@@ -68,20 +68,34 @@ func _physics_process(dt: float) -> void:
 	var p: Player = game.player if game != null else null
 	if p != null and not p.dead and p.box().has_point(global_position + Vector2(face * 2.0, 0)):
 		if p.hurt(global_position.x - face * 10.0):
-			Fx.burst(get_parent(), global_position, 5, [Pal.W, Pal.L], 50.0, 20.0, 0.3)
+			Fx.burst(get_parent(), global_position, 4, [Pal.L, Pal.W], 60.0, 20.0, 0.25, 200.0)
 			queue_free()
 			return
 
 
+## A medio píxel como la de Pip: palo viejo, plumas grises y punta con brillo verde (los ojos del esqueleto).
 func _draw() -> void:
 	if stuck:
 		# la punta quedó adentro: se ve el palo vibrando desde ahí
 		var w := sin(life * 70.0) * 0.22 * wobble
 		draw_set_transform(Vector2(TIP, 0), w, Vector2.ONE)
-		draw_line(Vector2(-5 - TIP, 0), Vector2(0, 0), Color("6b5a3a"), 1.0)
-		draw_rect(Rect2(-6 - TIP, -1, 2, 2), Pal.SS)
+		_body(-TIP, false)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return
-	draw_line(Vector2(-5, 0), Vector2(3, 0), Color("6b5a3a"), 1.0)
-	draw_rect(Rect2(3, -1, 2, 2), Pal.L)  # punta con brillo verde, como los ojos del esqueleto
-	draw_rect(Rect2(-6, -1, 2, 2), Pal.SS)
+	_body(0.0, true)
+
+
+func _body(ox: float, head: bool) -> void:
+	draw_rect(Rect2(ox - 5.0, -0.5, 8.0, 0.5), Color("8f7a50"))
+	draw_rect(Rect2(ox - 5.0, 0.0, 8.0, 0.5), Color("4f4128"))
+	draw_rect(Rect2(ox - 6.5, -1.5, 1.5, 0.5), Pal.S)
+	draw_rect(Rect2(ox - 6.0, -1.0, 2.0, 0.5), Pal.S)
+	draw_rect(Rect2(ox - 6.0, 0.5, 2.0, 0.5), Pal.SS)
+	draw_rect(Rect2(ox - 6.5, 1.0, 1.5, 0.5), Pal.SS)
+	if not head:
+		return
+	draw_rect(Rect2(3.0, -1.0, 1.0, 2.0), Pal.RAMP_L[0])
+	draw_rect(Rect2(3.0, -1.0, 1.0, 0.5), Pal.RAMP_L[2])
+	draw_rect(Rect2(4.0, -0.5, 1.0, 1.0), Pal.RAMP_L[1])
+	draw_rect(Rect2(4.0, -0.5, 0.5, 0.5), Pal.RAMP_L[4])
+	draw_rect(Rect2(5.0, -0.5, 0.5, 0.5), Pal.RAMP_L[2])

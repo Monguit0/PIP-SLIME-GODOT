@@ -270,10 +270,13 @@ func damage(dmg: int, hx: float, hy: float, force: bool = false, no_crit: bool =
 	var at := Vector2(hx, hy)
 	if crit:
 		Fx.crit(get_parent(), at)
+	elif no_crit:  # el veneno: solo unas gotitas verdes
+		Fx.burst(get_parent(), at, 4, [Pal.L, Pal.G], 50.0, 20.0, 0.3, 120.0)
 	else:
 		Fx.hitstop(0.03)
-		Fx.burst(get_parent(), at, 7, [Pal.Y, Pal.W, Pal.S], 70.0, 20.0, 0.35, 240.0)
-	Fx.popup(get_parent(), at + Vector2(0, -6), "-%d" % total, Pal.Y if crit else Pal.W)
+		Fx.hit(get_parent(), at, Vector2(kick_dir, 0.0) if hy > y + 2.0 else Vector2(0, 1), Pal.Y)
+		Fx.burst(get_parent(), at, 5, [Pal.Y, Pal.W, Pal.S], 80.0, 20.0, 0.3, 240.0)
+	Fx.popup(get_parent(), at + Vector2(0, -6), "-%d" % total, Pal.Y if crit else Pal.W, crit)
 	if hp <= 0:
 		_die()
 	elif phase == 1 and hp <= max_hp / 2.0:
@@ -296,7 +299,11 @@ func _enrage() -> void:
 	Fx.flash_red = 0.3
 	Fx.shake(4.0, 0.5)
 	Fx.burst(get_parent(), Vector2(cx(), y + 10), 30, [Pal.R, Pal.O, Pal.Y], 140.0, 40.0, 0.8, 120.0)
-	Fx.ring(get_parent(), Vector2(cx(), y + 12), Pal.R)
+	Fx.ring(get_parent(), Vector2(cx(), y + 12), Pal.R, 0.0, 34.0)
+	Fx.shock(get_parent(), Vector2(cx(), GROUND), Pal.O, 44.0, 0.45)
+	Fx.dust(get_parent(), Vector2(cx(), GROUND), 6, 60.0, 5.0, 3.0)
+	for i in 10:
+		Fx.part(get_parent(), Vector2(cx() + randf_range(-10, 10), y + randf_range(4, 30)), Vector2(randf_range(-20, 20), -40.0 - randf() * 30.0), -30.0, 0.8, Pal.O if randf() < 0.5 else Pal.Y)
 
 
 ## Tercera fase: el casco sale volando en pedazos.
@@ -312,17 +319,20 @@ func _final_rage() -> void:
 	Snd.play("rugido", {"rate": 1.3, "vary": false})
 	Snd.play("metal", {"rate": 0.7, "vary": false})
 	Snd.play("clavar", {"rate": 0.6, "vary": false})
+	# el yelmo vuela en pedazos de metal que rebotan en el piso
+	Fx.hit(get_parent(), Vector2(cx() + face * 2.0, y + 6), Vector2(-face, -0.6), Pal.W, true)
 	for i in 18:
 		var c: Color = [Pal.SS, Pal.S, Pal.W, Pal.D][i % 4]
 		Fx.part(get_parent(), Vector2(cx() + randf_range(-5, 5), y + 4 + randf_range(-3, 3)),
-			Vector2(randf_range(-80, 80) - face * 40.0, -120.0 - randf() * 120.0), 420.0, 0.9, c, 1 if i % 3 != 0 else 2)
+			Vector2(randf_range(-80, 80) - face * 40.0, -120.0 - randf() * 120.0), 420.0, 0.9, c, 1 if i % 3 != 0 else 3, 3)
 	Snd.duck()
 	Fx.hitstop(0.3)
 	Fx.flash_red = 0.35
 	Fx.shake(5.0, 0.6)
 	Fx.burst(get_parent(), Vector2(cx(), y + 10), 36, [Pal.R, Pal.O, Pal.Y, Pal.W], 160.0, 40.0, 0.9, 120.0)
-	Fx.ring(get_parent(), Vector2(cx(), y + 12), Pal.R)
-	Fx.ring(get_parent(), Vector2(cx(), y + 12), Pal.Y, -0.1)
+	Fx.ring(get_parent(), Vector2(cx(), y + 12), Pal.R, 0.0, 34.0)
+	Fx.ring(get_parent(), Vector2(cx(), y + 12), Pal.Y, -0.1, 28.0)
+	Fx.shock(get_parent(), Vector2(cx(), GROUND), Pal.R, 50.0, 0.5)
 
 
 func _die() -> void:
@@ -394,6 +404,7 @@ func _physics_process(dt: float) -> void:
 			angle = _lerp(40.0, -90.0, t / 0.4)
 			if t < 1.0:
 				Fx.shake(2.0, 0.05)
+			_roar_rings(dt)
 			if t > 1.6:
 				_to("idle")
 				idle_dur = 0.6
@@ -442,6 +453,7 @@ func _physics_process(dt: float) -> void:
 			angle = _lerp(angle, -90.0, dt * 6.0)
 			crouch = 0.0
 			Fx.shake(3.0, 0.05)
+			_roar_rings(dt)
 			if t > 1.4:
 				_to("idle")
 				idle_dur = 0.2
@@ -510,8 +522,8 @@ func _combo_next() -> void:
 	Snd.play("alerta", {"rate": 0.95, "vary": false})
 	Snd.play("alerta", {"rate": 1.2, "delay": 0.08, "vary": false})
 	flash = 0.06
-	Fx.ring(get_parent(), Vector2(cx(), y + 14), Pal.Y, 0.15)
-	Fx.popup(get_parent(), Vector2(cx(), y - 8), "¡COMBO!", Pal.O)
+	Fx.ring(get_parent(), Vector2(cx(), y + 14), Pal.Y, 0.15, 30.0)
+	Fx.popup(get_parent(), Vector2(cx(), y - 8), "¡COMBO!", Pal.O, true)
 
 
 ## Aviso: la espada brilla, junta chispas y toma la pose del ataque.
@@ -520,10 +532,7 @@ func _tele(dt: float, tm: float) -> void:
 	var k := t / dur
 	glow = true
 	if randf() < 0.6:
-		var tip := sword_tip()
-		var a := randf() * TAU
-		var r := 14.0 + randf() * 8.0
-		Fx.part(get_parent(), tip + Vector2(cos(a), sin(a)) * r, -Vector2(cos(a), sin(a)) * r * 4.0, 0.0, 0.22, Pal.C if randf() < 0.5 else Pal.W)
+		Fx.converge(get_parent(), sword_tip(), 14.0 + randf() * 8.0, Pal.C if randf() < 0.5 else Pal.W, 0.22)
 	match atk:
 		"sweep":
 			angle = _lerp(ang_from, -165.0, _ease_out(k * 1.3))
@@ -558,7 +567,9 @@ func _tele(dt: float, tm: float) -> void:
 				Snd.play("salto", {"rate": 0.5, "vary": false})
 				sx = 0.75
 				sy = 1.3
-				Fx.burst(get_parent(), Vector2(cx(), GROUND), 10, [Pal.SS, Pal.S], 70.0, 20.0, 0.4, 220.0)
+				Fx.burst(get_parent(), Vector2(cx(), GROUND), 6, [Pal.SS, Pal.S], 70.0, 20.0, 0.4, 220.0)
+				Fx.dust(get_parent(), Vector2(cx(), GROUND), 6, 50.0, 6.0, 2.8)
+				Fx.shock(get_parent(), Vector2(cx(), GROUND), Pal.S, 20.0, 0.3)
 			"charge":
 				vx = face * (285.0 if phase >= 2 else 240.0)
 				Snd.play("tajo", {"rate": 0.5, "vary": false})
@@ -583,7 +594,9 @@ func _act(dt: float) -> void:
 				Fx.shake(3.0, 0.18)
 				sx = 1.15
 				sy = 0.9
-				Fx.burst(get_parent(), Vector2(cx() + face * 32.0, GROUND), 14, [Pal.SS, Pal.S, Pal.W], 90.0, 30.0, 0.45, 240.0)
+				Fx.burst(get_parent(), Vector2(cx() + face * 32.0, GROUND), 8, [Pal.SS, Pal.S, Pal.W], 90.0, 30.0, 0.45, 240.0)
+				Fx.dust(get_parent(), Vector2(cx() + face * 30.0, GROUND), 5, 50.0, 4.0, 2.4, Pal.S, face)
+				Fx.kick(Vector2(face, 0), 1.5)
 				_slash_arc()
 			if t > 0.04 and t < 0.17 and game.state == "play":
 				var hb := Rect2(x + BW - 8, GROUND - 26, 48, 26) if face > 0 else Rect2(x + 8 - 48, GROUND - 26, 48, 26)
@@ -614,7 +627,10 @@ func _act(dt: float) -> void:
 			angle = 0.0
 			crouch = 1.0
 			if randf() < 0.6:
-				Fx.part(get_parent(), Vector2(cx() - face * 10.0, GROUND - 1), Vector2(-face * 30.0, -20.0), 100.0, 0.3, Pal.SS)
+				Fx.dust(get_parent(), Vector2(cx() - face * 8.0, GROUND), 1, 30.0, 8.0, randf_range(1.6, 2.6), Pal.S, -face)
+			if randf() < 0.7:
+				Fx.streak(get_parent(), Vector2(cx() - face * randf_range(6.0, 14.0), y + randf_range(4.0, BH - 4.0)),
+					Vector2(-face * 260.0, 0.0), 0.14, Pal.W if randf() < 0.4 else Pal.C, 10.0)
 			var wall := (face < 0 and x <= ARENA_MIN + 0.5) or (face > 0 and x >= ARENA_MAX - BW - 0.5)
 			if wall:
 				vx = 0.0
@@ -623,7 +639,12 @@ func _act(dt: float) -> void:
 				Snd.boom(0.8)
 				Fx.shake(5.0, 0.3)
 				Fx.hitstop(0.06)
-				Fx.burst(get_parent(), Vector2(ARENA_MAX if face > 0 else ARENA_MIN, GROUND - 16), 16, [Pal.SS, Pal.S, Pal.D, Pal.W], 90.0, 40.0, 0.6, 260.0)
+				Fx.kick(Vector2(face, 0), 3.0)
+				var wp := Vector2(ARENA_MAX if face > 0 else ARENA_MIN, GROUND - 16)
+				Fx.hit(get_parent(), wp, Vector2(-face, 0), Pal.W, true)
+				Fx.burst(get_parent(), wp, 12, [Pal.SS, Pal.S, Pal.D, Pal.W], 90.0, 40.0, 0.6, 260.0)
+				Fx.chunks(get_parent(), wp, 8, [Pal.SS, Pal.S, Pal.D], 110.0, 40.0)
+				Fx.dust(get_parent(), Vector2(wp.x, GROUND), 4, 30.0, 4.0, 2.6, Pal.S, -face)
 				sx = 0.7
 				sy = 1.1
 				if rep > 1:
@@ -637,7 +658,7 @@ func _act(dt: float) -> void:
 				else:
 					quick = false
 					_to("stun")
-					Fx.popup(get_parent(), Vector2(cx(), y - 6), "¡MAREADO!", Pal.Y)
+					Fx.popup(get_parent(), Vector2(cx(), y - 6), "¡MAREADO!", Pal.Y, true)
 		"rain":
 			angle = -90.0
 			if t > 0.9:
@@ -656,7 +677,8 @@ func _order() -> void:
 	order_t = 0.1
 	sx = 0.92
 	sy = 1.1
-	Fx.ring(get_parent(), sword_tip(), Pal.C)
+	Fx.ring(get_parent(), sword_tip(), Pal.C, 0.0, 18.0, 1.0, 0.3)
+	Fx.twinkle(get_parent(), sword_tip(), Pal.C, 9.0, 0.35)
 
 
 ## Lluvia de espadas: todo el salón menos un hueco de dos lugares.
@@ -681,8 +703,11 @@ func _slam_fx(px: float, mag: float, waves: bool) -> void:
 	Snd.play("explotar", {"rate": 0.5, "vary": false})
 	Fx.shake(mag, 0.4)
 	Fx.hitstop(0.05)
-	Fx.burst(get_parent(), Vector2(px, GROUND), 22, [Pal.SS, Pal.S, Pal.D, Pal.W], 110.0, 40.0, 0.6, 260.0)
-	Fx.ring(get_parent(), Vector2(px, GROUND), Pal.S)
+	Fx.burst(get_parent(), Vector2(px, GROUND), 12, [Pal.SS, Pal.S, Pal.D, Pal.W], 110.0, 40.0, 0.6, 260.0)
+	Fx.chunks(get_parent(), Vector2(px, GROUND - 1), 10, [Pal.SS, Pal.S, Pal.D], 130.0, 60.0)
+	Fx.dust(get_parent(), Vector2(px, GROUND), 10, 80.0, 5.0, 3.2)
+	Fx.shock(get_parent(), Vector2(px, GROUND), Pal.W, 46.0, 0.4)
+	Fx.shock(get_parent(), Vector2(px, GROUND - 1), Pal.S, 30.0, 0.5)
 	if waves:
 		var spd := 190.0 if phase >= 2 else 150.0
 		_wave(px - 10.0, -1, spd)
@@ -704,13 +729,23 @@ func _wave(px: float, d: int, spd: float) -> void:
 	get_parent().add_child(w)
 
 
-## Arco de la espada al barrer (unas chispas en semicírculo adelante).
+## Arco de la espada al barrer: media luna con filo blanco, y chispas que salen de la punta.
 func _slash_arc() -> void:
 	var h := hand()
-	for i in 12:
-		var a := deg_to_rad(lerpf(-150.0, 40.0, i / 11.0))
+	Fx.slash(get_parent(), h, SWORD_LEN + 2.0, -160.0, 45.0, face, Pal.C, 8.0, 0.18)
+	for i in 6:
+		var a := deg_to_rad(lerpf(-120.0, 40.0, i / 5.0))
 		var p := h + Vector2(cos(a) * face, sin(a)) * (SWORD_LEN + 2.0)
-		Fx.part(get_parent(), p, Vector2(cos(a) * face, sin(a)) * 40.0, 0.0, 0.18 + i * 0.01, Pal.W if i % 2 == 1 else Pal.C)
+		Fx.part(get_parent(), p, Vector2(-sin(a) * face, cos(a)) * 90.0, 0.0, 0.2, Pal.W if i % 2 == 1 else Pal.C)
+
+
+## Ondas que salen de la cabeza mientras ruge.
+func _roar_rings(dt: float) -> void:
+	for at in [0.42, 0.66, 0.9]:
+		if t >= at and t - dt < at:
+			var head_at := Vector2(cx() + face * 3.0, y + 8.0)
+			Fx.ring(get_parent(), head_at, Pal.W, 0.0, 40.0, 1.0, 0.45)
+			Fx.ring(get_parent(), head_at, Pal.R if phase >= 2 else Pal.S, -0.05, 30.0, 1.0, 0.4)
 
 
 func _dying(dt: float) -> void:
@@ -721,10 +756,10 @@ func _dying(dt: float) -> void:
 		boom_t = 0.16
 		var p := Vector2(x + 2 + randf() * (BW - 4), y + randf() * BH)
 		Snd.play("explotar", {"rate": 0.6 + randf() * 0.5})
-		Fx.burst(get_parent(), p, 12, [Pal.Y, Pal.O, Pal.R, Pal.W], 90.0, 20.0, 0.5, 120.0)
+		Fx.boom(get_parent(), p, randf_range(5.0, 8.0))
+		Fx.burst(get_parent(), p, 8, [Pal.Y, Pal.O, Pal.R, Pal.W], 100.0, 20.0, 0.5, 120.0)
 		Fx.shake(3.0, 0.15)
 		flash = 0.06
-		Fx.ring(get_parent(), p, Pal.O, 0.1)
 	if t > 2.4:
 		_to("gone")
 		# la espada queda clavada en el piso
@@ -740,11 +775,15 @@ func _dying(dt: float) -> void:
 		Fx.shake(7.0, 0.6)
 		Fx.hitstop(0.1)
 		Fx.impact(c, 0.1)
-		Fx.burst(get_parent(), c, 50, [Pal.Y, Pal.O, Pal.R, Pal.W, Pal.S], 180.0, 50.0, 1.0, 160.0)
+		Fx.boom(get_parent(), c, 16.0)
+		Fx.chunks(get_parent(), c, 14, [Pal.SS, Pal.S, Pal.W, Pal.D], 160.0, 80.0, GROUND, 1.0, 1.1)
+		Fx.dust(get_parent(), Vector2(c.x, GROUND), 10, 90.0, 6.0, 3.5, Pal.S)
+		Fx.shock(get_parent(), Vector2(c.x, GROUND), Pal.Y, 70.0, 0.6)
+		Fx.burst(get_parent(), c, 40, [Pal.Y, Pal.O, Pal.R, Pal.W, Pal.S], 180.0, 50.0, 1.0, 160.0)
 		Fx.burst(get_parent(), c, 12, [Pal.Y, Pal.W], 110.0, 70.0, 1.2, 100.0, 2)
-		Fx.ring(get_parent(), c, Pal.W)
-		Fx.ring(get_parent(), c, Pal.Y, -0.08)
-		Fx.ring(get_parent(), c, Pal.O, -0.16)
+		Fx.ring(get_parent(), c, Pal.W, 0.0, 40.0, 1.0, 0.5)
+		Fx.ring(get_parent(), c, Pal.Y, -0.08, 34.0, 1.0, 0.5)
+		Fx.ring(get_parent(), c, Pal.O, -0.16, 28.0, 1.0, 0.5)
 		visible = false
 		game.boss_defeated(Vector2(cx(), y))
 
@@ -762,8 +801,10 @@ func _visuals(dt: float) -> void:
 	sprite.scale = Vector2(0.5 * sx * face, 0.5 * sy)
 	fist.scale = sprite.scale
 	var m := Color.WHITE
+	sprite.material = Fx.silhouette(Color.WHITE) if flash > 0.0 else null
+	fist.material = sprite.material
 	if flash > 0.0:
-		m = Color(3, 3, 3)
+		m = Color.WHITE
 	elif state == "stun":
 		m = Color(0.8, 0.8, 0.95)
 	elif phase >= 2 and active():
@@ -1006,8 +1047,14 @@ func _draw() -> void:
 		for i in 3:
 			var ang := clock * 5.0 + i * TAU / 3.0
 			var sp := hp0 + Vector2(cos(ang) * 8.0, sin(ang) * 2.5)
-			draw_rect(Rect2(roundf(sp.x * 2.0) / 2.0 - 0.5, roundf(sp.y * 2.0) / 2.0 - 0.5, 1, 1), Pal.Y)
-			draw_rect(Rect2(roundf(sp.x * 2.0) / 2.0 - 1.0, roundf(sp.y * 2.0) / 2.0 - 0.25, 2, 0.5), Pal.W)
+			var big := sin(ang) > 0.0  # adelante se ven más grandes
+			var cx0 := roundf(sp.x * 2.0) / 2.0
+			var cy0 := roundf(sp.y * 2.0) / 2.0
+			var arm := 1.5 if big else 1.0
+			draw_rect(Rect2(cx0 - arm, cy0, arm * 2.0 + 0.5, 0.5), Pal.Y)
+			draw_rect(Rect2(cx0, cy0 - arm, 0.5, arm * 2.0 + 0.5), Pal.Y)
+			draw_rect(Rect2(cx0 - 0.5, cy0 - 0.5, 1.5, 1.5), Pal.RAMP_Y[3] if big else Pal.Y)
+			draw_rect(Rect2(cx0, cy0, 0.5, 0.5), Pal.W)
 
 
 func _px(p: Vector2, c: Color) -> void:

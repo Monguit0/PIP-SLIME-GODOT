@@ -5,7 +5,8 @@ extends CharacterBody2D
 ## - hachero ("skaxe"): te persigue y, a menos de 24 px, levanta el hacha (0,38 s de aviso) y
 ##   pega un hachazo adelante. 4 de vida.
 ## Si no te ven (más de 200 px o a otra altura) patrullan su superficie. Se los puede pisar.
-## Cuadros HD de PixelLab en assets/sprites/skel/<arch|axe>/<anim>/, lienzo de 68x68 dibujado a la mitad.
+## Cuadros HD de PixelLab en assets/sprites/skel/<arch|axe>/<anim>/, lienzo de 68x68 dibujado a la mitad:
+## idle (respira, 9 cuadros en loop), walk, atk, hurt (se dobla con el golpe) y death.
 
 const GRAV := 900.0
 const DIR := "res://assets/sprites/skel/"
@@ -14,6 +15,7 @@ const FOOT_Y := 57.0  # fila de los pies en el lienzo
 const HP := {"skarch": 3, "skaxe": 4}
 const SPEED := {"skarch": 34.0, "skaxe": 42.0}
 const EnemyArrow := preload("res://scripts/enemy_arrow.gd")
+const BONE := [Color("e0d7b9"), Color("b5a98d"), Pal.S]  # huesitos que saltan
 
 var kind := "skarch"
 var zone := 0
@@ -107,7 +109,7 @@ func _ready() -> void:
 
 func _load_frames() -> void:
 	var folder := DIR + ("arch" if kind == "skarch" else "axe") + "/"
-	for anim in ["idle", "walk", "atk", "death"]:
+	for anim in ["idle", "walk", "atk", "hurt", "death"]:
 		var list: Array = []
 		var i := 0
 		while ResourceLoader.exists("%s%s/frame_%03d.png" % [folder, anim, i]):
@@ -140,7 +142,8 @@ func _physics_process(dt: float) -> void:
 		squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 10.0))
 		_apply_look()
 		var hold := maxf(0.6, n / 12.0 + 0.35)
-		sprite.modulate = Color(3, 3, 3) if flash > 0.0 else Color(1, 1, 1, 1.0 - clampf((dead_t - hold) / 0.35, 0.0, 1.0))
+		sprite.material = Fx.silhouette(Color.WHITE) if flash > 0.0 else null
+		sprite.modulate = Color.WHITE if flash > 0.0 else Color(1, 1, 1, 1.0 - clampf((dead_t - hold) / 0.35, 0.0, 1.0))
 		if dead_t > hold + 0.35:
 			queue_free()
 		return
@@ -153,6 +156,8 @@ func _physics_process(dt: float) -> void:
 		_apply_look()
 		if randf() < 0.4:
 			Fx.part(get_parent(), global_position + Vector2(randf_range(-5, 5), 0), Vector2(randf_range(-10, 10), -30), 120.0, 0.3, Pal.SS)
+		if randf() < 0.25:
+			Fx.chunks(get_parent(), global_position + Vector2(randf_range(-4, 4), 0), 1, [Pal.SS, Color("c8b090")], 40.0, 30.0, global_position.y, 0.5, 0.4)
 		return
 	sprite.position.y = 0.0
 	if ven_t > 0.0:
@@ -262,8 +267,13 @@ func _attacks(dt: float) -> void:
 				swing_hit = true
 				hero.hurt(global_position.x)
 		if swing_t >= 0.04 and swing_t - dt < 0.04:
-			Fx.burst(get_parent(), global_position + Vector2(face * 14.0, -1), 6, [Pal.S, Pal.W, Pal.SS], 60.0, 20.0, 0.3, 220.0)
-			Fx.shake(1.0, 0.08)
+			var at := global_position + Vector2(face * 14.0, 0)
+			Fx.slash(get_parent(), global_position + Vector2(face * 2.0, -12), 13.0, -110.0, 60.0, face, Pal.S, 4.0, 0.13)
+			Fx.dust(get_parent(), at, 3, 24.0, 4.0, 1.6)
+			Fx.chunks(get_parent(), at, 3, [Pal.SS, Pal.S], 50.0, 30.0, global_position.y, 0.5, 0.5)
+			Fx.shock(get_parent(), at, Pal.S, 9.0, 0.22)
+			Fx.part(get_parent(), at + Vector2(0, -1), Vector2(face * 60.0, -40.0), 200.0, 0.25, Pal.W)
+			Fx.shake(1.5, 0.1)
 	if shoot_t >= 0.0:
 		shoot_t += dt
 		if shoot_t >= 0.26 and not shot:
@@ -274,6 +284,7 @@ func _attacks(dt: float) -> void:
 			a.global_position = global_position + Vector2(face * 7.0, -11.0)
 			get_parent().add_child(a)
 			Snd.play("disparo", {"rate": 0.85, "vol": 0.6})
+			Fx.twinkle(get_parent(), a.global_position + Vector2(face * 2.0, 0), Pal.L, 2.5, 0.12)
 			velocity.x -= face * 25.0
 			squash = Vector2(0.85, 1.1)
 		if shoot_t >= 0.5:
@@ -322,7 +333,8 @@ func take_hit(dmg: int, from_dir: int, how: String = "arrow") -> void:
 	if how == "stomp":
 		Snd.play("pisoton")
 	Fx.hitstop(0.035)
-	Fx.burst(get_parent(), global_position + Vector2(0, -10), 6, [Pal.W, Pal.S, Pal.SS], 60.0, 30.0, 0.4)
+	Fx.hit(get_parent(), global_position + Vector2(-kd * 3.0, -11), Vector2(0, 1) if how == "stomp" else Vector2(kd, 0), Pal.W)
+	Fx.chunks(get_parent(), global_position + Vector2(0, -12), 3, BONE, 55.0, 40.0, global_position.y, 0.5, 0.5)
 	Fx.popup(get_parent(), global_position + Vector2(0, -24), "-%d" % (dmg * 3 if crit else dmg), Pal.W)
 
 
@@ -362,14 +374,21 @@ func _die(how: String, from_dir: int, crit: bool) -> void:
 	Fx.shake(2.0, 0.14)
 	Snd.play("huesos", {"rate": 1.1, "vol": 0.7})
 	Snd.play("explotar", {"delay": 0.05, "vol": 0.6, "rate": 1.3})
-	Fx.burst(get_parent(), global_position + Vector2(0, -10), 22 if crit else 14, [Pal.W, Pal.S, Pal.SS, Pal.L], 110.0 if crit else 75.0, 50.0, 0.6, 260.0)
+	# se desarma: estrella, huesitos que rebotan, polvo de tumba y el brillo verde que se escapa
+	var at := global_position + Vector2(0, -10)
+	Fx.hit(get_parent(), at, Vector2(0, 1) if how == "stomp" else Vector2(from_dir if from_dir != 0 else 1, -0.2), Pal.W, crit)
+	Fx.chunks(get_parent(), at, 12 if crit else 8, BONE, 110.0 if crit else 80.0, 60.0, global_position.y, 1.0, 0.9)
+	Fx.dust(get_parent(), global_position, 4, 22.0, 4.0, 2.0, Pal.SS)
+	for i in 4:
+		Fx.part(get_parent(), global_position + Vector2(randf_range(-4, 4), -randf_range(10, 18)), Vector2(randf_range(-8, 8), -30), -25.0, 0.6, Pal.L)
 	if game != null:
 		game.slime_killed(self, how, crit)
 
 
 func _animate(dt: float) -> void:
-	if stun > 0.0:
-		sprite.texture = _frame("walk", 0)
+	if stun > 0.0:  # se dobla con el golpe y se vuelve a parar
+		var hn: int = frames.get("hurt", []).size()
+		sprite.texture = _frame("hurt", int((1.0 - stun / 0.35) * hn)) if hn > 0 else _frame("walk", 0)
 	elif windup > 0.0:  # levanta el hacha
 		sprite.texture = _frame("atk", 1 if windup > 0.19 else 2)
 	elif swing_t < 0.3:  # hachazo al piso y la vuelve a subir
@@ -378,12 +397,13 @@ func _animate(dt: float) -> void:
 		sprite.texture = _frame("atk", int(shoot_t / 0.5 * 6.0))
 	elif absf(velocity.x) > 6.0:
 		sprite.texture = _frame("walk", int(anim_t * (10.0 if absf(velocity.x) > 25.0 else 7.0)) % maxi(1, frames.get("walk", []).size()))
-	else:
-		sprite.texture = _frame("idle", 0)
+	else:  # respira (cada uno a su ritmo)
+		sprite.texture = _frame("idle", int(anim_t * 9.0) % maxi(1, frames.get("idle", []).size()))
 	squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 10.0))
 	_apply_look()
+	sprite.material = Fx.silhouette(Color.WHITE) if flash > 0.0 else null
 	if flash > 0.0:
-		sprite.modulate = Color(3, 3, 3)
+		sprite.modulate = Color.WHITE
 	elif windup > 0.0 and int(windup * 30.0) % 2 == 0:
 		sprite.modulate = Color(1.6, 1.3, 1.3)
 	elif ven_t > 0.0:
