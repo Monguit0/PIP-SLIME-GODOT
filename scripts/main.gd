@@ -554,6 +554,7 @@ func _build_level() -> void:
 		var node := GateArt.new()
 		node.position = Vector2(gx, 0)
 		add_child(node)
+		door_body.set_meta("gate_art", node)  # las flechas clavadas en el portón suben con él
 		gates.append({"x": gx, "open": 0.0, "want": 0.0, "door": door_body.get_child(0), "node": node})
 
 

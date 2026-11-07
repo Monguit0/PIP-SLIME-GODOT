@@ -22,6 +22,9 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   como debajo del agua. Los efectos son los mismos sonidos jsfxr, con un poco de variación de tono.
 - **Pip arquero** con los números del juego web: doble salto, coyote time, salto corto, **dash** intangible, flecha
   normal y **flechazo cargado** (3 de daño, atraviesa). Máximo cuatro flechas en el aire.
+- **Las flechas se clavan** donde pegan (las de Pip y las del esqueleto): en el piso, en las paredes, en los portones
+  y en las plataformas si les caen desde arriba. La punta queda adentro, vibran un instante y quedan ahí un rato;
+  si el portón sube, la flecha sube con las rejas y se cae al llegar al arco.
 - **Críticos** (20%): triple daño, congelado, cámara lenta, zoom, cuadro de impacto en blanco y negro, ¡CRÍTICO!, bombo y chispas.
 - **Puntos y combo**: monedas seguidas suben el combo (y la nota, por la escala mayor); pisar slimes da más que flecharlos.
 - **Experiencia**: monedas, slimes y el jefe dan EXP; al llenar la barra Pip **evoluciona a Cazador**: vida llena,
@@ -32,8 +35,11 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   flechas rectas; el **hachero** te persigue, levanta el hacha (titila) y pega un hachazo adelante. Salen de la tierra,
   se pueden pisar o flechar y se desarman en una pila de huesos. Uno en la Pradera, tres en las Ruinas, cuatro en las Murallas.
 - **Flechas que caen** del cielo con aviso (más seguido en cada zona; de a tres en las murallas). Si le caen a un enemigo, lo aplastan.
-- **Mega Caballero** (animado con PixelLab: respira, camina, embiste corriendo, se marea, cae de rodillas, y en cada ataque
-  el brazo sigue a la espada, que se dibuja en código porque gira con cada ataque): cae del techo, ruge y
+- **Mega Caballero** (animado con PixelLab, en ciclos de 12 cuadros: respira, camina al paso de lo que avanza, embiste
+  corriendo, se marea, cae de rodillas, **ruge con el puño en alto** y **salta entero**: se agacha, despega, encoge las
+  piernas, levanta la espada, cae con todo y se levanta. En el barrido el brazo toma 19 poses según el ángulo de la espada).
+  La espada se dibuja en código porque gira con cada ataque, pero **se ve agarrada**: los dedos se dibujan encima del mango
+  y **pesa**: sigue al brazo con un resorte, se atrasa cuando el cuerpo acelera y se pasa un poco al frenar. Cae del techo, ruge y
   pelea con **barrido**, **salto con ondas de choque**, **embestida** (si choca contra la pared queda mareado y recibe 50% más
   de daño) y **lluvia de espadas** con un hueco para esquivar. Al 50% se enfurece (repite y encadena ataques) y al 25%
   **pierde el casco**. Se le pega con flechas o pisándole la cabeza. Al caer explota y su espada queda clavada en el piso.
@@ -47,14 +53,17 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
 - `scripts/pal.gd`: la paleta de 9 bits del original (`Pal.K`, `Pal.Y`...).
 - `scripts/boss.gd`: el Mega Caballero (`updateBoss`, `bossTele`, `bossAct`, `damageBoss` del original).
 - `scripts/skeleton.gd`: esqueleto arquero y hachero (`aiMob`, `mobShoot` y `mobSwing` del original); `scripts/enemy_arrow.gd` su flecha.
-- `scripts/coin.gd`, `scripts/hazard.gd` (flechas y espadas que caen), `scripts/wave.gd` (ondas de choque), `scripts/arrow.gd`.
+- `scripts/coin.gd`, `scripts/hazard.gd` (flechas y espadas que caen), `scripts/wave.gd` (ondas de choque), `scripts/arrow.gd`,
+  `scripts/stick.gd` (dónde se clavan las flechas).
 - `scripts/fx.gd` (autoload `Fx`: partículas, temblor, hitstop, cámara lenta, críticos), `scripts/snd.gd` (autoload `Snd`:
   efectos y música), `scripts/ptext.gd` (la fuente del original), `scripts/hud.gd`, `scripts/background.gd`.
 - `assets/audio/`: los sonidos (`sfx/`, WAV) y la música (`music/`, OGG, una vuelta de la canción por ánimo), exportados del juego web.
 - `assets/sprites/items/`: moneda, corazones, flecha y espada que caen, y los dibujos de las cartas (sacados del original).
 - `assets/sprites/boss/`: el Mega Caballero hecho con **PixelLab**, `helm/` con casco y `bare/` sin casco, cada uno con
-  `idle/`, `walk/`, `charge/`, `dazed/`, `arc/` (12 poses del brazo, de atrás de la cabeza hasta abajo) y `death/` (sin casco).
-  Lienzo de 144×144 con los pies en (72, 118); dónde está el puño en cada cuadro va en `HANDS`, arriba de `boss.gd`.
+  `idle/`, `walk/`, `charge/` (12 cuadros), `dazed/`, `death/`, `jump/` (14 cuadros del salto con espadazo), `roar/` y
+  `arc/` (19 poses del brazo, de atrás de la cabeza hasta adelante). Lienzo de 144×144 con los pies en (72, 118); dónde
+  está el puño en cada cuadro va en `HANDS` (y el ángulo de la espada de cada pose en `ANGS`), arriba de `boss.gd`.
+  Cada carpeta tiene además `fist.png`: el puño de cada cuadro recortado (14×14), que se dibuja encima del mango.
 - `assets/sprites/skel/`: los esqueletos de **PixelLab** (`arch/` y `axe/`, con `idle/`, `walk/`, `atk/` y `death/`, lienzo de 68×68).
 - `assets/sprites/slimes.png`: la hoja de slimes de 32 bits sacada tal cual del juego web.
 - `assets/sprites/pip/`: Pip hecho con **PixelLab** (personaje "Pip arquero", vista lateral, 48×48):
