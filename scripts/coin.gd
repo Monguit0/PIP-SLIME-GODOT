@@ -1,8 +1,10 @@
 extends Node2D
-## Moneda: gira, flota y aparece con un saltito. La junta Pip o una flecha que pasa.
-## Cada una seguida sube el combo (y la nota, por la escala mayor).
+## Moneda: gira (con el canto dorado a la vista), flota y aparece con un saltito. La junta Pip o una
+## flecha que pasa. Cada una seguida sube el combo (y la nota, por la escala mayor).
 
-const TEX := preload("res://assets/sprites/items/coin.png")
+const Pix := preload("res://scripts/pix.gd")
+const SPIN := preload("res://assets/sprites/items/coin_spin.png")  # 8 cuadros de media vuelta, en HD
+const FRAMES := 8
 
 var t := 0.0
 var glint := 0.0   # destellito cada tanto
@@ -47,11 +49,15 @@ func _draw() -> void:
 	if born < 0.0:
 		return
 	var pop := minf(1.0, born / 0.25)
-	var spin := absf(cos(t * 3.2))
+	var fw := SPIN.get_width() / float(FRAMES)
+	var fh := float(SPIN.get_height())
+	var f := int(fmod(t * 3.2, PI) / PI * FRAMES) % FRAMES
 	var bob := roundf(sin(t * 4.0) * 1.5)
-	var w := maxf(2.0, roundf(6.0 * spin)) * ((0.5 + pop * 0.6) if pop < 1.0 else 1.0)
-	w = roundf(w)
-	draw_texture_rect(TEX, Rect2(-w / 2.0, -3.0 + bob, w, 7), false)
+	var grow := (0.5 + pop * 0.6) if pop < 1.0 else 1.0  # al nacer crece con un saltito
+	var sz := Vector2(fw, fh) / 2.0 * grow
+	draw_texture_rect_region(SPIN, Rect2(Pix.snapv(Vector2(-sz.x / 2.0, -3.0 + bob + (7.0 - sz.y) / 2.0)), sz),
+		Rect2(f * fw, 0, fw, fh))
+	var w := fw / 2.0 * absf(cos(t * 3.2))
 	# destellito de cuatro puntas en el borde
 	if glint < 0.0 and pop >= 1.0:
 		var k := sin(-glint / 0.2 * PI)

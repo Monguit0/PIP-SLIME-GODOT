@@ -4,12 +4,29 @@ extends CanvasLayer
 ## franjas de cine, pantalla roja, cuadro de impacto, ¡CRÍTICO!, carteles, elección de cartas,
 ## título, fin del juego y victoria. Sigue andando con el juego en pausa (para elegir cartas).
 
+const Pix := preload("res://scripts/pix.gd")
 const W := 256.0
 const H := 144.0
 const HEART := preload("res://assets/sprites/items/heart.png")
 const HEART0 := preload("res://assets/sprites/items/heart0.png")
 const SLIMES := preload("res://assets/sprites/slimes.png")
 const COIN := preload("res://assets/sprites/items/coin.png")
+const COIN_SPIN := preload("res://assets/sprites/items/coin_spin.png")
+const UI := "res://assets/sprites/ui/"
+const BAR_EN := preload("res://assets/sprites/ui/bar_energia.png")
+const BAR_XP := preload("res://assets/sprites/ui/bar_exp.png")
+const BAR_BOSS := preload("res://assets/sprites/ui/bar_jefe.png")
+const ICON_EN := preload("res://assets/sprites/ui/icon_energia.png")
+const ICON_XP := preload("res://assets/sprites/ui/icon_exp.png")
+const ICON_BOSS := preload("res://assets/sprites/ui/icon_jefe.png")
+const CARD := preload("res://assets/sprites/ui/carta.png")
+const CARD_GLOW := preload("res://assets/sprites/ui/carta_brillo.png")
+## barras: dónde va el relleno (en 256x144) y dónde empieza ese relleno dentro de su marco HD
+const EN := Rect2(12, 14.5, 34, 3)
+const XPB := Rect2(12, 24.5, 34, 2)
+const BOSS := Rect2(68, 12, 120, 4)
+const CARD_W := 80.0
+const CARD_H := 98.0
 const RAMPS := {"r": Pal.RAMP_R, "o": Pal.RAMP_O, "l": Pal.RAMP_L, "c": Pal.RAMP_C, "y": Pal.RAMP_Y,
 	"p": Pal.RAMP_P, "b": Pal.RAMP_B, "g": Pal.RAMP_G, "s": Pal.RAMP_S}
 
@@ -31,9 +48,10 @@ func _ready() -> void:
 	canvas.draw.connect(_draw_hud)
 	add_child(canvas)
 	for c in main.CARDS:
-		var path: String = "res://assets/sprites/items/card_%s.png" % c.id
-		if ResourceLoader.exists(path):
-			icons[c.id] = load(path)
+		for path in [UI + "carta_%s.png" % c.id, "res://assets/sprites/items/card_%s.png" % c.id]:
+			if ResourceLoader.exists(path):
+				icons[c.id] = load(path)
+				break
 
 
 func _process(dt: float) -> void:
@@ -147,16 +165,20 @@ func _draw_overlays() -> void:
 
 func _draw_status() -> void:
 	for i in player.max_hearts:
-		canvas.draw_texture_rect(HEART if i < player.hearts else HEART0, Rect2(4 + i * 9, 4, 7, 6), false)
-	_draw_energy(4, 13, 34)
-	_draw_xp(4, 19, 34)
-	# carga del arco
+		var ht: Texture2D = HEART if i < player.hearts else HEART0
+		canvas.draw_texture_rect(ht, Rect2(4 + i * 9, 4, ht.get_width() / 2.0, ht.get_height() / 2.0), false)
+	_draw_energy()
+	_draw_xp()
+	# carga del arco: una rayita debajo de la experiencia
 	if player.charge >= Player.CHG_ON:
 		var k := clampf(player.charge / player.chg_full(), 0.0, 1.0)
-		_rect(4, 24, 34 * k, 1, Pal.Y if k >= 1.0 else Pal.S)
-	# puntos y combo
+		_rect(XPB.position.x - 0.5, 28.5, XPB.size.x + 1, 2, Pal.K)
+		_fill(XPB.position.x, 29, XPB.size.x * k, 1, Pal.RAMP_Y if k >= 1.0 else Pal.RAMP_S)
+	# puntos (con la moneda al lado) y combo
 	var bump := -1.0 if main.score_bump > 0.5 else 0.0
-	_text("%05d" % roundi(main.shown_score), W - 4, 4 + bump, Pal.W if main.score_bump > 0.5 else Pal.Y, 1, 2)
+	var sc := "%05d" % roundi(main.shown_score)
+	_text(sc, W - 4, 4 + bump, Pal.W if main.score_bump > 0.5 else Pal.Y, 1, 2)
+	canvas.draw_texture_rect(COIN, Rect2(W - 4 - PText.width(sc) - 8.0, 2.5 + bump, 6, 7), false)
 	if main.combo > 1:
 		_text("x%d" % main.combo, W - 4, 12, Pal.C, 1, 2)
 	# zona y slimes que quedan
@@ -165,56 +187,103 @@ func _draw_status() -> void:
 		_text("ZONA %d" % (main.z + 1) + ("" if main.cleared else " · ENEMIGOS %d" % left), W / 2.0, 4, Pal.S)
 		if main.cleared and main.gates[main.z].open > 0.5 and int(t * 4.0) % 2 == 1:
 			_text("SEGUÍ >", W - 6, 96, Pal.Y, 1, 2)
-	# barra del jefe
+	# barra del jefe: marco de hierro y oro con el yelmo en el medallón
 	var b = main.boss
 	if b != null and is_instance_valid(b) and not b.state in ["wait", "drop", "gone"]:
 		var shx := roundf(randf_range(-2, 2)) if b.bar_shake > 0.0 else 0.0
-		var bx := 68.0 + shx
-		var by := 12.0
-		var bw := 120.0
+		var r := Rect2(BOSS.position + Vector2(shx, 0), BOSS.size)
 		var name_col := (Pal.R if int(t * 8.0) % 2 == 1 else Pal.Y) if b.phase >= 3 else (Pal.O if b.phase >= 2 else Pal.S)
-		_text("MEGA CABALLERO", W / 2.0, 4, name_col)
-		_rect(bx - 1.5, by - 1.5, bw + 3, 7, Pal.S)
-		_rect(bx - 1, by - 1, bw + 2, 6, Pal.K)
-		_rect(bx, by, bw, 4, Pal.D)
+		_text("MEGA CABALLERO", W / 2.0, 3, name_col)
+		_frame(BAR_BOSS, r, Vector2(22, 8))
 		var fill: float = b.fill
-		_rect(bx, by, roundf(bw * b.shown_hp / b.max_hp * fill), 4, Pal.W)
-		var hw := roundf(bw * b.hp / b.max_hp * fill)
-		_rect(bx, by, hw, 4, Pal.O if b.phase >= 2 else Pal.R)
-		_rect(bx, by, hw, 1, Pal.Y if b.phase >= 2 else Pal.O)
-		_rect(bx + bw / 2.0, by, 1, 4, Pal.K)
-		_rect(bx + bw / 4.0, by, 1, 4, Pal.K)
+		var x := r.position.x
+		var y := r.position.y
+		var bw := r.size.x
+		_fill(x, y, bw * b.shown_hp / b.max_hp * fill, 4, Pal.RAMP_W, false)
+		var hw: float = bw * b.hp / b.max_hp * fill
+		var ramp: Array = Pal.RAMP_O if b.phase >= 2 else Pal.RAMP_R
+		_fill(x, y, hw, 4, ramp)
+		_shine(x, y, hw, 4, ramp, 0.8)
+		for q in [0.25, 0.5, 0.75]:
+			_rect(x + roundf(bw * q), y, 0.5, 4, Pal.K)
+		_icon(ICON_BOSS, r.position - Vector2(11, 4) + Vector2(6, 6))
+
+
+## Marco HD de una barra, corrido para que su hueco (que empieza en inner, en px de la textura) caiga en r.
+func _frame(tx: Texture2D, r: Rect2, inner: Vector2, mod: Color = Color.WHITE) -> void:
+	canvas.draw_texture_rect(tx, Rect2(r.position - inner / 2.0, tx.get_size() / 2.0), false, mod)
+
+
+## Ícono centrado en c, a su tamaño HD.
+func _icon(tx: Texture2D, c: Vector2, mod: Color = Color.WHITE) -> void:
+	var sz := tx.get_size() / 2.0
+	canvas.draw_texture_rect(tx, Rect2((c - sz / 2.0).snapped(Vector2(0.5, 0.5)), sz), false, mod)
+
+
+## Relleno con su rampa: brillo arriba, sombra abajo y la punta encendida.
+func _fill(x: float, y: float, w: float, h: float, r: Array, edge: bool = true) -> void:
+	w = roundf(w * 2.0) / 2.0
+	if w <= 0.0:
+		return
+	_rect(x, y, w, h, r[2])
+	_rect(x, y, w, 0.5, r[4])
+	if h >= 2.0:
+		_rect(x, y + 0.5, w, 0.5, r[3])
+	_rect(x, y + h - 0.5, w, 0.5, r[1])
+	if edge and w >= 1.0:
+		_rect(x + w - 0.5, y, 0.5, h, r[4])
+
+
+## Un brillo que recorre la barra cada tanto.
+func _shine(x: float, y: float, w: float, h: float, r: Array, speed: float = 1.0) -> void:
+	var p := fmod(t * speed, 2.6) / 2.6
+	var sx := roundf((p * (w + 50.0) - 4.0) * 2.0) / 2.0
+	if sx < 0.0 or sx + 1.5 > w:
+		return
+	_rect(x + sx, y, 1.0, h, r[4])
+	_rect(x + sx + 1.0, y, 0.5, h, r[3])
 
 
 ## Energía con marcas de lo que cuesta el dash; con veneno titila en verde.
-func _draw_energy(x: float, y: float, w: float) -> void:
+func _draw_energy() -> void:
+	var x := EN.position.x
+	var y := EN.position.y
+	var w := EN.size.x
+	var h := EN.size.y
 	var cost := player.dash_cost()
 	var k := clampf(player.energy / Player.EN_MAX, 0.0, 1.0)
 	var warn := player.energy_flash > 0.0 and int(player.energy_flash * 16.0) % 2 == 1
-	_rect(x - 1, y - 1, w + 2, 5, Pal.R if warn else Pal.K)
-	_rect(x, y, w, 3, Pal.D)
+	_frame(BAR_EN, EN, Vector2(20, 7), Color(1.0, 0.3, 0.35) if warn else Color.WHITE)
 	var ready := player.energy >= cost
-	var col := Pal.C if ready else Pal.BB
+	var ramp: Array = Pal.RAMP_C if ready else Pal.RAMP_BB
 	if player.venom:
-		col = Pal.L if int(t * 10.0) % 2 == 1 else Pal.G
-	_rect(x, y, roundf(w * k), 3, col)
-	_rect(x, y, roundf(w * k), 1, Pal.W if ready else Pal.B)
+		ramp = Pal.RAMP_L if int(t * 10.0) % 2 == 1 else Pal.RAMP_G
+	_fill(x, y, w * k, h, ramp)
+	if ready:
+		_shine(x, y, w * k, h, ramp)
 	var c := cost
 	while c < Player.EN_MAX:
-		_rect(x + roundf(w * c / Player.EN_MAX), y, 1, 3, Pal.K)
+		_rect(x + roundf(w * c / Player.EN_MAX * 2.0) / 2.0, y, 0.5, h, Pal.K)
 		c += cost
+	_icon(ICON_EN, EN.position - Vector2(10, 3.5) + Vector2(5, 5), Color.WHITE if ready else Color(0.5, 0.55, 0.8))
 
 
-## Experiencia; ya evolucionado, el nombre en dorado.
-func _draw_xp(x: float, y: float, w: float) -> void:
+## Experiencia; ya evolucionado, la barra llena y el nombre en dorado.
+func _draw_xp() -> void:
+	var x := XPB.position.x
+	var y := XPB.position.y
+	var w := XPB.size.x
+	var h := XPB.size.y
+	_frame(BAR_XP, XPB, Vector2(20, 8))
 	if player.evo:
-		_text("CAZADOR", x, y, Pal.W if int(t * 2.0) % 4 == 0 else Pal.Y, 1, 0, Pal.K)
-		return
-	_rect(x - 1, y - 1, w + 2, 4, Pal.K)
-	_rect(x, y, w, 2, Pal.D)
-	var c := Pal.W if main.xp_bump > 0.5 and int(t * 20.0) % 2 == 1 else Pal.Y
-	_rect(x, y, roundf(w * minf(1.0, float(main.xp) / main.XP_EVO)), 2, c)
-	_text("EXP", x + w + 4, y - 1, Pal.S, 1, 0)
+		_fill(x, y, w, h, Pal.RAMP_Y)
+		_shine(x, y, w, h, Pal.RAMP_Y, 1.4)
+		_text("CAZADOR", x + w + 6, y - 0.5, Pal.W if int(t * 2.0) % 4 == 0 else Pal.Y, 1, 0, Pal.K)
+	else:
+		var flash: bool = main.xp_bump > 0.5 and int(t * 20.0) % 2 == 1
+		_fill(x, y, w * minf(1.0, float(main.xp) / main.XP_EVO), h, Pal.RAMP_W if flash else Pal.RAMP_Y)
+		_text("EXP", x + w + 6, y - 0.5, Pal.S, 1, 0)
+	_icon(ICON_XP, XPB.position - Vector2(10, 4) + Vector2(5, 5))
 
 
 func _draw_banner() -> void:
@@ -264,50 +333,47 @@ func _wrap(s: String, n: int) -> Array:
 
 
 func _draw_card(c: Dictionary, x: float, on: bool, dim: bool, picked: bool) -> void:
-	var w := 80.0
-	var h := 98.0
+	var w := CARD_W
+	var h := CARD_H
 	var y := 25.0 - (3.0 if on else 0.0)
-	var frame: Array = Pal.RAMP_G
 	var ramp: Array = RAMPS.get(c.col, Pal.RAMP_S)
-	_rect(x + 2, y + 2, w, h, Pal.K)
-	_rect(x - 1, y - 1, w + 2, h + 2, ((Pal.Y if picked or int(t * 6.0) % 2 == 1 else Pal.O) if on else frame[1]))
-	_rect(x, y, w, h, Pal.K)
-	_rect(x + 2, y + 2, w - 4, h - 4, frame[2])
-	_rect(x + 3, y + 3, w - 6, h - 6, Color("10121e"))
-	# cinta de arriba
-	_rect(x + 8, y + 1, w - 16, 9, frame[1])
-	_rect(x + 8, y + 1, w - 16, 1, frame[3])
-	_text("ARQUERO" if c.get("only", false) else "HÉROE", x + w / 2.0, y + 2, Pal.W)
-	# ventana del dibujo con el color de la carta
-	_rect(x + 12, y + 13, w - 24, 38, ramp[0])
-	_rect(x + 12, y + 13, w - 24, 2, ramp[1])
-	_rect(x + 12, y + 47, w - 24, 4, ramp[1])
-	for k in 5:
-		_rect(x + 14 + k * 11, y + 15, 1, 32, Color(1, 1, 1, 0.08))
+	var cr := Rect2(x - 2, y - 2, w + 4, h + 4)  # la textura tiene 2 de margen para el brillo
+	canvas.draw_texture_rect(CARD, Rect2(cr.position + Vector2(2, 2), cr.size), false, Color(0, 0, 0, 0.7))
+	if on:
+		var lit := picked or int(t * 6.0) % 2 == 1
+		canvas.draw_texture_rect(CARD_GLOW, cr, false, Color.WHITE if lit else Color(1, 0.6, 0.4))
+	# la ventana del dibujo, con el color de la carta y rayos que giran despacio (el marco los recorta)
+	var wx := x + 12.0
+	var wy := y + 13.0
+	var cc := Vector2(x + w / 2.0, wy + 19.0)
+	_rect(wx, wy, 56, 38, ramp[0])
+	for i in 8:
+		var a := t * 0.5 + i * TAU / 8.0
+		canvas.draw_colored_polygon(PackedVector2Array([cc, cc + Vector2(cos(a - 0.17), sin(a - 0.17)) * 30.0,
+			cc + Vector2(cos(a + 0.17), sin(a + 0.17)) * 30.0]), ramp[1])
+	Pix.disc_dither(canvas, cc, 15.0, ramp[1])
+	Pix.disc_dither(canvas, cc, 10.0, ramp[2], true)
+	canvas.draw_texture_rect(CARD, cr, false)
 	var bob := roundf(sin(t * 5.0)) if on and not picked else 0.0
 	if icons.has(c.id):
-		canvas.draw_texture_rect(icons[c.id], Rect2(x + w / 2.0 - 12, y + 19 + bob, 24, 24), false)
+		canvas.draw_texture_rect(icons[c.id], Rect2(cc.x - 12, cc.y - 12 + bob, 24, 24), false)
+	_text("ARQUERO" if c.get("only", false) else "HÉROE", x + w / 2.0, y + 4, Pal.W, 1, 1, Pal.RAMP_R[0])
 	# nombre y efecto
 	var lines := _wrap(c.name, 12).slice(0, 2)
 	for j in lines.size():
-		_text(lines[j], x + w / 2.0, y + 55 + j * 8 + (4 if lines.size() == 1 else 0), Pal.W)
-	_rect(x + 10, y + 72, w - 20, 1, frame[1])
+		_text(lines[j], x + w / 2.0, y + 55 + j * 8 + (4 if lines.size() == 1 else 0), Pal.Y if on else Pal.W)
 	var desc := _wrap(c.desc, 12).slice(0, 3)
 	for j in desc.size():
-		_text(desc[j], x + w / 2.0, y + 75 + j * 7, Pal.S, 1, 1, Color(0, 0, 0, 0))
-	# corazoncito del héroe en la esquina
-	_rect(x + w - 8, y + h - 8, 1, 1, Pal.L)
-	_rect(x + w - 6, y + h - 8, 1, 1, Pal.L)
-	_rect(x + w - 8, y + h - 7, 3, 1, Pal.L)
-	_rect(x + w - 7, y + h - 6, 1, 1, Pal.L)
+		_text(desc[j], x + w / 2.0, y + 76 + j * 7, Pal.S, 1, 1, Color(0, 0, 0, 0))
 	if dim:
-		_rect(x - 1, y - 1, w + 4, h + 4, Color(0.04, 0.04, 0.09, 0.6))
+		canvas.draw_texture_rect(CARD, cr, false, Color(0.04, 0.04, 0.09, 0.6))
+		_rect(wx, wy, 56, 38, Color(0.04, 0.04, 0.09, 0.6))
 	if on and not picked:
 		var ay := y + h + 3 + (int(t * 4.0) % 2)
 		for k in 4:
 			_rect(x + w / 2.0 - 3 + k, ay + k, 7 - k * 2, 1, Pal.Y)
 	if picked:
-		_text("¡ELEGIDA!", x + w / 2.0, y + h - 1, Pal.Y)
+		_text("¡ELEGIDA!", x + w / 2.0, y + h + 3, Pal.Y)
 
 
 func _draw_picker() -> void:
@@ -345,7 +411,10 @@ func _draw_title() -> void:
 	var f2 := int(t * 12.0 + 3) % 8
 	var sq2 := sin(t * 9.0) * 0.1
 	_slime(Vector2(182, 128), 1, f2, Vector2(1 + sq2, 1 - sq2))
-	canvas.draw_texture_rect(COIN, Rect2(197, 108 + roundf(sin(t * 4.0) * 1.5), 6, 7), false)
+	var fw := COIN_SPIN.get_width() / 8.0
+	var cf := int(fmod(t * 3.2, PI) / PI * 8.0) % 8
+	canvas.draw_texture_rect_region(COIN_SPIN, Rect2(197, 108 + roundf(sin(t * 4.0) * 1.5), fw / 2.0, COIN_SPIN.get_height() / 2.0),
+		Rect2(cf * fw, 0, fw, COIN_SPIN.get_height()))
 
 
 func _slime(feet: Vector2, row: int, frame: int, sq: Vector2) -> void:

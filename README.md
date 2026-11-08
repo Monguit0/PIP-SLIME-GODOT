@@ -83,7 +83,11 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   efectos y música), `scripts/ptext.gd` (la fuente del original), `scripts/hud.gd`, `scripts/background.gd`.
 - `assets/audio/`: los sonidos (`sfx/`, WAV, sintetizados por `tools/sfx`) y la música (`music/`, OGG, una vuelta de la
   canción por ánimo, exportada del juego web).
-- `assets/sprites/items/`: moneda, corazones, flecha y espada que caen, y los dibujos de las cartas (sacados del original).
+- `assets/sprites/items/`: moneda (y `coin_spin.png`, la moneda girando con su canto, que arma `tools/ui/coin_spin.py`),
+  corazones, flecha y espada que caen, y los dibujos de las cartas.
+- `assets/sprites/ui/`: el HUD en HD. Marcos de las barras de energía, experiencia y del jefe con su medallón, el marco
+  de las cartas con su brillo (los dibuja `tools/ui/hud_parts.py`) y los íconos del rayo, la estrella y el yelmo
+  (`tools/ui/icons.py`). Si hay un `carta_<id>.png` acá, la carta lo usa en vez del dibujo de `items/`.
 - `assets/sprites/boss/`: el Mega Caballero hecho con **PixelLab**, `helm/` con casco y `bare/` sin casco, cada uno con
   `idle/`, `walk/`, `charge/` (12 cuadros), `dazed/`, `death/`, `jump/` (14 cuadros del salto con espadazo), `roar/` y
   `arc/` (19 poses del brazo, de atrás de la cabeza hasta adelante). Lienzo de 144×144 con los pies en (72, 118); dónde
