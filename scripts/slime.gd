@@ -48,6 +48,7 @@ var jump_up := false
 var land_t := 0.0
 var blink_t := 0.0
 var blink := 0.0
+var parry_t := 0.0  # mareado por el parry del caballero: no lastima y el próximo espadazo es crítico
 
 
 func _ready() -> void:
@@ -136,6 +137,9 @@ func _physics_process(dt: float) -> void:
 		_venom_tick(dt)
 		if dead:
 			return
+	if parry_t > 0.0:
+		parry_t -= dt
+		_dizzy(dt)
 	if kind == "red":
 		_update_red(dt)
 	else:
@@ -244,15 +248,37 @@ func _touch_hero() -> void:
 		if stomp:
 			p.bounce()
 			take_hit(1, 0, "stomp")
-		else:
-			p.hurt(global_position.x)
+		elif parry_t <= 0.0:
+			p.hurt(global_position.x, 1, self)
 
 
-## how: "arrow", "stomp", "trap" (lo aplastó algo que cayó) o "poison" (veneno).
+## Lo llama el escudo del caballero: el parry (o el giro del Warlord) lo empuja y lo deja mareado.
+func parried(d: float, t: float) -> void:
+	if dead or spawn > 0.0:
+		return
+	stun = maxf(stun, t)
+	parry_t = maxf(parry_t, t)
+	knock = d * 170.0
+	velocity.y = -150.0
+	flash = 0.1
+	prep = 0.0
+	squash = Vector2(1.3, 0.75)
+
+
+## estrellitas que le dan vueltas a la cabeza mientras está mareado
+func _dizzy(dt: float) -> void:
+	blink_t += dt
+	if Engine.get_physics_frames() % 6 == 0:
+		var a := Time.get_ticks_msec() / 1000.0 * 9.0
+		Fx.part(get_parent(), global_position + Vector2(cos(a) * 5.0, -10.0 + sin(a) * 1.5), Vector2.ZERO, 0.0, 0.16, Pal.Y if int(a) % 2 == 0 else Pal.W)
+
+
+## how: "arrow", "sword", "riposte" (espadazo a uno mareado por el parry: crítico seguro), "stomp",
+## "trap" (lo aplastó algo que cayó) o "poison" (veneno).
 func take_hit(dmg: int, from_dir: int, how: String = "arrow") -> void:
 	if dead or spawn > 0.0:
 		return
-	var crit := how != "trap" and how != "poison" and Fx.rand_crit()
+	var crit := how == "riposte" or (how != "trap" and how != "poison" and Fx.rand_crit())
 	hp -= dmg * 3 if crit else dmg
 	if crit:
 		Fx.crit(get_parent(), global_position + Vector2(0, -4))

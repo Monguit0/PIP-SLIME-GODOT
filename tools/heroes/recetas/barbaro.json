@@ -1,0 +1,119 @@
+{
+ "out": "assets/sprites/barbaro",
+ "hojas": {
+  "b": "rows2.png",
+  "c": "rows3.png",
+  "d": "rows4.png"
+ },
+ "anims": {
+  "idle": [
+   "b",
+   5,
+   [
+    0,
+    1,
+    2,
+    3
+   ]
+  ],
+  "run": [
+   "c",
+   0,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  ],
+  "jump": [
+   "b",
+   2,
+   [
+    2,
+    3
+   ]
+  ],
+  "fall": [
+   "b",
+   2,
+   [
+    4,
+    5
+   ]
+  ],
+  "attack": [
+   "b",
+   3,
+   [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  ],
+  "charge": [
+   "b",
+   3,
+   [
+    1,
+    2
+   ]
+  ],
+  "spin": [
+   "b",
+   4,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
+  ],
+  "fury": [
+   "c",
+   1,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  ],
+  "hurt": [
+   "d",
+   2,
+   [
+    0,
+    1,
+    2,
+    3
+   ]
+  ],
+  "death": [
+   "d",
+   3,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  ]
+ },
+ "verde_a_fuego": [
+  "spin"
+ ],
+ "nota": "PixelLab \"Pip bárbaro E\" 4ed4c531-1e90-4756-b884-e7411752c788. b = join (caballero hurt death) jump-air chop spin idle; c = join run fury hurt death; d = join (caballero hurt-v2 run-tpl) hurt-v2 death-v2 run-tpl"
+}

@@ -105,6 +105,7 @@ var swing_t := -1.0
 var swing_fx := false
 var rec_dur := 0.6
 var stun_dur := 0.0
+var parry_stun := false  # lo aturdió el parry del caballero: el espadazo que le pegue mientras tanto es crítico
 var boom_t := 0.0
 var walking := false
 var ven_t := 0.0
@@ -258,6 +259,41 @@ func _clear_attacks() -> void:
 ## Lo llaman las flechas (por el Area2D de blanco).
 func take_hit(dmg: int, from_dir: int, _how: String = "arrow") -> void:
 	damage(dmg, cx() - from_dir * 8.0, y + 14.0)
+
+
+## El parry del caballero lo aturde (stunBoss del original): corta el ataque y queda mareado.
+func parried(_d: float, _t: float) -> void:
+	if state in ["dying", "gone", "wait", "drop", "roar", "rage"]:
+		return
+	vx = 0.0
+	swing_t = -1.0
+	landed = true
+	next_atk = ""
+	rep = 0
+	stun_dur = 1.6
+	parry_stun = true
+	flash = 0.1
+	_to("stun")
+	Snd.play("metal", {"rate": 0.5, "vary": false})
+	Fx.shake(3.0, 0.2)
+
+
+## El giro del Warlord en furia lo aturde un segundo (warStunBoss del original).
+func war_stun() -> void:
+	if state in ["dying", "gone", "wait", "drop", "roar", "rage", "stun"]:
+		return
+	vx = 0.0
+	swing_t = -1.0
+	landed = true
+	next_atk = ""
+	rep = 0
+	stun_dur = 1.0
+	parry_stun = false
+	flash = 0.1
+	_to("stun")
+	Snd.play("metal", {"rate": 0.6, "vary": false})
+	Fx.shake(3.0, 0.2)
+	Fx.popup(get_parent(), Vector2(cx(), y - 6), "¡ATURDIDO!", Pal.Y, true)
 
 
 func apply_venom() -> void:
@@ -463,8 +499,12 @@ func _physics_process(dt: float) -> void:
 		"stun":
 			angle = _lerp(angle, 95.0, dt * 8.0)
 			crouch = 2.0
+			if y < GROUND - BH:  # si lo aturdieron en el aire, cae
+				vy += 1400.0 * dt
+				y = minf(GROUND - BH, y + vy * dt)
 			if t > (stun_dur if stun_dur > 0.0 else (1.0 if ph2 else 1.4)):
 				stun_dur = 0.0
+				parry_stun = false
 				crouch = 0.0
 				_to("idle")
 				idle_dur = 0.3
@@ -501,7 +541,7 @@ func _contact() -> void:
 		player.boss_bounce()
 		damage(1, player.global_position.x, y)
 	elif state != "stun" and pb.intersects(body()) and player.invuln <= 0.0 and player.stomp_inv <= 0.0:
-		player.hurt(cx())
+		player.hurt(cx(), 1, self)
 
 
 func _choose_attack() -> void:
@@ -620,7 +660,7 @@ func _act(dt: float) -> void:
 			if t > 0.04 and t < 0.17 and game.state == "play":
 				var hb := Rect2(x + BW - 8, GROUND - 26, 48, 26) if face > 0 else Rect2(x + 8 - 48, GROUND - 26, 48, 26)
 				if not player.dead and player.box().intersects(hb):
-					player.hurt(cx())
+					player.hurt(cx(), 1, self)
 			if t > 0.3:
 				_to("rec")
 				rec_dur = 0.4 if phase >= 2 else 0.6

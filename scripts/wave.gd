@@ -8,6 +8,7 @@ var dir := 1
 var spd := 150.0
 var min_x := 0.0
 var max_x := 9999.0
+var hero := false  # la devolvió el parry: ahora le pega al jefe
 
 
 func _ready() -> void:
@@ -24,10 +25,34 @@ func _physics_process(dt: float) -> void:
 	if position.x < min_x - 4.0 or position.x > max_x + 4.0:
 		queue_free()
 		return
+	var r := Rect2(position.x - 4, GROUND - 7, 8, 7)
+	if hero:
+		var b = game.boss if game != null else null
+		if b != null and is_instance_valid(b) and b.active() and b.body().intersects(r):
+			b.damage(2, position.x, GROUND - 6.0)
+			queue_free()
+		queue_redraw()
+		return
 	var p: Player = game.player if game != null else null
-	if p != null and not p.dead and p.box().intersects(Rect2(position.x - 4, GROUND - 7, 8, 7)) and p.hurt(position.x - dir * 10.0):
+	if p != null and not p.dead and p.box().intersects(r) and p.hurt(position.x - dir * 10.0, 1, self):
 		queue_free()
 	queue_redraw()
+
+
+## El parry del caballero la devuelve, más rápida, contra el jefe.
+func parried(d: float, _t: float) -> void:
+	dir = 1 if d > 0.0 else -1
+	spd *= 1.3
+	hero = true
+	position.x += dir * 6.0
+	min_x -= 400.0
+	max_x += 400.0
+
+
+## El escudo la frena: se deshace en chispas.
+func blocked(_d: float) -> void:
+	Fx.burst(get_parent(), Vector2(position.x, GROUND - 4), 8, [Pal.C, Pal.W], 70.0, 30.0, 0.3, 200.0)
+	queue_free()
 
 
 ## Cresta de energía a medio píxel: el frente empinado, la cola larga, borde blanco y espuma que titila.

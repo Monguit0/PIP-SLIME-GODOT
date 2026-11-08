@@ -10,8 +10,8 @@ El juego web original sigue en [Monguit0/pip-slimes](https://github.com/Monguit0
 
 La primera vez Godot tarda unos segundos en importar las imágenes.
 
-## Qué hay: el Nivel 1 completo con el arquero
-El **Nivel 1 (El Reino)** igual que en el juego web: **título**, una **carta** para elegir al empezar, **Pradera**, **Ruinas** y
+## Qué hay: el Nivel 1 completo con tres héroes
+El **Nivel 1 (El Reino)** igual que en el juego web: **título** (con ← y → elegís héroe: arquero, caballero o bárbaro), una **carta** para elegir al empezar, **Pradera**, **Ruinas** y
 **Murallas** con sus slimes y esqueletos, monedas y flechas que caen, y el **Salón del Trono** con el **Mega Caballero**. Al ganar o perder,
 la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
 
@@ -31,6 +31,13 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   los shaders se compilan al arrancar (antes el primer dash y la entrada al castillo trababan un instante).
 - **Pip arquero** con los números del juego web: doble salto, coyote time, salto corto, **dash** intangible, flecha
   normal y **flechazo cargado** (3 de daño, atraviesa). Máximo cuatro flechas en el aire.
+- **Caballero** (4 corazones, más lento): **espada** (X), **espadazo** cargado (mantené X: pega fuerte, atraviesa y
+  corta flechas y ondas) y **escudo** (Shift, gasta energía): bloquea golpes y flechas de frente, y si lo levantás justo
+  antes del golpe hace **PARRY**: devuelve flechas, ondas y espadas que caen, marea al que pegó y el contragolpe es
+  crítico seguro (al jefe lo deja aturdido).
+- **Bárbaro** (4 corazones, rápido): **hacha** (X, lenta pero pega 3), **giro** cargado (mantené X: tres vueltas que
+  pegan alrededor) y **furia** (Shift con la barra llena): 5 segundos con más daño, ataques más rápidos y en rojo.
+- Los tres hechos con **PixelLab** a 68×68 con los pies en la misma fila, así que comparten física y colisión.
 - **Las flechas se clavan** donde pegan (las de Pip y las del esqueleto): en el piso, en las paredes, en los portones
   y en las plataformas si les caen desde arriba. La punta queda adentro, vibran un instante y quedan ahí un rato;
   si el portón sube, la flecha sube con las rejas y se cae al llegar al arco.
@@ -47,10 +54,13 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   contra la pared largando piedras y al caer de un salto parte el piso con dos ondas. Los slimes se agachan antes de
   saltar, suben con la boca abierta y parpadean cada tanto; la carrera de Pip va al ritmo de su velocidad.
 - **Puntos y combo**: monedas seguidas suben el combo (y la nota, por la escala mayor); pisar slimes da más que flecharlos.
-- **Experiencia**: monedas, slimes y el jefe dan EXP; al llenar la barra Pip **evoluciona a Cazador**: vida llena,
-  **dos flechas por disparo** y **veneno** (C): mientras está prendido gasta energía y las flechas envenenan (1 de daño cada 0,7 s).
-- **Cartas** (8 del arquero): corazón extra, arco reforzado, poción de emergencia, cristal de maná, botas ligeras,
-  concentración, flecha triple y paso fantasma.
+- **Experiencia**: monedas, slimes y el jefe dan EXP; al llenar la barra el héroe **evoluciona** y cambia de aspecto:
+  el arquero pasa a **Cazador** (dos flechas por disparo y **veneno** con C, 1 de daño cada 0,7 s), el caballero a
+  **Paladín** (armadura blanca y dorada, tajos más largos y cada parry cura un corazón) y el bárbaro a **Warlord**
+  (casco con cuernos y martillo de guerra como en el original, giro más ancho y con furia el giro aturde). Al evolucionar recupera la vida.
+- **Cartas**: las comunes (corazón extra, poción de emergencia, cristal de maná, botas ligeras, concentración, paso
+  fantasma), la de daño de cada uno (arco reforzado, espada afilada, hacha pesada) y las propias: flecha triple
+  (arquero), escudo liviano (caballero), sangre caliente y remolino (bárbaro). Solo te salen las de tu héroe.
 - **Esqueletos** (los del modo villano del original, hechos con PixelLab): el **arquero** guarda distancia y te tira
   flechas rectas; el **hachero** te persigue, levanta el hacha (titila) y pega un hachazo adelante. Salen de la tierra,
   respiran mientras esperan, se doblan con cada golpe, se pueden pisar o flechar y se desarman en una pila de huesos. Uno en la Pradera, tres en las Ruinas, cuatro en las Murallas.
@@ -70,7 +80,8 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   portones y antorchas están en constantes arriba de todo, copiadas del original).
 - `assets/level1/`: el Reino. `level.png` (suelo y plataformas) y las nubes vienen del juego web; el cielo, las montañas,
   la capa del medio y el salón los arma `tools/bg/compose.py` con piezas de PixelLab (las capas viejas, en `original/`).
-- `scripts/player.gd`: Pip arquero. Las constantes vienen de `CHARS.archer` y `SK` del `index.html` original.
+- `scripts/player.gd`: los tres héroes (`HEROES` arriba de todo: vida, velocidad, salto, carpeta de sprites y de la
+  evolución). Las constantes vienen de `CHARS` y `SK` del `index.html` original.
 - `scripts/slime.gd`: slime verde y rojo (`updateGreen` y `updateRed` del original). Ya lee las cuatro filas de la hoja (verde, rojo, tóxico, hielo).
 - `scripts/pal.gd`: la paleta de 9 bits del original (`Pal.K`, `Pal.Y`...).
 - `scripts/boss.gd`: el Mega Caballero (`updateBoss`, `bossTele`, `bossAct`, `damageBoss` del original).
@@ -98,11 +109,15 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
 - `assets/sprites/slimes.png`: la hoja de slimes de 32 bits sacada tal cual del juego web.
 - `assets/sprites/pip/`: Pip hecho con **PixelLab** (personaje "Pip arquero", vista lateral, 48×48):
   `east.png` y las carpetas `idle/`, `run/`, `jump/`, `fall/`, `shoot/` (tensar el arco), `aim/` (apuntando en loop, con la capa al viento), `release/` (soltar con retroceso), `dash/`, `hurt/` y `death/` con un PNG por cuadro. Mira a la derecha; para la izquierda se espeja.
-  Si falta alguna carpeta, el juego usa el cuadro quieto.
+  Si falta alguna carpeta, el juego usa el cuadro quieto. `pip_cazador/` es la evolución.
+- `assets/sprites/caballero/`, `barbaro/`, `paladin/` y `warlord/`: los otros héroes y sus evoluciones, de **PixelLab**
+  (lienzo de 68×68, pies en la fila 56), con `idle/`, `run/`, `jump/`, `fall/`, `attack/`, `charge/`, `hurt/`, `death/` y
+  lo propio: `big/` y `shield/` el caballero, `spin/` y `fury/` el bárbaro. Los pasa al juego `tools/heroes/cuadros.py`
+  (ver `tools/heroes/LEEME.md`).
 
 ## Plan
 1. **Base**: proyecto, Pip arquero, slimes y el Reino. ✔
 2. **Nivel 1 completo con el arquero**: música, sonidos, juice, monedas, cartas, evolución y Mega Caballero. ✔
-   Falta: los otros tres héroes (caballero, bárbaro, mago) y el aspecto propio del Cazador.
+   Caballero y bárbaro con sus evoluciones ✔. Falta: el mago.
 3. **Niveles 2 a 4** con sus bichos y jefes (Campeón, Yeti, Kraken), experiencia y evoluciones.
 4. **Sillón** (varios joysticks en la misma pantalla) y después el **online**.

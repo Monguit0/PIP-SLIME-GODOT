@@ -42,6 +42,7 @@ var squash := Vector2.ONE
 var anim_t := 0.0
 var ven_t := 0.0
 var ven_k := 0.0
+var parry_t := 0.0  # mareado por el parry del caballero: no lastima y el próximo espadazo es crítico
 var sprite: Sprite2D
 var hurtbox: Area2D
 var target: Area2D
@@ -177,6 +178,11 @@ func _physics_process(dt: float) -> void:
 		if dead:
 			return
 
+	if parry_t > 0.0:
+		parry_t -= dt
+		if Engine.get_physics_frames() % 6 == 0:
+			var a := Time.get_ticks_msec() / 1000.0 * 9.0
+			Fx.part(get_parent(), global_position + Vector2(cos(a) * 5.0, -22.0 + sin(a) * 1.5), Vector2.ZERO, 0.0, 0.16, Pal.Y if int(a) % 2 == 0 else Pal.W)
 	var dir := _think(dt)
 	var spd: float = SPEED.get(kind, 36.0)
 	if stun > 0.0:
@@ -277,7 +283,7 @@ func _attacks(dt: float) -> void:
 			var hb := Rect2(global_position.x + (1.0 if face > 0.0 else -19.0), global_position.y - 24, 18, 24)
 			if hero.box().intersects(hb):
 				swing_hit = true
-				hero.hurt(global_position.x)
+				hero.hurt(global_position.x, 1, self)
 		if swing_t >= 0.04 and swing_t - dt < 0.04:
 			var at := global_position + Vector2(face * 14.0, 0)
 			Fx.slash(get_parent(), global_position + Vector2(face * 2.0, -12), 13.0, -110.0, 60.0, face, Pal.S, 4.0, 0.13)
@@ -318,15 +324,31 @@ func _touch_hero() -> void:
 		if stomp:
 			p.bounce()
 			take_hit(1, 0, "stomp")
-		else:
-			p.hurt(global_position.x)
+		elif parry_t <= 0.0:
+			p.hurt(global_position.x, 1, self)
 
 
-## how: "arrow", "stomp", "trap" o "poison", igual que los slimes.
+## Lo llama el escudo del caballero: el parry lo empuja, le corta el ataque y lo deja mareado.
+func parried(d: float, t: float) -> void:
+	if dead or spawn > 0.0:
+		return
+	stun = maxf(stun, t)
+	parry_t = maxf(parry_t, t)
+	windup = 0.0
+	swing_t = 9.0
+	shoot_t = -1.0
+	knock = d * 135.0
+	velocity.y = -150.0
+	flash = 0.12
+	squash = Vector2(1.25, 0.8)
+	Snd.play("huesos", {"rate": 0.8})
+
+
+## how: "arrow", "sword", "riposte" (crítico seguro), "stomp", "trap" o "poison", igual que los slimes.
 func take_hit(dmg: int, from_dir: int, how: String = "arrow") -> void:
 	if dead or spawn > 0.0:
 		return
-	var crit := how != "trap" and how != "poison" and Fx.rand_crit()
+	var crit := how == "riposte" or (how != "trap" and how != "poison" and Fx.rand_crit())
 	hp -= dmg * 3 if crit else dmg
 	if crit:
 		Fx.crit(get_parent(), global_position + Vector2(0, -10))
@@ -398,7 +420,10 @@ func _die(how: String, from_dir: int, crit: bool) -> void:
 
 
 func _animate(dt: float) -> void:
-	if stun > 0.0:  # se dobla con el golpe y se vuelve a parar
+	if parry_t > 0.0:  # mareado: doblado, tambaleándose
+		sprite.texture = _frame("hurt", 1)
+		sprite.rotation = sin(Time.get_ticks_msec() / 1000.0 * 10.0) * 0.08
+	elif stun > 0.0:  # se dobla con el golpe y se vuelve a parar
 		var hn: int = frames.get("hurt", []).size()
 		sprite.texture = _frame("hurt", int((1.0 - stun / 0.35) * hn)) if hn > 0 else _frame("walk", 0)
 	elif windup > 0.0:  # levanta el hacha
@@ -411,6 +436,8 @@ func _animate(dt: float) -> void:
 		sprite.texture = _frame("walk", int(anim_t * (10.0 if absf(velocity.x) > 25.0 else 7.0)) % maxi(1, frames.get("walk", []).size()))
 	else:  # respira (cada uno a su ritmo)
 		sprite.texture = _frame("idle", int(anim_t * 9.0) % maxi(1, frames.get("idle", []).size()))
+	if parry_t <= 0.0:
+		sprite.rotation = 0.0
 	squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 10.0))
 	_apply_look()
 	sprite.material = Fx.silhouette(Color.WHITE) if flash > 0.0 else null

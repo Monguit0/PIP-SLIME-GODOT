@@ -18,8 +18,13 @@ var stuck_on: Object = null
 var stuck_pos := Vector2.ZERO
 
 
+var hero := false  # la devolvió el parry: ahora le pega a los bichos y al jefe
+var hit_list: Array = []
+
+
 func _ready() -> void:
 	z_index = 3
+	add_to_group("flechas_malas")
 	vel = Vector2(face * 205.0, -10.0)
 	rotation = vel.angle()
 	prev_tip = global_position - vel.normalized() * 6.0
@@ -65,12 +70,53 @@ func _physics_process(dt: float) -> void:
 	if life > 1.8:
 		queue_free()
 		return
+	if hero:
+		_hit_foes()
+		return
 	var p: Player = game.player if game != null else null
 	if p != null and not p.dead and p.box().has_point(global_position + Vector2(face * 2.0, 0)):
-		if p.hurt(global_position.x - face * 10.0):
+		if p.hurt(global_position.x - face * 10.0, 1, self):
 			Fx.burst(get_parent(), global_position, 4, [Pal.L, Pal.W], 60.0, 20.0, 0.25, 200.0)
 			queue_free()
 			return
+
+
+## devuelta por el parry: le pega a lo que encuentre (2 de daño)
+func _hit_foes() -> void:
+	var tip := global_position + vel.normalized() * TIP
+	for e in get_tree().get_nodes_in_group("enemigos"):
+		if e in hit_list or e.dead or e.spawn > 0.0 or not e.hit_rect().grow(1.0).has_point(tip):
+			continue
+		hit_list.append(e)
+		e.take_hit(2, int(signf(vel.x)), "arrow")
+		queue_free()
+		return
+	var b = game.boss if game != null else null
+	if b != null and is_instance_valid(b) and b.active() and b.body().has_point(tip):
+		b.damage(2, tip.x, tip.y)
+		queue_free()
+
+
+## El parry del caballero la devuelve, más rápida y hacia arriba.
+func parried(_d: float, _t: float) -> void:
+	if stuck or hero:
+		return
+	hero = true
+	face = -face
+	vel = Vector2(-vel.x * 1.4, -20.0)
+	rotation = vel.angle()
+	life = 0.0
+	position.x += face * 4.0
+	Fx.twinkle(get_parent(), global_position, Pal.Y, 4.0, 0.16)
+
+
+## El escudo la frena: rebota y se cae girando.
+func blocked(_d: float) -> void:
+	if stuck or hero:
+		return
+	Snd.play("clavar", {"rate": 1.6, "vol": 0.5})
+	Fx.burst(get_parent(), global_position, 5, [Pal.W, Pal.S], 60.0, 30.0, 0.25, 200.0)
+	queue_free()
 
 
 ## A medio píxel como la de Pip: palo viejo, plumas grises y punta con brillo verde (los ojos del esqueleto).

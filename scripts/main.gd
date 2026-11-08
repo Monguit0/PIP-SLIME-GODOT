@@ -40,21 +40,26 @@ const PLATS := [
 const TORCHES := [[1100, 104], [1250, 104], [1400, 104]]
 # antorchas pintadas en el salón del trono (centro de la llama): ahí solo titila la punta y salen chispas
 const HALL_TORCHES := [[1556.5, 62.5], [1586.5, 70.5], [1741.5, 72.0], [1770.0, 63.0]]
-## las cartas del arquero (HERO_CARDS del original)
+## las cartas de los héroes (HERO_CARDS del original): "only" es el héroe que la puede sacar
 const CARDS := [
 	{"id": "vida", "name": "CORAZÓN EXTRA", "desc": "MÁS VIDA MÁXIMA", "col": "r"},
-	{"id": "dmg", "name": "ARCO REFORZADO", "desc": "+1 DE DAÑO EN CADA GOLPE", "col": "o"},
+	{"id": "dmg", "name": {"archer": "ARCO REFORZADO", "knight": "ESPADA AFILADA", "barb": "HACHA PESADA"}, "desc": "+1 DE DAÑO EN CADA GOLPE", "col": "o"},
 	{"id": "cura", "name": "POCIÓN DE EMERGENCIA", "desc": "TE CURA A MITAD DE VIDA, 1 VEZ POR ZONA", "col": "l"},
 	{"id": "energia", "name": "CRISTAL DE MANÁ", "desc": "ENERGÍA 60% MÁS RÁPIDA", "col": "c"},
 	{"id": "veloz", "name": "BOTAS LIGERAS", "desc": "CORRÉS 15% MÁS RÁPIDO", "col": "y"},
 	{"id": "carga", "name": "CONCENTRACIÓN", "desc": "CARGÁS EL DOBLE DE RÁPIDO", "col": "p"},
-	{"id": "triple", "name": "FLECHA TRIPLE", "desc": "EL FLECHAZO SALE DE A TRES", "col": "c", "only": true},
-	{"id": "fantasma", "name": "PASO FANTASMA", "desc": "EL DASH CUESTA LA MITAD", "col": "b", "only": true},
+	{"id": "triple", "name": "FLECHA TRIPLE", "desc": "EL FLECHAZO SALE DE A TRES", "col": "c", "only": "archer"},
+	{"id": "fantasma", "name": "PASO FANTASMA", "desc": "EL DASH CUESTA LA MITAD", "col": "b", "only": "archer"},
+	{"id": "muralla", "name": "ESCUDO LIVIANO", "desc": "EL ESCUDO GASTA LA MITAD", "col": "b", "only": "knight"},
+	{"id": "ira", "name": "SANGRE CALIENTE", "desc": "LA FURIA DURA EL DOBLE", "col": "r", "only": "barb"},
+	{"id": "remolino", "name": "REMOLINO", "desc": "EL GIRO PEGA TRES VECES", "col": "o", "only": "barb"},
 ]
 const SCALE := [0, 2, 4, 5, 7, 9, 11, 12, 14, 16]  # combo de monedas: escala mayor
 
 ## al reiniciar desde el fin del juego se saltea el título
 static var skip_title := false
+## el héroe elegido en el título (queda para la próxima partida)
+static var kind := "archer"
 
 var player: Player
 var camera: Camera2D
@@ -113,6 +118,20 @@ func _ready() -> void:
 		skip_title = false
 		start_game()
 		fade = 0.9
+
+
+## En el título: izquierda y derecha cambian de héroe (el que está parado en la pradera).
+func pick_hero(step: int) -> void:
+	var ks: Array = Player.KINDS
+	kind = ks[(ks.find(kind) + step + ks.size()) % ks.size()]
+	player.set_kind(kind)
+	player.squash = Vector2(0.7, 1.35)
+	Snd.play("menu", {"rate": 1.2, "vol": 0.6, "vary": false})
+	Snd.play("salto", {"rate": 1.4, "vol": 0.4})
+	var at := player.global_position + Vector2(0, -12)
+	Fx.burst(self, at, 10, [Pal.W, Pal.Y, Pal.C], 60.0, 30.0, 0.35, 100.0)
+	Fx.ring(self, at, Pal.W, 0.0, 14.0, 1.0, 0.25)
+	Fx.dust(self, player.global_position, 4, 30.0, 4.0, 1.6)
 
 
 func start_game() -> void:
@@ -222,7 +241,7 @@ func gain_xp(n: int, at = null) -> void:
 		Fx.popup(self, at + Vector2(0, -10), "+%d EXP" % n, Pal.C)
 	if xp >= XP_EVO:
 		player.evolve()
-		_show_banner("¡EVOLUCIÓN!", "AHORA SOS CAZADOR", true, true)
+		_show_banner("¡EVOLUCIÓN!", "AHORA SOS " + Player.HEROES[player.kind].evo, true, true)
 
 
 func boss_defeated(at: Vector2) -> void:
@@ -273,9 +292,14 @@ func card_of(id: String) -> Dictionary:
 	return {}
 
 
-## Reparte tres cartas que todavía no tenga y congela el juego hasta que elija.
+## el nombre de la carta para el héroe que juega (la de daño cambia según el arma)
+func card_name(c: Dictionary) -> String:
+	return c.name[player.kind] if c.name is Dictionary else c.name
+
+
+## Reparte tres cartas que todavía no tenga (las propias de otro héroe no salen) y congela el juego hasta que elija.
 func start_pick() -> void:
-	var pool := CARDS.filter(func(c): return not cards.has(c.id))
+	var pool := CARDS.filter(func(c): return not cards.has(c.id) and c.get("only", player.kind) == player.kind)
 	pool.shuffle()
 	var ids: Array = []
 	for c in pool.slice(0, 3):
@@ -299,7 +323,7 @@ func finish_pick() -> void:
 		player.max_hearts += 1
 		player.hearts = mini(player.max_hearts, player.hearts + 1)
 		player.hearts_changed.emit()
-	Fx.popup(self, player.global_position + Vector2(0, -26), card_of(id).name, Pal.Y)
+	Fx.popup(self, player.global_position + Vector2(0, -26), card_name(card_of(id)), Pal.Y)
 	banner.t = 0.0
 	Snd.play("oleada", {"rate": 1.4, "vol": 0.6, "vary": false})
 
@@ -607,6 +631,7 @@ func _solid(r: Rect2, layer: int) -> StaticBody2D:
 func _spawn_player() -> void:
 	player = PlayerScript.new()
 	player.game = self
+	player.kind = kind
 	player.position = Vector2(44, GROUND)
 	add_child(player)
 	player.died.connect(_on_player_died)

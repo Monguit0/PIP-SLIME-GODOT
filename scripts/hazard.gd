@@ -64,8 +64,10 @@ func _physics_process(dt: float) -> void:
 			Fx.part(get_parent(), Vector2(position.x, y), Vector2.ZERO, 0.0, 0.12, Pal.C if big else Pal.SS)
 			var b := box()
 			var p: Player = game.player if game != null else null
-			if p != null and not p.dead and p.box().intersects(b) and p.hurt(position.x):
+			if p != null and not p.dead and p.box().intersects(b) and p.hurt(position.x, 1, self):
 				queue_free()
+				return
+			if phase != "fall":  # la paró el escudo
 				return
 			for s in get_tree().get_nodes_in_group("enemigos"):
 				if s.has_method("hit_rect") and not s.dead and s.spawn <= 0.0 and s.hit_rect().intersects(b):
@@ -85,6 +87,41 @@ func _physics_process(dt: float) -> void:
 			wob -= dt
 			if life <= 0.0:
 				queue_free()
+		"back":  # el parry la mandó de vuelta para arriba
+			vy += 300.0 * dt
+			y += vy * dt
+			Fx.part(get_parent(), Vector2(position.x, y + 8.0), Vector2.ZERO, 0.0, 0.12, Pal.Y)
+			if y < -20.0:
+				queue_free()
+
+
+## Un golpe cuerpo a cuerpo (o el escudo) la parte en el aire: +5.
+func smash() -> void:
+	if phase != "fall":
+		return
+	phase = "gone"
+	if game != null:
+		game.add_score(5)
+	Snd.play("clavar", {"rate": 1.9, "vary": false})
+	Fx.hitstop(0.05)
+	var at := Vector2(position.x, y + 6.0)
+	Fx.burst(get_parent(), at, 10, [Pal.Y, Pal.W], 90.0, 40.0, 0.4, 220.0)
+	Fx.popup(get_parent(), at, "+5", Pal.C)
+	queue_free()
+
+
+## El parry del caballero la devuelve para arriba.
+func parried(_d: float, _t: float) -> void:
+	if phase != "fall":
+		return
+	phase = "back"
+	vy = -430.0
+	Fx.twinkle(get_parent(), Vector2(position.x, y + 8.0), Pal.Y, 4.0, 0.16)
+
+
+## El escudo la frena: se parte.
+func blocked(_d: float) -> void:
+	smash()
 
 
 func _draw() -> void:
@@ -96,10 +133,11 @@ func _draw() -> void:
 	var wx := 0.0
 	if phase == "stuck" and wob > 0.0:
 		wx = 1.0 if int(wob * 40.0) % 2 == 1 else -1.0
+	var flip := phase == "back"  # devuelta por el parry: sube con la punta para arriba
 	if big:
-		draw_texture_rect(SWORD, Rect2(-2 + wx, roundf(y), 5, 11), false)
+		draw_texture_rect(SWORD, Rect2(-2 + wx, roundf(y) + (11.0 if flip else 0.0), 5, -11 if flip else 11), false)
 	else:
-		draw_texture_rect(ARROW, Rect2(-1 + wx, roundf(y), 3, 8), false)
+		draw_texture_rect(ARROW, Rect2(-1 + wx, roundf(y) + (8.0 if flip else 0.0), 3, -8 if flip else 8), false)
 
 
 ## Aviso a medio píxel: un haz finito con chevrones que bajan cada vez más rápido, la mira en el piso

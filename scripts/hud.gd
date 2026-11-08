@@ -47,11 +47,16 @@ func _ready() -> void:
 	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.draw.connect(_draw_hud)
 	add_child(canvas)
+	# el dibujo de cada carta; la de daño tiene uno por arma (carta_dmg_knight.png, carta_dmg_barb.png)
 	for c in main.CARDS:
 		for path in [UI + "carta_%s.png" % c.id, "res://assets/sprites/items/card_%s.png" % c.id]:
 			if ResourceLoader.exists(path):
 				icons[c.id] = load(path)
 				break
+		for k in Player.KINDS:
+			var kp := UI + "carta_%s_%s.png" % [c.id, k]
+			if ResourceLoader.exists(kp):
+				icons[c.id + "_" + k] = load(kp)
 
 
 func _process(dt: float) -> void:
@@ -64,8 +69,13 @@ func _process(dt: float) -> void:
 	var on: bool = b != null and is_instance_valid(b) and b.state in ["wait", "drop", "roar", "dying"]
 	cine += ((1.0 if on else 0.0) - cine) * minf(1.0, real * 5.0)
 	main.music_director()
-	if main.state == "title" and t > 0.3 and (Input.is_action_just_pressed("saltar") or Input.is_action_just_pressed("atacar")):
-		main.start_game()
+	if main.state == "title" and t > 0.3:
+		if Input.is_action_just_pressed("saltar") or Input.is_action_just_pressed("atacar"):
+			main.start_game()
+		elif Input.is_action_just_pressed("izquierda"):
+			main.pick_hero(-1)
+		elif Input.is_action_just_pressed("derecha"):
+			main.pick_hero(1)
 	if main.pick != null:
 		_pick_input(real)
 	canvas.queue_redraw()
@@ -244,13 +254,14 @@ func _shine(x: float, y: float, w: float, h: float, r: Array, speed: float = 1.0
 	_rect(x + sx + 1.0, y, 0.5, h, r[3])
 
 
-## Energía con marcas de lo que cuesta el dash; con veneno titila en verde.
+## Energía con marcas de lo que cuesta el especial (dash, escudo o furia); con veneno titila en verde,
+## con el escudo levantado baja en celeste y en furia late en rojo.
 func _draw_energy() -> void:
 	var x := EN.position.x
 	var y := EN.position.y
 	var w := EN.size.x
 	var h := EN.size.y
-	var cost := player.dash_cost()
+	var cost := player.special_cost()
 	var k := clampf(player.energy / Player.EN_MAX, 0.0, 1.0)
 	var warn := player.energy_flash > 0.0 and int(player.energy_flash * 16.0) % 2 == 1
 	_frame(BAR_EN, EN, Vector2(20, 7), Color(1.0, 0.3, 0.35) if warn else Color.WHITE)
@@ -258,13 +269,23 @@ func _draw_energy() -> void:
 	var ramp: Array = Pal.RAMP_C if ready else Pal.RAMP_BB
 	if player.venom:
 		ramp = Pal.RAMP_L if int(t * 10.0) % 2 == 1 else Pal.RAMP_G
+	elif player.shield:
+		ramp = Pal.RAMP_W if int(t * 12.0) % 2 == 1 else Pal.RAMP_C
+	elif player.rage_t > 0.0:
+		ramp = Pal.RAMP_R if int(t * (16.0 if player.rage_t < 1.0 else 8.0)) % 2 == 1 else Pal.RAMP_O
 	_fill(x, y, w * k, h, ramp)
-	if ready:
+	if ready or player.rage_t > 0.0:
 		_shine(x, y, w * k, h, ramp)
-	var c := cost
-	while c < Player.EN_MAX:
-		_rect(x + roundf(w * c / Player.EN_MAX * 2.0) / 2.0, y, 0.5, h, Pal.K)
-		c += cost
+	# lo que queda de furia: una rayita roja debajo
+	if player.rage_t > 0.0:
+		var rk := clampf(player.rage_t / (Player.RAGE_T * (2.0 if player.has_card("ira") else 1.0)), 0.0, 1.0)
+		_rect(x, y + h, w * rk, 0.5, Pal.R)
+	# marcas: cada dash, o lo que cuesta la furia; el escudo (barato) no lleva
+	if cost >= 20.0:
+		var c := cost
+		while c < Player.EN_MAX:
+			_rect(x + roundf(w * c / Player.EN_MAX * 2.0) / 2.0, y, 0.5, h, Pal.K)
+			c += cost
 	_icon(ICON_EN, EN.position - Vector2(10, 3.5) + Vector2(5, 5), Color.WHITE if ready else Color(0.5, 0.55, 0.8))
 
 
@@ -278,7 +299,7 @@ func _draw_xp() -> void:
 	if player.evo:
 		_fill(x, y, w, h, Pal.RAMP_Y)
 		_shine(x, y, w, h, Pal.RAMP_Y, 1.4)
-		_text("CAZADOR", x + w + 6, y - 0.5, Pal.W if int(t * 2.0) % 4 == 0 else Pal.Y, 1, 0, Pal.K)
+		_text(Player.HEROES[player.kind].evo, x + w + 6, y - 0.5, Pal.W if int(t * 2.0) % 4 == 0 else Pal.Y, 1, 0, Pal.K)
 	else:
 		var flash: bool = main.xp_bump > 0.5 and int(t * 20.0) % 2 == 1
 		_fill(x, y, w * minf(1.0, float(main.xp) / main.XP_EVO), h, Pal.RAMP_W if flash else Pal.RAMP_Y)
@@ -355,15 +376,18 @@ func _draw_card(c: Dictionary, x: float, on: bool, dim: bool, picked: bool) -> v
 	Pix.disc_dither(canvas, cc, 10.0, ramp[2], true)
 	canvas.draw_texture_rect(CARD, cr, false)
 	var bob := roundf(sin(t * 5.0)) if on and not picked else 0.0
-	if icons.has(c.id):
-		var it: Texture2D = icons[c.id]
+	var ik: String = c.id + "_" + player.kind
+	if not icons.has(ik):
+		ik = c.id
+	if icons.has(ik):
+		var it: Texture2D = icons[ik]
 		var isz := it.get_size() / 2.0  # los de PixelLab van a su tamaño HD; los viejos de 24 px, al doble
 		if isz.x < 16.0:
 			isz *= 2.0
 		canvas.draw_texture_rect(it, Rect2(Pix.snapv(cc - isz / 2.0 + Vector2(0, bob)), isz), false)
-	_text("ARQUERO" if c.get("only", false) else "HÉROE", x + w / 2.0, y + 4, Pal.W, 1, 1, Pal.RAMP_R[0])
+	_text(Player.HEROES[c.only].name if c.has("only") else "HÉROE", x + w / 2.0, y + 4, Pal.W, 1, 1, Pal.RAMP_R[0])
 	# nombre y efecto
-	var lines := _wrap(c.name, 12).slice(0, 2)
+	var lines := _wrap(main.card_name(c), 12).slice(0, 2)
 	for j in lines.size():
 		_text(lines[j], x + w / 2.0, y + 55 + j * 8 + (4 if lines.size() == 1 else 0), Pal.Y if on else Pal.W)
 	var desc := _wrap(c.desc, 12).slice(0, 3)
@@ -384,7 +408,7 @@ func _draw_picker() -> void:
 	var pk: Dictionary = main.pick
 	_rect(0, 0, W, H, Color(0.04, 0.04, 0.09, 0.78))
 	_text("¡LISTO!" if pk.done else "ELEGÍ UNA CARTA", W / 2.0, 3, Pal.Y, 2, 1, Color(0, 0, 0, 1), Pal.RAMP_Y)
-	_text("PARA EL ARQUERO", W / 2.0, 16, Pal.S)
+	_text("PARA EL " + Player.HEROES[player.kind].name, W / 2.0, 16, Pal.S)
 	var ids: Array = pk.ids
 	var n := ids.size()
 	for i in n:
@@ -405,9 +429,22 @@ func _draw_title() -> void:
 		_text("SALTO O ATAQUE PARA EMPEZAR", W / 2.0, 74, Pal.Y)
 	if main.best > 0:
 		_text("RÉCORD %d" % main.best, W / 2.0, 83, Pal.S)
-	_text("< > MOVER · Z SALTO · X FLECHA", W / 2.0, 93, Pal.S)
-	_text("MANTENÉ X: FLECHAZO · SHIFT: DASH", W / 2.0, 101, Pal.S)
-	_text("C: VENENO DEL CAZADOR · R: REINICIAR", W / 2.0, 109, Pal.S)
+	# el héroe elegido, parado en la pradera: izquierda y derecha lo cambian
+	var hx := _screen(player.global_position).x
+	var hname: String = Player.HEROES[player.kind].name
+	var bl := int(t * 3.0) % 2 == 0
+	_text(hname, hx, 94, Pal.Y, 1, 1, Pal.K)
+	var half := PText.width(hname) / 2.0
+	_text("<", hx - half - 6 - (1 if bl else 0), 94, Pal.W if bl else Pal.S, 1, 1, Pal.K)
+	_text(">", hx + half + 6 + (1 if bl else 0), 94, Pal.W if bl else Pal.S, 1, 1, Pal.K)
+	# los controles de ese héroe
+	var lines: Array = {
+		"archer": ["Z SALTO · X FLECHA", "MANTENÉ X: FLECHAZO", "SHIFT: DASH · C: VENENO"],
+		"knight": ["Z SALTO · X ESPADA", "MANTENÉ X: ESPADAZO", "SHIFT: ESCUDO (PARRY)"],
+		"barb": ["Z SALTO · X HACHA", "MANTENÉ X: GIRO", "SHIFT: FURIA"],
+	}.get(player.kind, [])
+	for i in lines.size():
+		_text(lines[i], 160, 92 + i * 8, Pal.S)
 	# slimes y una moneda en el piso, como en el título del original
 	var f := int(t * 8.0) % 8
 	var sq := sin(t * 6.0) * 0.08
