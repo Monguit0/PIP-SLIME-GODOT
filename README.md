@@ -17,9 +17,18 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
 
 - Se ve como el original: el mundo es de 256×144, los sprites HD (Pip, slimes, el jefe) se dibujan con el doble de detalle y
   los textos usan la misma fuente de 5×7 del juego web.
-- **Música y sonidos del original**: la misma canción en sus ánimos (título, cartas, una por zona, entrada del jefe, jefe,
+- **Música del original**: la misma canción en sus ánimos (título, cartas, una por zona, entrada del jefe, jefe,
   furia, sin casco, victoria y derrota), que cambia a tiempo, cada medio compás; con un solo corazón suena apagada,
-  como debajo del agua. Los efectos son los mismos sonidos jsfxr, con un poco de variación de tono.
+  como debajo del agua.
+- **Efectos de sonido nuevos**, hechos para el estilo HD: cada uno tiene golpe, cuerpo y cola (la cuerda del arco que
+  vibra, la flecha que queda temblando al clavarse, el slime que revienta en gotas, la armadura que suena a metal, el
+  rugido con eco de castillo, las pisadas pesadas del caballero), con eco tipo SNES en lo mágico. Suenan tan fuerte
+  como los originales y con un poco de variación de tono. Los jsfxr del juego web quedaron en `assets/audio/sfx_original`.
+- **Fondos pintados con PixelLab**: cielo con luna, cordillera con el castillo del rey a lo lejos, y adelante el bosque
+  de la Pradera, las ruinas con arcos y enredaderas y las murallas con ventanas encendidas; el Salón del Trono tiene
+  rosetón, estandartes, trono y antorchas que chisporrotean. Las capas de atrás se oscurecen para que se vean lejos.
+- **Sin tirones**: los cuadros del jefe y de los esqueletos y la música se cargan en segundo plano desde el título, y
+  los shaders se compilan al arrancar (antes el primer dash y la entrada al castillo trababan un instante).
 - **Pip arquero** con los números del juego web: doble salto, coyote time, salto corto, **dash** intangible, flecha
   normal y **flechazo cargado** (3 de daño, atraviesa). Máximo cuatro flechas en el aire.
 - **Las flechas se clavan** donde pegan (las de Pip y las del esqueleto): en el piso, en las paredes, en los portones
@@ -59,7 +68,8 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
 ## Cómo está armado
 - `scenes/main.tscn`: la escena principal; el nivel se arma por código en `scripts/main.gd` (zonas, plataformas,
   portones y antorchas están en constantes arriba de todo, copiadas del original).
-- `assets/level1/`: el dibujo del Reino exportado del juego web (suelo y plataformas, cielo, montañas, cerros/ruinas/murallas, nubes y salón).
+- `assets/level1/`: el Reino. `level.png` (suelo y plataformas) y las nubes vienen del juego web; el cielo, las montañas,
+  la capa del medio y el salón los arma `tools/bg/compose.py` con piezas de PixelLab (las capas viejas, en `original/`).
 - `scripts/player.gd`: Pip arquero. Las constantes vienen de `CHARS.archer` y `SK` del `index.html` original.
 - `scripts/slime.gd`: slime verde y rojo (`updateGreen` y `updateRed` del original). Ya lee las cuatro filas de la hoja (verde, rojo, tóxico, hielo).
 - `scripts/pal.gd`: la paleta de 9 bits del original (`Pal.K`, `Pal.Y`...).
@@ -71,7 +81,8 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   textos, temblor y empujón de cámara, hitstop, cámara lenta, críticos), `scripts/pix.gd` (dibujo a medio píxel y rampas
   de color para los efectos), `scripts/snd.gd` (autoload `Snd`:
   efectos y música), `scripts/ptext.gd` (la fuente del original), `scripts/hud.gd`, `scripts/background.gd`.
-- `assets/audio/`: los sonidos (`sfx/`, WAV) y la música (`music/`, OGG, una vuelta de la canción por ánimo), exportados del juego web.
+- `assets/audio/`: los sonidos (`sfx/`, WAV, sintetizados por `tools/sfx`) y la música (`music/`, OGG, una vuelta de la
+  canción por ánimo, exportada del juego web).
 - `assets/sprites/items/`: moneda, corazones, flecha y espada que caen, y los dibujos de las cartas (sacados del original).
 - `assets/sprites/boss/`: el Mega Caballero hecho con **PixelLab**, `helm/` con casco y `bare/` sin casco, cada uno con
   `idle/`, `walk/`, `charge/` (12 cuadros), `dazed/`, `death/`, `jump/` (14 cuadros del salto con espadazo), `roar/` y

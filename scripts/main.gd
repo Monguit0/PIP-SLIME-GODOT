@@ -37,7 +37,9 @@ const PLATS := [
 	[1064, 96, 64], [1150, 64, 48], [1220, 88, 40], [1280, 56, 56], [1360, 96, 48], [1430, 72, 56],
 	[1556, 96, 36], [1632, 66, 64], [1736, 96, 36],
 ]
-const TORCHES := [[1100, 104], [1250, 104], [1400, 104], [1572, 70], [1756, 70]]
+const TORCHES := [[1100, 104], [1250, 104], [1400, 104]]
+# antorchas pintadas en el salón del trono (centro de la llama): ahí solo titila la punta y salen chispas
+const HALL_TORCHES := [[1556.5, 62.5], [1586.5, 70.5], [1741.5, 72.0], [1770.0, 63.0]]
 ## las cartas del arquero (HERO_CARDS del original)
 const CARDS := [
 	{"id": "vida", "name": "CORAZÓN EXTRA", "desc": "MÁS VIDA MÁXIMA", "col": "r"},
@@ -565,6 +567,7 @@ func _build_level() -> void:
 	add_child(art)
 	var torches := Torches.new()
 	torches.list = TORCHES
+	torches.hall = HALL_TORCHES
 	torches.z_index = -3
 	add_child(torches)
 
@@ -688,6 +691,7 @@ class GateArt extends Node2D:
 ## Antorchas de las murallas y el salón: brillo y llama de tres cuadros.
 class Torches extends Node2D:
 	var list: Array = []
+	var hall: Array = []
 
 	func _process(_dt: float) -> void:
 		queue_redraw()
@@ -703,3 +707,16 @@ class Torches extends Node2D:
 			draw_rect(Rect2(x - 1, y - 3, 3, 2), Pal.R)
 			draw_rect(Rect2(x - 1 + (1 if fl == 1 else 0), y - 5, 2, 2), Pal.O)
 			draw_rect(Rect2(x + (-1 if fl == 2 else 0), y - 6 - (1 if fl == 0 else 0), 1, 2), Pal.Y)
+		for p in hall:
+			var x: float = p[0]
+			var y: float = p[1]
+			var fl := int(tt * 10.0 + x) % 3
+			# la punta de la llama pintada cambia de forma (medio píxel, como el arte HD)
+			draw_rect(Rect2(x - 0.5 + (0.5 if fl == 1 else 0.0) - (0.5 if fl == 2 else 0.0), y - 3.5 - (0.5 if fl == 0 else 0.0), 0.5, 1.0), Pal.Y)
+			draw_rect(Rect2(x, y - 2.5, 0.5, 0.5), Pal.RAMP_Y[3] if fl == 2 else Pal.O)
+			# chispas que suben y se apagan
+			for k in 2:
+				var ph := fposmod(tt * 0.9 + x * 0.37 + k * 0.5, 1.0)
+				var c: Color = Pal.Y if ph < 0.35 else (Pal.O if ph < 0.7 else Pal.R)
+				var sx := roundf((x + sin(ph * 7.0 + k * 2.0 + x) * 1.5) * 2.0) / 2.0
+				draw_rect(Rect2(sx, roundf((y - 4.0 - ph * 9.0) * 2.0) / 2.0, 0.5, 0.5), c)

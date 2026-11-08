@@ -1,6 +1,7 @@
 extends Node2D
-## Fondo del Reino, con las mismas imágenes del juego web: cielo de noche con luna (fijo),
-## estrellas que titilan, nubes, montañas lejanas (parallax 0.25) y cerros/ruinas/murallas (0.5).
+## Fondo del Reino, pintado con PixelLab (tools/bg arma las capas): cielo de noche con luna (fijo),
+## estrellas que titilan, nubes, la cordillera con el castillo del rey (parallax 0.25) y el bosque, las
+## ruinas y las murallas según la zona (0.5).
 
 const W := 256
 # estrellas que titilan: x, y, velocidad, fase (TWINKLE del original)
