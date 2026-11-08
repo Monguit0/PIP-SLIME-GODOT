@@ -31,10 +31,12 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   los shaders se compilan al arrancar (antes el primer dash y la entrada al castillo trababan un instante).
 - **Pip arquero** con los números del juego web: doble salto, coyote time, salto corto, **dash** intangible, flecha
   normal y **flechazo cargado** (3 de daño, atraviesa). Máximo cuatro flechas en el aire.
-- **Caballero** (4 corazones, más lento): **espada** (X), **espadazo** cargado (mantené X: pega fuerte, atraviesa y
-  corta flechas y ondas) y **escudo** (Shift, gasta energía): bloquea golpes y flechas de frente, y si lo levantás justo
-  antes del golpe hace **PARRY**: devuelve flechas, ondas y espadas que caen, marea al que pegó y el contragolpe es
-  crítico seguro (al jefe lo deja aturdido).
+- **Caballero** (4 corazones, más lento) con un **mandoble** que llega más lejos: **tajo** (X), **espadazo** cargado (mantené X: levanta
+  el mandoble detrás de la cabeza y lo sostiene, quieto o caminando; al soltar pega fuerte, atraviesa y
+  corta flechas y ondas) y **escudo** (Shift, gasta energía): se da vuelta hacia el golpe y lo para con el escudo adelante,
+  y si lo levantás justo antes del golpe hace **PARRY**: devuelve flechas, ondas y espadas que caen, marea al que pegó y
+  el contragolpe es crítico seguro (al jefe lo deja aturdido). Corre con el mandoble en alto y las pisadas suenan a
+  armadura; si lo dejás quieto un rato hace un floreo con la espada.
 - **Bárbaro** (4 corazones, rápido): **hacha** (X, lenta pero pega 3), **giro** cargado (mantené X: tres vueltas que
   pegan alrededor) y **furia** (Shift con la barra llena): 5 segundos con más daño, ataques más rápidos y en rojo.
 - Los tres hechos con **PixelLab** a 68×68 con los pies en la misma fila, así que comparten física y colisión.
@@ -112,7 +114,8 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   Si falta alguna carpeta, el juego usa el cuadro quieto. `pip_cazador/` es la evolución.
 - `assets/sprites/caballero/`, `barbaro/`, `paladin/` y `warlord/`: los otros héroes y sus evoluciones, de **PixelLab**
   (lienzo de 68×68, pies en la fila 56), con `idle/`, `run/`, `jump/`, `fall/`, `attack/`, `charge/`, `hurt/`, `death/` y
-  lo propio: `big/` y `shield/` el caballero, `spin/` y `fury/` el bárbaro. Los pasa al juego `tools/heroes/cuadros.py`
+  lo propio: `big/`, `shield/`, `charge_hold/` y `charge_walk/` (cargando quieto y caminando) y `flourish/` (el floreo
+  cuando se queda quieto) el caballero, `spin/` y `fury/` el bárbaro. Los pasa al juego `tools/heroes/cuadros.py`
   (ver `tools/heroes/LEEME.md`).
 
 ## Plan

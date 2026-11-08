@@ -1,10 +1,18 @@
 {
  "out": "assets/sprites/caballero",
  "hojas": {
-  "a": "cab_rows1.png",
-  "b": "rows2.png",
-  "d": "rows4.png",
-  "e": "war_b.png"
+  "a": "kn_a.png",
+  "c": "kn_c.png",
+  "d": [
+   "kn_d.png",
+   68,
+   76
+  ],
+  "e": [
+   "runup.png",
+   80,
+   68
+  ]
  },
  "anims": {
   "idle": [
@@ -18,28 +26,35 @@
    ]
   ],
   "run": [
-   "a",
-   1,
+   "e",
+   0,
    [
     0,
     1,
     2,
     3,
     4,
-    5
+    5,
+    6,
+    7
+   ],
+   [
+    "a",
+    3,
+    1
    ]
   ],
   "jump": [
-   "a",
-   2,
+   "c",
+   3,
    [
     2,
     3
    ]
   ],
   "fall": [
-   "a",
-   2,
+   "c",
+   3,
    [
     4,
     5
@@ -47,7 +62,7 @@
   ],
   "attack": [
    "a",
-   3,
+   2,
    [
     1,
     2,
@@ -58,10 +73,42 @@
   ],
   "charge": [
    "a",
-   4,
+   3,
    [
     1,
     2,
+    3
+   ]
+  ],
+  "charge_hold": [
+   "d",
+   0,
+   [
+    0,
+    1,
+    2,
+    3
+   ],
+   [
+    "a",
+    3,
+    3
+   ]
+  ],
+  "charge_walk": [
+   "d",
+   1,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   [
+    "a",
+    3,
     3
    ]
   ],
@@ -79,15 +126,14 @@
    "a",
    5,
    [
-    0,
     1,
     2,
     3
    ]
   ],
   "hurt": [
-   "d",
-   0,
+   "c",
+   1,
    [
     0,
     1,
@@ -96,8 +142,8 @@
    ]
   ],
   "death": [
-   "e",
-   0,
+   "c",
+   2,
    [
     0,
     1,
@@ -106,7 +152,21 @@
     4,
     5
    ]
+  ],
+  "flourish": [
+   "c",
+   0,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
   ]
  },
- "nota": "PixelLab \"Pip caballero C\" daf6dbd0-0bf2-4418-9d28-a72861f44b0c. hoja a = join idle run jump-air slash big shield; b = join hurt death (y del bárbaro jump-air chop spin idle); d = join hurt-v2 run-tpl (y del bárbaro hurt-v2 death-v2 run-tpl); e = join (caballero death-v3) y del Warlord idle hurt"
+ "nota": "PixelLab \"Pip caballero C\", estado \"Espada grande\" 897ded76-7138-4860-94e6-2b0b6f2833e5. a = join idle run slash charge big shield; c = join flourish hurt death jump-air; d = join charge-hold charge-walk (arrancan del último cuadro de charge); e = join run-up (caballero y Paladín; arranca del cuadro 1 de charge, con la espada en alto para que se vean las piernas)"
 }

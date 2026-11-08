@@ -105,6 +105,9 @@ var cure_used := false      # la poción, una vez por zona
 var flash_t := 0.0
 var dust_t := 0.0
 var skid_t := 0.0
+var idle_t := 0.0            # cuánto lleva quieto (el caballero hace un floreo con la espada)
+var flourish_t := 0.0
+var step_fr := -1            # último cuadro de la carrera que sonó como pisada
 var chg_fx := 0.0           # chispitas que se juntan en el arco mientras carga
 # cuerpo a cuerpo (caballero y bárbaro)
 var swing_t := 9.0           # desde el último golpe
@@ -230,11 +233,12 @@ func _build_frames(dir: String) -> SpriteFrames:
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
 	var anims := {"idle": 5.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 18.0, "aim": 10.0, "release": 18.0, "hurt": 14.0, "dash": 18.0, "death": 10.0,
-		"attack": 24.0, "charge": 16.0, "big": 14.0, "spin": 40.0, "shield": 18.0, "fury": 12.0}
+		"attack": 24.0, "charge": 16.0, "big": 14.0, "spin": 40.0, "shield": 18.0, "fury": 12.0,
+		"charge_hold": 8.0, "charge_walk": 10.0, "flourish": 11.0}
 	for anim in anims:
 		sf.add_animation(anim)
 		sf.set_animation_speed(anim, anims[anim])
-		sf.set_animation_loop(anim, anim in ["idle", "run", "fall", "aim", "spin"])
+		sf.set_animation_loop(anim, anim in ["idle", "run", "fall", "aim", "spin", "charge_hold", "charge_walk"])
 		var i := 0
 		while true:
 			var path := "%s%s/frame_%03d.png" % [dir, anim, i]
@@ -610,7 +614,8 @@ func _attack_melee(dt: float) -> void:
 		else:
 			var was := charge
 			charge += dt
-			var at := global_position + Vector2(face * 2, -22)
+			# el caballero junta la carga en el mandoble levantado detrás de la cabeza; el bárbaro, en el hacha
+			var at := global_position + (Vector2(-face * 6, -23) if kind == "knight" else Vector2(face * 2, -22))
 			if was < CHG_ON and charge >= CHG_ON:
 				Snd.play("menu", {"rate": 0.75, "vol": 0.3, "vary": false})
 			if was < chg_full() and charge >= chg_full():
@@ -651,7 +656,8 @@ func _swing() -> void:
 	Fx.kick(Vector2(face, 0), 0.5)
 	var hand := global_position + Vector2(face * 3.0, -12.0)
 	var col := Pal.O if rage_t > 0.0 else (Pal.W if kind == "barb" else Pal.C)
-	Fx.slash(get_parent(), hand, 16.0 if evo else 13.0, -115.0, 35.0, face, col, 5.0, 0.14)
+	var reach := (20.0 if evo else 17.0) if kind == "knight" else (16.0 if evo else 13.0)
+	Fx.slash(get_parent(), hand, reach, -115.0, 35.0, face, col, 5.0, 0.14)
 	sprite.play("attack")
 	sprite.frame = 0
 
@@ -685,7 +691,7 @@ func _big_swing() -> void:
 		Fx.shake(3.0, 0.15)
 		Fx.kick(Vector2(face, 0), 1.8)
 		var hand := global_position + Vector2(face * 2.0, -13.0)
-		Fx.slash(get_parent(), hand, 24.0 if evo else 20.0, -125.0, 50.0, face, Pal.Y, 8.0, 0.2)
+		Fx.slash(get_parent(), hand, 30.0 if evo else 26.0, -125.0, 50.0, face, Pal.Y, 8.0, 0.2)
 		Fx.burst(get_parent(), global_position + Vector2(face * 16, -10), 10, [Pal.Y, Pal.O, Pal.W], 90.0, 20.0, 0.35, 160.0)
 		if is_on_floor():
 			Fx.dust(get_parent(), global_position + Vector2(face * 6, 0), 3, 30.0, 4.0, 1.6, Pal.S, face)
@@ -719,13 +725,18 @@ func slash_box() -> Rect2:
 	var w := 18.0
 	var top := 24.0
 	var h := 26.0
+	var knight := kind == "knight"  # el mandoble del caballero llega más lejos que el hacha
 	if big:
 		near = -2.0
-		w = 46.0 if evo else 36.0
-		top = 34.0 if evo else 32.0
+		w = (52.0 if evo else 44.0) if knight else (46.0 if evo else 36.0)
+		top = 36.0 if knight else (34.0 if evo else 32.0)
 		h = top + 4.0
+	elif knight:
+		w = 28.0 if evo else 24.0
+		top = 27.0
+		h = 29.0
 	elif evo:
-		w = 28.0 if kind == "barb" else 26.0
+		w = 28.0
 		top = 26.0
 		h = 28.0
 	var x := gx + near if face > 0 else gx - near - w
@@ -816,7 +827,7 @@ func _block(dir: float, src: Object) -> void:
 	squash = Vector2(1.2, 0.85)
 	Snd.play("metal", {"rate": 1.3, "vol": 0.8})
 	Fx.kick(Vector2(dir, 0), 1.2)
-	var at := global_position + Vector2(-dir * 7.0, -11.0)
+	var at := global_position + Vector2(face * 10.0, -12.0)
 	Fx.hit(get_parent(), at, Vector2(-dir, 0), Pal.C)
 	Fx.burst(get_parent(), at, 8, [Pal.C, Pal.W, Pal.Y], 80.0, 20.0, 0.3, 200.0)
 
@@ -830,7 +841,7 @@ func _parry(dir: float, src: Object) -> void:
 	energy = minf(EN_MAX, energy + 12.0)
 	if src != null and src.has_method("parried"):
 		src.parried(-dir, 2.0)
-	var at := global_position + Vector2(-dir * 7.0, -11.0)
+	var at := global_position + Vector2(face * 10.0, -12.0)
 	Snd.play("metal", {"rate": 1.9, "vol": 1.0, "vary": false})
 	Snd.play("critico", {"rate": 1.35, "vol": 0.55, "vary": false})
 	Snd.play("moneda", {"rate": 2.2, "vol": 0.5, "delay": 0.06, "vary": false})
@@ -965,6 +976,9 @@ func hurt(from_x: float, amount: int = 1, src: Object = null) -> bool:
 	if dir == 0.0:
 		dir = -face
 	if shield:
+		# se da vuelta hacia el golpe: el escudo siempre queda entre él y lo que le pega
+		face = -int(dir)
+		sprite.flip_h = face < 0
 		if shield_t < PARRY:
 			_parry(dir, src)
 		else:
@@ -1048,7 +1062,7 @@ func evolve() -> void:
 
 
 ## Qué animación va para el caballero y el bárbaro.
-func _pick_melee(anim: String, has: Callable) -> void:
+func _pick_melee(anim: String, has: Callable, dt: float) -> void:
 	var want := anim
 	if dead:
 		want = "death"
@@ -1065,10 +1079,33 @@ func _pick_melee(anim: String, has: Callable) -> void:
 	elif not big and not spin and swing_t < _anim_len("attack", 0.2):
 		want = "attack"
 	elif charge >= 0.08 and has.call("charge"):
+		# levanta el arma una vez y después la sostiene en alto: quieto respira y tiembla, caminando avanza con ella
 		want = "charge"
+		var raised: bool = String(sprite.animation) in ["charge_hold", "charge_walk"] or (sprite.animation == "charge" and not sprite.is_playing())
+		if raised:
+			if is_on_floor() and absf(velocity.x) > 10.0 and has.call("charge_walk"):
+				want = "charge_walk"
+			elif has.call("charge_hold"):
+				want = "charge_hold"
+			elif sprite.animation != "charge":
+				want = sprite.animation
+	# quieto un rato: floreo con la espada (una vez y vuelve a esperar)
+	if want == "idle" and has.call("flourish"):
+		idle_t += dt
+		if flourish_t <= 0.0 and idle_t > 5.0:
+			flourish_t = _anim_len("flourish", 0.0)
+			idle_t = -5.0
+			Snd.play("tajo", {"rate": 1.35, "vol": 0.35})
+			Snd.play("metal", {"rate": 2.0, "vol": 0.25, "delay": flourish_t * 0.55, "vary": false})
+		if flourish_t > 0.0:
+			flourish_t -= dt
+			want = "flourish"
+	else:
+		idle_t = 0.0
+		flourish_t = 0.0
 	if sprite.animation != want:
 		sprite.play(want)
-	elif not sprite.is_playing() and want in ["idle", "run", "fall"]:
+	elif not sprite.is_playing() and want in ["idle", "run", "fall", "charge_hold", "charge_walk"]:
 		sprite.play(want)
 
 
@@ -1107,7 +1144,7 @@ func _animate(dt: float) -> void:
 		anim = "run"
 	var has := func(a: String) -> bool: return sprite.sprite_frames.get_frame_count(a) > 1
 	if melee():
-		_pick_melee(anim, has)
+		_pick_melee(anim, has, dt)
 	elif dead and has.call("death"):
 		if sprite.animation != "death":
 			sprite.play("death")
@@ -1136,11 +1173,23 @@ func _animate(dt: float) -> void:
 	match sprite.animation:
 		"run":
 			ss = clampf(absf(velocity.x) / speed, 0.55, 1.3)
+		"charge_walk":
+			ss = clampf(absf(velocity.x) / (speed * 0.6), 0.5, 1.2)
 		"spin":
 			ss = sprite.sprite_frames.get_frame_count("spin") / (SPIN_GAP * sprite.sprite_frames.get_animation_speed("spin"))
 		"attack", "big":
 			ss = 1.0 / haste()
 	sprite.speed_scale = ss
+	# pisadas con armadura: suenan y levantan polvo cuando el pie toca el piso (dos por vuelta del ciclo)
+	if melee() and String(sprite.animation) in ["run", "charge_walk"] and is_on_floor() and not dead:
+		var cur := sprite.frame
+		var half := int(sprite.sprite_frames.get_frame_count(sprite.animation) / 2.0)
+		if cur != step_fr and half >= 2 and cur % half == int(half / 2.0):  # el cuadro con las piernas más abiertas
+			Snd.play("paso", {"rate": 1.9 if kind == "knight" else 1.5, "vol": 0.22})
+			Fx.dust(get_parent(), global_position + Vector2(-face * 2, 0), 1, 16.0, 6.0, 1.3, Pal.S, -face)
+		step_fr = cur
+	else:
+		step_fr = -1
 	squash = squash.lerp(Vector2.ONE, minf(1.0, dt * 12.0))
 	# respiración al apuntar: el cuerpo sube y baja y se ensancha apenas, además de la capa del loop
 	var breath := Vector2.ONE
