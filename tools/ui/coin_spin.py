@@ -38,29 +38,22 @@ for k in range(N):
     if fw < W:
         far = 0 if right else -1
         face[:, far][face[:, far, 3] > 0] = K
-    if rim:
-        # el contorno del lado del canto pasa a ser el filo dorado: la cara y el canto quedan pegados
-        near = -1 if right else 0
-        col = face[:, near]
-        dark = (col[:, 3] > 0) & (col[:, :3].astype(int).sum(1) < 120)
-        col[dark] = EDGE[2]
-        col[[i for i in range(H) if col[i, 3] > 0][:1]] = K
-        col[[i for i in range(H) if col[i, 3] > 0][-1:]] = K
     off = 0 if right else rim
     m = face[:, :, 3] > 0
     f[:, off:off + fw][m] = face[m]
-    # canto: franja dorada con luz arriba, un poco más corta en la punta (la moneda es redonda)
-    for i in range(rim):
-        xx = fw + i if right else rim - 1 - i
-        y0, y1 = col_top + (1 if i else 0) + (1 if i == rim - 1 and rim > 1 else 0), col_bot - (1 if i else 0) - (1 if i == rim - 1 and rim > 1 else 0)
-        for y in range(y0, y1 + 1):
-            e = 2 if y < y0 + 2 else 0 if y > y1 - 2 else 1
-            f[y, xx] = EDGE[e]
-        f[y0, xx] = K
-        f[y1, xx] = K
-        if i == rim - 1:
-            f[y0:y1 + 1, xx] = K
-            if rim == 1:
-                f[y0 + 1:y1, xx] = EDGE[0]
+    # canto: en cada fila sale del borde de la cara (la moneda es redonda), dorado con luz arriba
+    rows_on = [y for y in range(H) if m[y].any()]
+    if rim and rows_on:
+        y0, y1 = rows_on[0], rows_on[-1]
+        for y in rows_on:
+            xs = np.where(m[y])[0]
+            edge = off + (xs.max() if right else xs.min())
+            step = 1 if right else -1
+            f[y, edge] = EDGE[2] if y0 < y < y1 else K  # el contorno de ese lado pasa a ser el filo
+            e = 2 if y < y0 + 3 else 0 if y > y1 - 3 else 1
+            for i in range(1, rim + 1):
+                x = edge + step * i
+                if 0 <= x < tot:
+                    f[y, x] = K if (i == rim or y in (y0, y1)) else EDGE[e]
 Image.fromarray(out).save(sys.argv[2])
 print(sys.argv[2], FW, H, N)

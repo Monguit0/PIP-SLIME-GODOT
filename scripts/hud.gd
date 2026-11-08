@@ -178,7 +178,7 @@ func _draw_status() -> void:
 	var bump := -1.0 if main.score_bump > 0.5 else 0.0
 	var sc := "%05d" % roundi(main.shown_score)
 	_text(sc, W - 4, 4 + bump, Pal.W if main.score_bump > 0.5 else Pal.Y, 1, 2)
-	canvas.draw_texture_rect(COIN, Rect2(W - 4 - PText.width(sc) - 8.0, 2.5 + bump, 6, 7), false)
+	canvas.draw_texture_rect(COIN, Rect2(W - 4 - PText.width(sc) - 9.0, 2.0 + bump, COIN.get_width() / 2.0, COIN.get_height() / 2.0), false)
 	if main.combo > 1:
 		_text("x%d" % main.combo, W - 4, 12, Pal.C, 1, 2)
 	# zona y slimes que quedan
@@ -356,7 +356,11 @@ func _draw_card(c: Dictionary, x: float, on: bool, dim: bool, picked: bool) -> v
 	canvas.draw_texture_rect(CARD, cr, false)
 	var bob := roundf(sin(t * 5.0)) if on and not picked else 0.0
 	if icons.has(c.id):
-		canvas.draw_texture_rect(icons[c.id], Rect2(cc.x - 12, cc.y - 12 + bob, 24, 24), false)
+		var it: Texture2D = icons[c.id]
+		var isz := it.get_size() / 2.0  # los de PixelLab van a su tamaño HD; los viejos de 24 px, al doble
+		if isz.x < 16.0:
+			isz *= 2.0
+		canvas.draw_texture_rect(it, Rect2(Pix.snapv(cc - isz / 2.0 + Vector2(0, bob)), isz), false)
 	_text("ARQUERO" if c.get("only", false) else "HÉROE", x + w / 2.0, y + 4, Pal.W, 1, 1, Pal.RAMP_R[0])
 	# nombre y efecto
 	var lines := _wrap(c.name, 12).slice(0, 2)
