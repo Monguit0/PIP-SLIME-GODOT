@@ -1,4 +1,4 @@
-# Héroes (caballero y bárbaro)
+# Héroes (caballero, bárbaro y sus evoluciones)
 
 Los cuadros salen de **PixelLab** (personajes de 48 px, vista lateral, mirando al este), animados con
 `animate_character` en modo v3 (lienzo de 68×68). `cuadros.py` los pasa a la paleta de 9 bits, saca el
@@ -19,10 +19,14 @@ Animaciones que usa `scripts/player.gd`:
 | attack   | espadazo                          | hachazo                              |
 | charge   | levanta la espada (carga)         | levanta el hacha (carga)             |
 | big      | espadazo cargado                  | —                                    |
-| spin     | —                                 | giro con el hacha (el brillo verde de PixelLab pasa a fuego) |
+| spin     | —                                 | giro con el hacha (el brillo verde o celeste de PixelLab pasa a fuego) |
 | shield   | levanta el escudo                 | —                                    |
 | fury     | —                                 | ruge (furia)                         |
 | hurt     | recibe un golpe                   | recibe un golpe                      |
 | death    | cae                               | cae                                  |
 
-Las evoluciones van en `assets/sprites/paladin/` y `assets/sprites/warlord/` con las mismas carpetas.
+Las evoluciones van en `assets/sprites/paladin/` y `assets/sprites/warlord/` con las mismas carpetas
+(recetas `paladin.json` y `warlord.json`). Son el estado "Paladin" del caballero (armadura blanca y dorada,
+penacho dorado, capa blanca y escudo blanco con cruz) y el estado "Warlord" del bárbaro (casco con cuernos,
+capa de piel negra y martillo de guerra, como en el juego web). Al evolucionar, `player.gd` cambia los
+cuadros en el mismo punto de la misma animación.

@@ -3,7 +3,8 @@
  "hojas": {
   "a": "cab_rows1.png",
   "b": "rows2.png",
-  "d": "rows4.png"
+  "d": "rows4.png",
+  "e": "war_b.png"
  },
  "anims": {
   "idle": [
@@ -95,18 +96,17 @@
    ]
   ],
   "death": [
-   "b",
-   1,
+   "e",
+   0,
    [
     0,
     1,
     2,
     3,
     4,
-    5,
-    6
+    5
    ]
   ]
  },
- "nota": "PixelLab \"Pip caballero C\" daf6dbd0-0bf2-4418-9d28-a72861f44b0c. hoja a = join idle run jump-air slash big shield; b = join hurt death (y del bárbaro jump-air chop spin idle); d = join hurt-v2 run-tpl (y del bárbaro hurt-v2 death-v2 run-tpl)"
+ "nota": "PixelLab \"Pip caballero C\" daf6dbd0-0bf2-4418-9d28-a72861f44b0c. hoja a = join idle run jump-air slash big shield; b = join hurt death (y del bárbaro jump-air chop spin idle); d = join hurt-v2 run-tpl (y del bárbaro hurt-v2 death-v2 run-tpl); e = join (caballero death-v3) y del Warlord idle hurt"
 }

@@ -28,13 +28,13 @@ def cell(sheet, row, i):
     return out
 
 
-# el resplandor verde que PixelLab le puso al giro del hacha pasa a viento de fuego (naranja y amarillo)
+# el resplandor verde o celeste que PixelLab le puso al giro pasa a viento de fuego (naranja y amarillo)
 FIRE = [(109, 36, 0), (182, 73, 36), (255, 109, 73), (255, 182, 109), (255, 219, 182), (255, 255, 255)]
 
 
 def green_to_fire(f):
     r, g, b = [f[..., k].astype(int) for k in range(3)]
-    m = (f[..., 3] > 0) & (g > r + 40) & (g > b + 20)
+    m = (f[..., 3] > 0) & (g > r + 40) & ((g > b + 20) | (b > r + 40))
     lum = (r + g + b) / 3.0
     idx = np.clip((lum / 255.0 * len(FIRE)).astype(int), 0, len(FIRE) - 1)
     for k, c in enumerate(FIRE):

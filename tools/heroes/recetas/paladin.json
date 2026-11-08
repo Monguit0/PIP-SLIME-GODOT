@@ -1,0 +1,17 @@
+{
+ "out": "assets/sprites/paladin",
+ "hojas": {"a": "pal_a.png", "b": "pal_b.png"},
+ "anims": {
+  "idle": ["b", 0, [0, 1, 2, 3]],
+  "run": ["a", 0, [0, 1, 2, 3, 4, 5]],
+  "jump": ["a", 1, [2, 3]],
+  "fall": ["a", 1, [4, 5]],
+  "attack": ["a", 2, [1, 2, 3, 4, 5]],
+  "charge": ["a", 3, [1, 2, 3]],
+  "big": ["a", 3, [4, 5, 6, 7]],
+  "shield": ["a", 4, [0, 1, 2, 3]],
+  "hurt": ["a", 5, [0, 1, 2, 3]],
+  "death": ["b", 1, [0, 1, 2, 3, 4, 5]]
+ },
+ "nota": "PixelLab \"Pip caballero C\", estado Paladin 4b071b13-56ed-40e0-84c1-01c76e47fac8. a = join run jump-air slash big shield hurt; b = join idle death"
+}
