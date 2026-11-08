@@ -430,8 +430,11 @@ func _physics_process(dt: float) -> void:
 			var lowering := absf(angle - REST) > 12.0  # primero baja la espada, después camina
 			if absf(dist) > 36.0 and not lowering:
 				x += signf(dist) * (32.0 if ph2 else 22.0) * dt
+				var step_was := int(walk_dist / WALK_CYCLE * 2.0)
 				walk_dist += (32.0 if ph2 else 22.0) * dt
 				walking = true
+				if int(walk_dist / WALK_CYCLE * 2.0) != step_was:
+					_step()
 			angle = _lerp(angle, REST, dt * 8.0)
 			crouch = 0.0
 			if t > idle_dur:
@@ -711,6 +714,13 @@ func _rain_swords() -> void:
 	Snd.play("alerta", {"vary": false})
 	Snd.play("alerta", {"vary": false, "delay": 0.14, "rate": 1.12})
 	Fx.burst(get_parent(), sword_tip(), 10, [Pal.C, Pal.W], 80.0, 80.0, 0.4, 0.0)
+
+
+## Pisada al caminar (cuadros 0 y 6 de la caminata, cuando apoya el pie de adelante): la bota pesada,
+## el tintineo de la armadura y un poco de polvo.
+func _step() -> void:
+	Snd.play("paso", {"vol": 0.6})
+	Fx.dust(get_parent(), Vector2(cx() + face * 6.0, GROUND), 2, 12.0, 2.0, 2.0)
 
 
 func _slam_fx(px: float, mag: float, waves: bool) -> void:

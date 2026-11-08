@@ -1,6 +1,7 @@
 extends Node
 ## Sonido y música, como en el juego web. Se usa como autoload "Snd".
-## - Efectos: los mismos sonidos jsfxr del original (assets/audio/sfx), con un poco de variación de tono.
+## - Efectos: sintetizados por capas para el estilo HD (tools/sfx arma los .wav de assets/audio/sfx; los
+##   jsfxr del juego web quedaron en assets/audio/sfx_original), con un poco de variación de tono.
 ## - Música: la misma canción en distintos "ánimos" (assets/audio/music), exportados del original con su
 ##   tempo, tono y canales. Los cambios entran a tiempo, cada medio compás, y siguen en el mismo compás.
 ##   En peligro (te queda un corazón) suena apagada, como debajo del agua.
@@ -46,7 +47,7 @@ func _ready() -> void:
 	AudioServer.set_bus_volume_db(sfx_bus, linear_to_db(0.9))
 	for n in ["salto", "aterrizar", "disparo", "tajo", "clavar", "acierto", "critico", "moneda", "pisoton",
 			"explotar", "dano", "alerta", "porton", "metal", "rugido", "huesos", "baba", "posesion", "dash",
-			"escudo", "cargado", "poder", "oleada", "menu", "derrota", "boom"]:
+			"escudo", "cargado", "poder", "oleada", "menu", "derrota", "boom", "paso"]:
 		var path: String = SFX_DIR + n + ".wav"
 		if ResourceLoader.exists(path):
 			_sfx[n] = load(path)
