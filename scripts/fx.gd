@@ -142,6 +142,17 @@ func silhouette(c: Color) -> ShaderMaterial:
 	return m
 
 
+## Compila de entrada lo que se dibuja por primera vez en medio de la partida: la silueta del destello
+## y de las estelas del dash, y los modos de dibujo de polígonos y líneas. En el renderer Compatibility
+## cada shader se compila la primera vez que sale en pantalla, y eso daba un tirón en el primer dash.
+func warm(parent: Node, at: Vector2) -> void:
+	for m in [null, silhouette(Color.WHITE)]:
+		var w := Warmer.new()
+		w.position = at
+		w.material = m
+		parent.add_child(w)
+
+
 ## El golpe crítico: congelado, cámara lenta, zoom, cuadro de impacto, temblor, bombo y chispas.
 func crit(parent: Node, pos: Vector2) -> void:
 	Snd.play("critico", {"vary": false})
@@ -891,3 +902,33 @@ class Splat extends Node2D:
 		if k < 0.6:
 			for d in drops:
 				PX.dot(self, d, _r[_i], 1.0)
+
+
+class Warmer:
+	extends Node2D
+	## Dibuja casi invisible unos cuadros con cada modo (rectángulo, textura, polígono, línea) y se va.
+	var frames := 0
+	var tex: ImageTexture
+
+	func _ready() -> void:
+		z_index = 60
+		var img := Image.create(2, 2, false, Image.FORMAT_RGBA8)
+		img.fill(Color(1, 1, 1, 0.0))
+		tex = ImageTexture.create_from_image(img)
+
+	func _process(_dt: float) -> void:
+		frames += 1
+		queue_redraw()
+		if frames > 4:
+			queue_free()
+
+	func _draw() -> void:
+		var c := Color(0, 0, 0, 0.002)
+		draw_rect(Rect2(0, 0, 1, 1), c)
+		draw_texture(tex, Vector2.ZERO)
+		draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(0, 1)]), c)
+		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(1, 1)]),
+				PackedColorArray([c, c, c]))
+		draw_line(Vector2.ZERO, Vector2(1, 1), c)
+		draw_line(Vector2.ZERO, Vector2(1, 1), c, 1.0)
+		draw_circle(Vector2.ZERO, 1.0, c)

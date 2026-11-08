@@ -107,6 +107,18 @@ func _ready() -> void:
 	sprite.modulate.a = 0.0
 
 
+## Los cuadros de los dos esqueletos, para cargarlos en segundo plano antes de que aparezcan.
+static func asset_paths() -> Array:
+	var out: Array = []
+	for folder in ["arch", "axe"]:
+		for anim in ["idle", "walk", "atk", "hurt", "death"]:
+			var i := 0
+			while ResourceLoader.exists("%s%s/%s/frame_%03d.png" % [DIR, folder, anim, i]):
+				out.append("%s%s/%s/frame_%03d.png" % [DIR, folder, anim, i])
+				i += 1
+	return out
+
+
 func _load_frames() -> void:
 	var folder := DIR + ("arch" if kind == "skarch" else "axe") + "/"
 	for anim in ["idle", "walk", "atk", "hurt", "death"]:

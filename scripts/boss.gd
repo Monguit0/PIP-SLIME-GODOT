@@ -133,6 +133,22 @@ var kick_dir := 1.0
 var last_face := -1
 
 
+## Todos los cuadros del jefe, para que main.gd los vaya cargando en segundo plano desde el título
+## (cargarlos de golpe al entrar al Salón del Trono daba un tirón).
+static func asset_paths() -> Array:
+	var out: Array = []
+	for look in ["helm", "bare"]:
+		for anim in ANIMS:
+			var i := 0
+			while ResourceLoader.exists("%s%s/%s/frame_%03d.png" % [DIR, look, anim, i]):
+				out.append("%s%s/%s/frame_%03d.png" % [DIR, look, anim, i])
+				i += 1
+			var fp := "%s%s/%s/fist.png" % [DIR, look, anim]
+			if ResourceLoader.exists(fp):
+				out.append(fp)
+	return out
+
+
 func _ready() -> void:
 	z_index = -1
 	for look in ["helm", "bare"]:

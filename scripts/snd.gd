@@ -23,6 +23,7 @@ var _lp: AudioEffectLowPassFilter
 var _mood := ""
 var _want := ""
 var _streams := {}
+var _loading: Array = []  # músicas que se cargan en segundo plano desde que arranca el juego
 var _duck := 1.0
 var _lp_target := 20000.0
 var enabled := true
@@ -57,6 +58,12 @@ func _ready() -> void:
 	_music = AudioStreamPlayer.new()
 	_music.bus = "Musica"
 	add_child(_music)
+	# todas las músicas se cargan en segundo plano: cargarlas al cambiar de ánimo (la del jefe al entrar
+	# al castillo) frenaba el juego un momento
+	for m in MOODS:
+		var path: String = MUSIC_DIR + m + ".ogg"
+		if ResourceLoader.exists(path) and ResourceLoader.load_threaded_request(path) == OK:
+			_loading.append(m)
 
 
 ## play("disparo", {"rate": 1.2, "vol": 0.5, "delay": 0.1, "vary": false})
@@ -110,11 +117,26 @@ func mood(name: String, danger: bool = false) -> void:
 
 func _stream(name: String) -> AudioStream:
 	if not _streams.has(name):
-		var s = load(MUSIC_DIR + name + ".ogg")
-		if s is AudioStreamOggVorbis:
-			(s as AudioStreamOggVorbis).loop = true
-		_streams[name] = s
+		_keep(name, load(MUSIC_DIR + name + ".ogg"))
 	return _streams[name]
+
+
+func _keep(name: String, s: Resource) -> void:
+	if s is AudioStreamOggVorbis:
+		(s as AudioStreamOggVorbis).loop = true
+	_streams[name] = s
+	_loading.erase(name)
+
+
+func _collect() -> void:
+	for i in range(_loading.size() - 1, -1, -1):
+		var m: String = _loading[i]
+		var path: String = MUSIC_DIR + m + ".ogg"
+		var st := ResourceLoader.load_threaded_get_status(path)
+		if st == ResourceLoader.THREAD_LOAD_LOADED:
+			_keep(m, ResourceLoader.load_threaded_get(path))
+		elif st != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			_loading.remove_at(i)
 
 
 func _spb(name: String) -> float:
@@ -131,6 +153,8 @@ func _switch(step: int) -> void:
 
 
 func _process(dt: float) -> void:
+	if not _loading.is_empty():
+		_collect()
 	_duck = minf(1.0, _duck + dt * 1.1)
 	AudioServer.set_bus_volume_db(_music_bus, linear_to_db(MUSIC_VOL * _duck))
 	_lp.cutoff_hz = lerpf(_lp.cutoff_hz, _lp_target, minf(1.0, dt * 3.0))

@@ -79,6 +79,8 @@ var pick = null             # elección de cartas: {ids, sel, t, done, done_t}
 var haz_t := 4.0
 var boss = null             # boss.gd
 var fade := 0.0
+var _warm_paths: Array = []  # cuadros del jefe y los esqueletos que se están cargando en segundo plano
+var _warm: Array = []        # los ya cargados: quedan vivos para que load() los saque de la caché
 
 
 func _ready() -> void:
@@ -97,6 +99,10 @@ func _ready() -> void:
 	camera.anchor_mode = Camera2D.ANCHOR_MODE_FIXED_TOP_LEFT
 	add_child(camera)
 	camera.make_current()
+	Fx.warm(self, player.global_position + Vector2(0, -12))
+	_warm_paths = BossScript.asset_paths() + SkelScript.asset_paths()
+	for p in _warm_paths:
+		ResourceLoader.load_threaded_request(p)
 	hud = HudScript.new()
 	hud.player = player
 	hud.main = self
@@ -136,6 +142,24 @@ func _process(dt: float) -> void:
 	_check_zone()
 	_update_gates(dt)
 	_update_camera(dt)
+	if not _warm_paths.is_empty():
+		_collect_warm()
+
+
+## Junta los cuadros que ya terminaron de cargar en segundo plano (unos pocos por cuadro).
+func _collect_warm() -> void:
+	var got := 0
+	var i := _warm_paths.size() - 1
+	while i >= 0 and got < 32:
+		var p: String = _warm_paths[i]
+		var st := ResourceLoader.load_threaded_get_status(p)
+		if st == ResourceLoader.THREAD_LOAD_LOADED:
+			_warm.append(ResourceLoader.load_threaded_get(p))
+			_warm_paths.remove_at(i)
+			got += 1
+		elif st != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			_warm_paths.remove_at(i)
+		i -= 1
 
 
 func _physics_process(dt: float) -> void:
