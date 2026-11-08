@@ -87,7 +87,7 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   corazones, aviso, flecha y espada que caen, y los dibujos viejos de las cartas.
 - `assets/sprites/ui/`: el HUD en HD. Marcos de las barras de energía, experiencia y del jefe con su medallón, el marco
   de las cartas con su brillo (los dibuja `tools/ui/hud_parts.py`), y de **PixelLab** los íconos del rayo, la estrella
-  y el yelmo de los medallones y los dibujos de las 8 cartas (`carta_<id>.png`, 48×48). El corazón, la moneda y el
+  y el yelmo de los medallones y los dibujos de las 8 cartas (`carta_<id>.png`, 64×64). El corazón, la moneda y el
   aviso de lo que cae (`items/heart.png`, `coin.png`, `warn.png`) también son de PixelLab.
 - `assets/sprites/boss/`: el Mega Caballero hecho con **PixelLab**, `helm/` con casco y `bare/` sin casco, cada uno con
   `idle/`, `walk/`, `charge/` (12 cuadros), `dazed/`, `death/`, `jump/` (14 cuadros del salto con espadazo), `roar/` y
