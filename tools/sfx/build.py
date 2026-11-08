@@ -44,7 +44,7 @@ for name in (only or sounds.ALL):
     x = hp1(x, 25)
     x = trim(x, 2e-4)
     x = fade_tail(x, 10)
-    REF = {'paso': ('aterrizar', 0.7)}  # sonidos nuevos: tan fuertes como uno viejo parecido
+    REF = {'paso': ('aterrizar', 0.7), 'salto': ('salto', 0.7)}  # sonidos nuevos: tan fuertes como uno viejo parecido
     ref, k = REF.get(name, (name, 1.0))
     old = rd(os.path.join(OLD, ref + '.wav'))
     g = loud(old) * k / max(loud(x), 1e-9)

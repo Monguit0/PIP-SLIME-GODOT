@@ -37,6 +37,7 @@ const INVULN := 1.0
 
 const ArrowScript := preload("res://scripts/arrow.gd")
 const PIP_DIR := "res://assets/sprites/pip/"
+const EVO_DIR := "res://assets/sprites/pip_cazador/"  # el Cazador: capa verde de bosque y cuero con bordes dorados
 
 var max_hearts := 3
 var hearts := 3
@@ -68,6 +69,7 @@ var recent_bottoms: Array = []
 var stomp_inv := 0.0
 var shoot_t := 0.0
 var evo := false            # evolucionó a Cazador: dos flechas seguidas y veneno
+var evo_frames: SpriteFrames  # el diseño del Cazador (se cambia al evolucionar)
 var venom := false          # veneno prendido (gasta energía)
 var cure_used := false      # la poción, una vez por zona
 var flash_t := 0.0
@@ -114,7 +116,8 @@ func _ready() -> void:
 	add_child(shape)
 
 	sprite = AnimatedSprite2D.new()
-	sprite.sprite_frames = _build_frames()
+	sprite.sprite_frames = _build_frames(PIP_DIR)
+	evo_frames = _build_frames(EVO_DIR) if ResourceLoader.exists(EVO_DIR + "idle/frame_000.png") else null
 	sprite.centered = true
 	sprite.offset = Vector2(0, -23) # lienzo de 48x48: los pies quedan en la fila 46
 	sprite.scale = Vector2(0.5, 0.5) # píxeles HD: se dibuja a la mitad, como en el original
@@ -129,7 +132,7 @@ func _ready() -> void:
 	add_child(bow)
 
 
-func _build_frames() -> SpriteFrames:
+func _build_frames(dir: String) -> SpriteFrames:
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
 	var anims := {"idle": 5.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 18.0, "aim": 10.0, "release": 18.0, "hurt": 14.0, "dash": 18.0, "death": 10.0}
@@ -139,15 +142,15 @@ func _build_frames() -> SpriteFrames:
 		sf.set_animation_loop(anim, anim in ["idle", "run", "fall", "aim"])
 		var i := 0
 		while true:
-			var path := "%s%s/frame_%03d.png" % [PIP_DIR, anim, i]
+			var path := "%s%s/frame_%03d.png" % [dir, anim, i]
 			if not ResourceLoader.exists(path):
 				break
 			sf.add_frame(anim, load(path))
 			i += 1
 	# si falta alguna animación, usa la quieta; si no hay nada, un muñequito de colores
 	var still: Texture2D = null
-	if ResourceLoader.exists(PIP_DIR + "east.png"):
-		still = load(PIP_DIR + "east.png")
+	if ResourceLoader.exists(dir + "east.png"):
+		still = load(dir + "east.png")
 	else:
 		still = _placeholder()
 	for anim in anims:
@@ -537,6 +540,16 @@ func _try_cure() -> void:
 ## ¡Evolución! Ahora es Cazador: vida llena, dos flechas por disparo y veneno con el botón de poder.
 func evolve() -> void:
 	evo = true
+	# cambia de ropa en el destello: mismo cuadro de la misma animación, con el diseño del Cazador
+	if evo_frames != null:
+		var anim := sprite.animation
+		var fr := sprite.frame
+		var prog := sprite.frame_progress
+		sprite.sprite_frames = evo_frames
+		sprite.play(anim)
+		sprite.set_frame_and_progress(fr, prog)
+		if ResourceLoader.exists(EVO_DIR + "aim_bow.png"):
+			bow.texture = load(EVO_DIR + "aim_bow.png")
 	hearts = max_hearts
 	hearts_changed.emit()
 	invuln = maxf(invuln, 1.0)

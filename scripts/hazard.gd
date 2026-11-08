@@ -5,6 +5,10 @@ extends Node2D
 
 const ARROW := preload("res://assets/sprites/items/arrow_down.png")  # 3x8 en el mundo
 const SWORD := preload("res://assets/sprites/items/sword_down.png")  # 5x11 en el mundo
+const Pix := preload("res://scripts/pix.gd")
+const WARN_PATH := "res://assets/sprites/items/warn.png"  # cartelito de peligro (PixelLab), 16x16 HD
+
+static var warn_tex: Texture2D = null
 
 var game  # main.gd
 var big := false
@@ -35,6 +39,8 @@ func box() -> Rect2:
 
 func _ready() -> void:
 	z_index = 3
+	if warn_tex == null and ResourceLoader.exists(WARN_PATH):
+		warn_tex = load(WARN_PATH)
 
 
 func _physics_process(dt: float) -> void:
@@ -83,15 +89,7 @@ func _physics_process(dt: float) -> void:
 
 func _draw() -> void:
 	if phase == "warn":
-		var k := 1.0 - warn / warn_max
-		var on := int(t * (6.0 + 18.0 * k)) % 2 == 0
-		var c := (Pal.C if big else Pal.R) if on else Pal.P
-		var yy := 18.0 + int(t * 30.0) % 4
-		while yy < land_y - 6.0:
-			draw_rect(Rect2(0, yy, 1, 2), c)
-			yy += 4.0
-		var sw := 2.0 + roundf(6.0 * k)
-		draw_rect(Rect2(-sw, land_y - 1, sw * 2 + 1, 1), Pal.K)
+		_draw_warn()
 		return
 	if phase == "stuck" and life < 0.4 and int(life * 20.0) % 2 == 1:
 		return
@@ -102,3 +100,49 @@ func _draw() -> void:
 		draw_texture_rect(SWORD, Rect2(-2 + wx, roundf(y), 5, 11), false)
 	else:
 		draw_texture_rect(ARROW, Rect2(-1 + wx, roundf(y), 3, 8), false)
+
+
+## Aviso a medio píxel: un haz finito con chevrones que bajan cada vez más rápido, la mira en el piso
+## que se cierra sobre donde va a caer, la sombra que crece y el cartelito de peligro arriba.
+func _draw_warn() -> void:
+	var k := 1.0 - warn / warn_max
+	var ramp: Array = Pal.RAMP_C if big else Pal.RAMP_R
+	var on := int(t * (6.0 + 18.0 * k)) % 2 == 0
+	var top := 17.0
+	var bottom := land_y - 3.0
+	# haz de fondo, tenue
+	draw_rect(Rect2(0, top, 1.0, bottom - top), Color(ramp[1], 0.25 + 0.3 * k))
+	# chevrones que bajan
+	var step := 7.0
+	var yy := top + fposmod(t * (18.0 + 50.0 * k), step)
+	while yy < bottom:
+		var near := (yy - top) / maxf(1.0, bottom - top)
+		var c: Color = ramp[3] if on and near > 0.6 else (ramp[2] if on else ramp[1])
+		# centrado en x = 0.5, como la flecha que cae
+		Pix.dot(self, Vector2(0.0, yy), c)
+		Pix.dot(self, Vector2(0.5, yy), c)
+		Pix.dot(self, Vector2(-0.5, yy - 0.5), c)
+		Pix.dot(self, Vector2(1.0, yy - 0.5), c)
+		if big:
+			Pix.dot(self, Vector2(-1.0, yy - 1.0), c)
+			Pix.dot(self, Vector2(1.5, yy - 1.0), c)
+		yy += step
+	# sombra que crece y mira que se cierra
+	var g := land_y + 0.5
+	Pix.disc(self, Vector2(0.5, g), 1.0 + (4.0 if big else 3.0) * k, Color(Pal.K, 0.55), 0.5 + 1.0 * k)
+	var rx := (3.0 if big else 2.5) + 8.0 * (1.0 - k) * (1.0 - k)
+	var rc: Color = ramp[3] if on else ramp[2]
+	Pix.ring(self, Vector2(0.5, g), rx, rc, 0.5, maxf(1.0, rx * 0.32))
+	for sx in [-1.0, 1.0]:
+		Pix.line(self, Vector2(0.5 + sx * (rx + 1.0), g), Vector2(0.5 + sx * (rx + 2.5), g), rc)
+	# cartelito de peligro, que salta con cada pitido
+	var bob := -1.0 if on and k < 0.8 else 0.0
+	if warn_tex != null:
+		if on or k < 0.5:
+			draw_texture_rect(warn_tex, Rect2(-3.5, 7.0 + bob, 8, 8), false)
+	elif on:
+		var tc: Color = ramp[2]
+		for i in 6:
+			Pix.line(self, Vector2(0.5 - i * 0.5, 7.5 + i * 0.5 * 2.0 + bob), Vector2(0.5 + i * 0.5 - 0.5, 7.5 + i + bob), tc)
+		draw_rect(Rect2(0.0, 9.0 + bob, 1.0, 2.0), Pal.W)
+		draw_rect(Rect2(0.0, 11.5 + bob, 1.0, 0.5), Pal.W)
