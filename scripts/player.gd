@@ -763,7 +763,7 @@ func _slash_hits() -> void:
 			e.parried(d, 1.6)
 	var b = game.boss if game != null else null
 	if b != null and is_instance_valid(b) and b.active() and b.body().intersects(hb):
-		var bid := b.get_instance_id()
+		var bid: int = b.get_instance_id()
 		if war and hit_keys.get(-bid, -1) != swing_id:
 			hit_keys[-bid] = swing_id
 			b.war_stun()
