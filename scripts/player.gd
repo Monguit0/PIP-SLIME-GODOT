@@ -48,6 +48,7 @@ const RAGE := 70.0
 const RAGE_T := 5.0
 const SPIN_GAP := 0.2        # el giro del hacha pega cada 0,2 s
 const SPIN_HIT := 0.12
+const BIG_HIT := 0.12        # el espadazo llega al piso (el cuadro del impacto)
 
 const ArrowScript := preload("res://scripts/arrow.gd")
 const SPR := "res://assets/sprites/"
@@ -108,11 +109,13 @@ var skid_t := 0.0
 var idle_t := 0.0            # cuánto lleva quieto (el caballero hace un floreo con la espada)
 var flourish_t := 0.0
 var step_fr := -1            # último cuadro de la carrera que sonó como pisada
+var land_t := 0.0            # recién aterrizó: se agacha un instante
 var chg_fx := 0.0           # chispitas que se juntan en el arco mientras carga
 # cuerpo a cuerpo (caballero y bárbaro)
 var swing_t := 9.0           # desde el último golpe
 var swing_id := 0
 var big := false             # espadazo cargado del caballero
+var big_fx := true           # ya llegó al piso el espadazo (el impacto va una vez por golpe)
 var spin := false            # giro del hacha del bárbaro
 var spin_n := 2
 var atk_buf := 0.0
@@ -234,7 +237,7 @@ func _build_frames(dir: String) -> SpriteFrames:
 	sf.remove_animation("default")
 	var anims := {"idle": 5.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 18.0, "aim": 10.0, "release": 18.0, "hurt": 14.0, "dash": 18.0, "death": 10.0,
 		"attack": 24.0, "charge": 16.0, "big": 14.0, "spin": 40.0, "shield": 18.0, "fury": 12.0,
-		"charge_hold": 8.0, "charge_walk": 10.0, "flourish": 11.0}
+		"charge_hold": 8.0, "charge_walk": 10.0, "flourish": 11.0, "land": 14.0}
 	for anim in anims:
 		sf.add_animation(anim)
 		sf.set_animation_speed(anim, anims[anim])
@@ -350,6 +353,13 @@ func _physics_process(dt: float) -> void:
 			squash = Vector2(0.7, 1.35)
 			Snd.play("salto")
 			Fx.dust(get_parent(), global_position, 4, 26.0, 5.0, 1.6)
+			# despegue: un aro de aire aplastado en el piso, el polvo que patea hacia atrás si viene corriendo
+			# y unas líneas que quedan abajo mientras sube
+			Fx.shock(get_parent(), global_position, Pal.S, 9.0, 0.2)
+			if absf(velocity.x) > 30.0:
+				Fx.dust(get_parent(), global_position + Vector2(-signf(velocity.x) * 3.0, 0), 2, 36.0, 4.0, 1.5, Pal.S, -signf(velocity.x))
+			for i in 3:
+				Fx.streak(get_parent(), global_position + Vector2(-4.0 + 4.0 * i, -1.0 - 3.0 * (i % 2)), Vector2(0, 90.0), 0.12, Pal.W, 5.0)
 	elif buffer > 0.0 and not is_on_floor() and not double_jumped and not dashing:
 		double_jumped = true
 		velocity.y = -jump_v * DJ
@@ -395,6 +405,11 @@ func _physics_process(dt: float) -> void:
 				Fx.shock(get_parent(), global_position, Pal.S, 10.0 + 6.0 * k, 0.25)
 				Fx.chunks(get_parent(), global_position, 2, [Pal.S, Pal.SS], 40.0, 30.0, global_position.y)
 			Snd.play("aterrizar", {"vol": 0.5 + 0.5 * k})
+		elif not was_floor and fall_speed > 60.0:
+			squash = Vector2(1.08, 0.93)
+			Fx.dust(get_parent(), global_position, 2, 14.0, 3.0, 1.2)
+		if not was_floor and fall_speed > 60.0:
+			land_t = _anim_len("land", 0.0) * (0.5 if absf(velocity.x) > 10.0 else 1.0)
 		# polvito al correr (al pisar) y derrape al dar la vuelta corriendo
 		if absf(velocity.x) > 60.0:
 			dust_t -= dt
@@ -424,6 +439,7 @@ func _timers(dt: float) -> void:
 	block_t -= dt
 	parry_inv -= dt
 	fury_t -= dt
+	land_t -= dt
 	swing_t += dt
 	if drop_t > 0.0:
 		drop_t -= dt
@@ -633,8 +649,27 @@ func _attack_melee(dt: float) -> void:
 						Fx.part(get_parent(), at + Vector2(randf_range(-3, 3), randf_range(-3, 3)), Vector2(randf_range(-8, 8), -22), -30.0, 0.35, col)
 					else:
 						Fx.converge(get_parent(), at, 9.0 + randf() * 5.0, col if randf() < 0.6 else Pal.W, 0.18)
+	if big and not big_fx and swing_t >= BIG_HIT:
+		big_fx = true
+		_big_impact()
 	if _slash_active():
 		_slash_hits()
+
+
+## el espadazo llega al piso en la punta de la hoja: destello, chispas con la rampa del héroe (rojo el
+## caballero, dorado el Paladín), cascotes que rebotan, polvo a los dos lados, un aro aplastado y temblor
+func _big_impact() -> void:
+	var ramp: Array = Pal.RAMP_Y if evo else Pal.RAMP_R
+	var tip := global_position + Vector2(face * (21.0 if evo else 25.0), 0.0)
+	Fx.hit(get_parent(), tip + Vector2(0, -3), Vector2(face * 0.4, -1.0), ramp[3], true)
+	Fx.burst(get_parent(), tip + Vector2(0, -1), 12, [ramp[2], ramp[3], ramp[4]], 120.0, 50.0, 0.45, 260.0)
+	Fx.shake(4.0, 0.15)
+	Fx.kick(Vector2(0, 1), 1.5)
+	if is_on_floor():
+		Fx.chunks(get_parent(), tip, 7, [Pal.S, Pal.SS, Pal.D], 70.0, 40.0, global_position.y)
+		Fx.dust(get_parent(), tip + Vector2(0, -1), 8, 30.0, 6.0, 2.4)
+		Fx.shock(get_parent(), tip, ramp[3], 22.0, 0.3)
+		Snd.play("aterrizar", {"rate": 0.7})
 
 
 func _anim_len(anim: String, fallback: float) -> float:
@@ -654,10 +689,18 @@ func _swing() -> void:
 	squash = Vector2(1.2, 0.86)
 	Snd.play("tajo", {"rate": 0.75 if kind == "barb" else 1.0})
 	Fx.kick(Vector2(face, 0), 0.5)
-	var hand := global_position + Vector2(face * 3.0, -12.0)
-	var col := Pal.O if rage_t > 0.0 else (Pal.W if kind == "barb" else Pal.C)
-	var reach := (20.0 if evo else 17.0) if kind == "knight" else (16.0 if evo else 13.0)
-	Fx.slash(get_parent(), hand, reach, -115.0, 35.0, face, col, 5.0, 0.14)
+	if kind == "knight":
+		# el tajo trae su media luna dibujada en los cuadros (roja, dorada el Paladín): acá van el polvo
+		# que levanta el pie de atrás al pisar fuerte y las líneas de velocidad
+		if is_on_floor():
+			Fx.dust(get_parent(), global_position + Vector2(-face * 4.0, 0), 3, 34.0, 6.0, 1.6, Pal.S, -face)
+		for i in 3:
+			Fx.streak(get_parent(), global_position + Vector2(-face * (3.0 + 2.0 * i), -7.0 - 5.0 * i),
+				Vector2(-face * 130.0, 0), 0.12, Pal.W, 6.0)
+	else:
+		var hand := global_position + Vector2(face * 3.0, -12.0)
+		var col := Pal.O if rage_t > 0.0 else Pal.W
+		Fx.slash(get_parent(), hand, 16.0 if evo else 13.0, -115.0, 35.0, face, col, 5.0, 0.14)
 	sprite.play("attack")
 	sprite.frame = 0
 
@@ -683,18 +726,15 @@ func _big_swing() -> void:
 		sprite.frame = 0
 	else:
 		big = true
+		big_fx = false  # el arco grande viene dibujado; el impacto contra el piso sale en _big_impact
 		spin = false
 		Snd.play("poder", {"rate": 0.8})
 		Snd.play("tajo", {"rate": 0.7})
 		velocity.x += face * 90.0
 		squash = Vector2(1.35, 0.8)
-		Fx.shake(3.0, 0.15)
 		Fx.kick(Vector2(face, 0), 1.8)
-		var hand := global_position + Vector2(face * 2.0, -13.0)
-		Fx.slash(get_parent(), hand, 30.0 if evo else 26.0, -125.0, 50.0, face, Pal.Y, 8.0, 0.2)
-		Fx.burst(get_parent(), global_position + Vector2(face * 16, -10), 10, [Pal.Y, Pal.O, Pal.W], 90.0, 20.0, 0.35, 160.0)
 		if is_on_floor():
-			Fx.dust(get_parent(), global_position + Vector2(face * 6, 0), 3, 30.0, 4.0, 1.6, Pal.S, face)
+			Fx.dust(get_parent(), global_position + Vector2(-face * 4.0, 0), 3, 30.0, 4.0, 1.6, Pal.S, -face)
 		sprite.play("big")
 		sprite.frame = 0
 
@@ -1089,6 +1129,18 @@ func _pick_melee(anim: String, has: Callable, dt: float) -> void:
 				want = "charge_hold"
 			elif sprite.animation != "charge":
 				want = sprite.animation
+	# recién aterrizado: se agacha un instante (con armadura pesa) antes de quedarse quieto o seguir corriendo
+	if land_t > 0.0 and want in ["idle", "run"] and is_on_floor() and has.call("land"):
+		want = "land"
+	# en el aire el cuadro sale de la velocidad y no del reloj
+	if want in ["jump", "fall"] and has.call(want):
+		if sprite.animation != want:
+			sprite.play(want)
+		sprite.pause()
+		sprite.frame = _air_frame(want)
+		idle_t = 0.0
+		flourish_t = 0.0
+		return
 	# quieto un rato: floreo con la espada (una vez y vuelve a esperar)
 	if want == "idle" and has.call("flourish"):
 		idle_t += dt
@@ -1107,6 +1159,14 @@ func _pick_melee(anim: String, has: Callable, dt: float) -> void:
 		sprite.play(want)
 	elif not sprite.is_playing() and want in ["idle", "run", "fall", "charge_hold", "charge_walk"]:
 		sprite.play(want)
+
+
+## En el aire: despega estirado, encoge las piernas mientras sube, arriba de todo la capa empieza a volar
+## y cae con las piernas estiradas. Subiendo va según lo que le queda de impulso; cayendo, según lo rápido que cae.
+func _air_frame(anim: String) -> int:
+	var n := sprite.sprite_frames.get_frame_count(anim)
+	var k: float = 1.0 - clampf(-velocity.y / jump_v, 0.0, 1.0) if anim == "jump" else clampf(velocity.y / 160.0, 0.0, 1.0)
+	return mini(n - 1, int(k * n))
 
 
 ## Rebote al pisarle el yelmo al jefe.
@@ -1198,7 +1258,16 @@ func _animate(dt: float) -> void:
 		var b := sin(Time.get_ticks_msec() / 1000.0 * TAU * 0.9)
 		breath = Vector2(1.0 + 0.015 * b, 1.0 - 0.025 * b)
 		sprite.offset.y = base_oy + roundf(b)
-	sprite.scale = squash * breath * 0.5
+	# en el aire se estira un poco con la velocidad (subiendo y cayendo) y arriba de todo vuelve a su forma;
+	# cayendo rápido le pasa el viento por al lado
+	var air := Vector2.ONE
+	if not is_on_floor() and not dead and dash_t <= 0.0:
+		var v := clampf((absf(velocity.y) - 60.0) / (MAX_FALL - 60.0), 0.0, 1.0)
+		air = Vector2(1.0 - 0.05 * v, 1.0 + 0.08 * v)
+		if velocity.y > 170.0 and Engine.get_physics_frames() % 4 == 0:
+			Fx.streak(get_parent(), global_position + Vector2(randf_range(-7, 7), -randf_range(2, 18)),
+				Vector2(0, -110.0), 0.1, Pal.W if randf() < 0.5 else Pal.S, 6.0)
+	sprite.scale = squash * breath * air * 0.5
 	# el arco y la flecha no respiran: quedan clavados para dar tensión
 	bow.visible = sprite.animation == "aim"
 	bow.flip_h = sprite.flip_h

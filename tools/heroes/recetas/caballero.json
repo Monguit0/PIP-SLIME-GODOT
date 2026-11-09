@@ -12,6 +12,18 @@
    "runup.png",
    80,
    68
+  ],
+  "w": [
+   "kw.png",
+   132,
+   92,
+   7
+  ],
+  "j": [
+   "jw1.png",
+   104,
+   104,
+   8
   ]
  },
  "anims": {
@@ -44,33 +56,48 @@
     1
    ]
   ],
-  "jump": [
-   "c",
-   3,
-   [
-    2,
-    3
-   ]
-  ],
-  "fall": [
-   "c",
-   3,
-   [
-    4,
-    5
-   ]
-  ],
-  "attack": [
-   "a",
-   2,
-   [
+  "jump": {
+   "hoja": "j",
+   "cuadros": [
     1,
     2,
     3,
-    4,
-    5
+    4
+   ],
+   "alinear": "torso"
+  },
+  "fall": {
+   "hoja": "j",
+   "cuadros": [
+    5,
+    6,
+    7
+   ],
+   "alinear": "torso"
+  },
+  "attack": {
+   "hoja": "w",
+   "cuadros": [
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+   ],
+   "alinear": 8,
+   "estelas": [
+    [
+     11,
+     [
+      9,
+      14
+     ],
+     "r",
+     85
+    ]
    ]
-  ],
+  },
   "charge": [
    "a",
    3,
@@ -112,16 +139,28 @@
     3
    ]
   ],
-  "big": [
-   "a",
-   4,
-   [
+  "big": {
+   "hoja": "w",
+   "cuadros": [
+    3,
     4,
     5,
     6,
     7
+   ],
+   "alinear": 0,
+   "estelas": [
+    [
+     4,
+     [
+      3,
+      5
+     ],
+     "r",
+     120
+    ]
    ]
-  ],
+  },
   "shield": [
    "a",
    5,
@@ -166,7 +205,15 @@
     6,
     7
    ]
-  ]
+  ],
+  "land": {
+   "hoja": "j",
+   "cuadros": [
+    0,
+    0
+   ],
+   "alinear": "torso"
+  }
  },
- "nota": "PixelLab \"Pip caballero C\", estado \"Espada grande\" 897ded76-7138-4860-94e6-2b0b6f2833e5. a = join idle run slash charge big shield; c = join flourish hurt death jump-air; d = join charge-hold charge-walk (arrancan del último cuadro de charge); e = join run-up (caballero y Paladín; arranca del cuadro 1 de charge, con la espada en alto para que se vean las piernas)"
+ "nota": "PixelLab \"Pip caballero C\", estado \"Espada grande\" 897ded76-7138-4860-94e6-2b0b6f2833e5. a = join idle run slash charge big shield; c = join flourish hurt death jump-air; d = join charge-hold charge-walk (arrancan del último cuadro de charge); e = join run-up (caballero y Paladín; arranca del cuadro 1 de charge, con la espada en alto para que se vean las piernas). w = join espadazo-ref-pmm-w tajo-ref-pmm-w --as sheet --columns 7 (espadazo 0-7, tajo 8-15; arrancan del quieto en un lienzo de 104x80). attack y big: el tajo y el espadazo de la referencia, en lienzo grande y con la estela teñida. j = join jump-full-pmm (caballero y Paladín) --as sheet --columns 8 (caballero 0-7, Paladín 8-15; arranca del quieto en un lienzo de 104x104): jump, fall y land."
 }

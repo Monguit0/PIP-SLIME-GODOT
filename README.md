@@ -31,12 +31,15 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   los shaders se compilan al arrancar (antes el primer dash y la entrada al castillo trababan un instante).
 - **Pip arquero** con los números del juego web: doble salto, coyote time, salto corto, **dash** intangible, flecha
   normal y **flechazo cargado** (3 de daño, atraviesa). Máximo cuatro flechas en el aire.
-- **Caballero** (4 corazones, más lento) con un **mandoble** que llega más lejos: **tajo** (X), **espadazo** cargado (mantené X: levanta
-  el mandoble detrás de la cabeza y lo sostiene, quieto o caminando; al soltar pega fuerte, atraviesa y
-  corta flechas y ondas) y **escudo** (Shift, gasta energía): se da vuelta hacia el golpe y lo para con el escudo adelante,
+- **Caballero** (4 corazones, más lento) con un **mandoble** que llega más lejos: **tajo** (X: corte horizontal con una
+  media luna roja, dorada en el Paladín, polvo del pie de atrás y líneas de velocidad), **espadazo** cargado (mantené X: levanta
+  el mandoble detrás de la cabeza y lo sostiene, quieto o caminando; al soltar lo baja con todo en un arco grande, pega
+  fuerte, atraviesa y corta flechas y ondas, y donde la hoja toca el piso salen un destello, chispas, cascotes, polvo, un
+  aro y temblor) y **escudo** (Shift, gasta energía): se da vuelta hacia el golpe y lo para con el escudo adelante,
   y si lo levantás justo antes del golpe hace **PARRY**: devuelve flechas, ondas y espadas que caen, marea al que pegó y
   el contragolpe es crítico seguro (al jefe lo deja aturdido). Corre con el mandoble en alto y las pisadas suenan a
-  armadura; si lo dejás quieto un rato hace un floreo con la espada.
+  armadura; si lo dejás quieto un rato hace un floreo con la espada. **Salta** con todo el cuerpo: despega estirado,
+  encoge las piernas al subir, arriba la capa se le vuela, cae con las piernas estiradas y al aterrizar se agacha.
 - **Bárbaro** (4 corazones, rápido): **hacha** (X, lenta pero pega 3), **giro** cargado (mantené X: tres vueltas que
   pegan alrededor) y **furia** (Shift con la barra llena): 5 segundos con más daño, ataques más rápidos y en rojo.
 - Los tres hechos con **PixelLab** a 68×68 con los pies en la misma fila, así que comparten física y colisión.
@@ -50,7 +53,8 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   golpe), el barrido del jefe deja una **media luna** que sigue a la espada, las explosiones son bollos de fuego, los
   anillos y las ondas en el piso son de píxeles y los números saltan con borde (los grandes con degradé). Al recibir un
   golpe la silueta entera se pone blanca.
-- **Juice**: polvo al saltar, caer, correr y derrapar; anillo de aire en el doble salto; líneas de velocidad y estela de
+- **Juice**: polvo al saltar, caer, correr y derrapar; al despegar un aro de aire en el piso y líneas que quedan abajo;
+  en el aire el héroe se estira un poco con la velocidad y cayendo rápido le pasa el viento por al lado; anillo de aire en el doble salto; líneas de velocidad y estela de
   silueta en el dash; chispitas que se juntan en el arco mientras carga y destello cuando está listo; retroceso de cámara
   al disparar y al recibir golpes; destellito en las monedas; el jefe ruge con ondas, embiste levantando polvo, choca
   contra la pared largando piedras y al caer de un salto parte el piso con dos ondas. Los slimes se agachan antes de
@@ -113,9 +117,9 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   `east.png` y las carpetas `idle/`, `run/`, `jump/`, `fall/`, `shoot/` (tensar el arco), `aim/` (apuntando en loop, con la capa al viento), `release/` (soltar con retroceso), `dash/`, `hurt/` y `death/` con un PNG por cuadro. Mira a la derecha; para la izquierda se espeja.
   Si falta alguna carpeta, el juego usa el cuadro quieto. `pip_cazador/` es la evolución.
 - `assets/sprites/caballero/`, `barbaro/`, `paladin/` y `warlord/`: los otros héroes y sus evoluciones, de **PixelLab**
-  (lienzo de 68×68, pies en la fila 56), con `idle/`, `run/`, `jump/`, `fall/`, `attack/`, `charge/`, `hurt/`, `death/` y
-  lo propio: `big/`, `shield/`, `charge_hold/` y `charge_walk/` (cargando quieto y caminando) y `flourish/` (el floreo
-  cuando se queda quieto) el caballero, `spin/` y `fury/` el bárbaro. Los pasa al juego `tools/heroes/cuadros.py`
+  (lienzo de 68×68, pies en la fila 56; el tajo y el espadazo, más anchos, con el mismo centro), con `idle/`, `run/`,
+  `jump/`, `fall/`, `attack/`, `charge/`, `hurt/`, `death/` y lo propio: `big/`, `shield/`, `charge_hold/` y `charge_walk/`
+  (cargando quieto y caminando), `flourish/` (el floreo cuando se queda quieto) y `land/` (aterrizaje) el caballero, `spin/` y `fury/` el bárbaro. Los pasa al juego `tools/heroes/cuadros.py`
   (ver `tools/heroes/LEEME.md`).
 
 ## Plan
