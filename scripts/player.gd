@@ -49,6 +49,7 @@ const RAGE_T := 5.0
 const SPIN_GAP := 0.2        # el giro del hacha pega cada 0,2 s
 const SPIN_HIT := 0.12
 const BIG_HIT := 0.12        # el espadazo llega al piso (el cuadro del impacto)
+const CHOP_K := 0.4          # el hachazo muerde el piso a esta altura de su animación
 
 const ArrowScript := preload("res://scripts/arrow.gd")
 const SPR := "res://assets/sprites/"
@@ -116,6 +117,7 @@ var swing_t := 9.0           # desde el último golpe
 var swing_id := 0
 var big := false             # espadazo cargado del caballero
 var big_fx := true           # ya llegó al piso el espadazo (el impacto va una vez por golpe)
+var chop_fx := true          # lo mismo para el hachazo del bárbaro
 var spin := false            # giro del hacha del bárbaro
 var spin_n := 2
 var atk_buf := 0.0
@@ -652,6 +654,9 @@ func _attack_melee(dt: float) -> void:
 	if big and not big_fx and swing_t >= BIG_HIT:
 		big_fx = true
 		_big_impact()
+	if not chop_fx and not big and not spin and swing_t >= _anim_len("attack", 0.2) * CHOP_K:
+		chop_fx = true
+		_chop_impact()
 	if _slash_active():
 		_slash_hits()
 
@@ -670,6 +675,22 @@ func _big_impact() -> void:
 		Fx.dust(get_parent(), tip + Vector2(0, -1), 8, 30.0, 6.0, 2.4)
 		Fx.shock(get_parent(), tip, ramp[3], 22.0, 0.3)
 		Snd.play("aterrizar", {"rate": 0.7})
+
+
+## el hachazo del bárbaro: la hoja pega adelante y abajo; chispas naranjas (rojas con furia), polvo,
+## un par de cascotes, un aro chico y un temblor corto. Más liviano que el espadazo cargado
+func _chop_impact() -> void:
+	var ramp: Array = Pal.RAMP_R if rage_t > 0.0 else Pal.RAMP_O
+	var tip := global_position + Vector2(face * (20.0 if evo else 17.0), -2.0)
+	Fx.hit(get_parent(), tip, Vector2(face, -0.6), ramp[3], false)
+	Fx.burst(get_parent(), tip, 7, [ramp[2], ramp[3], ramp[4]], 90.0, 40.0, 0.3, 240.0)
+	Fx.shake(2.0, 0.1)
+	Fx.kick(Vector2(face * 0.6, 0.8), 1.0)
+	if is_on_floor():
+		Fx.chunks(get_parent(), tip + Vector2(0, 2), 3, [Pal.S, Pal.SS, Pal.D], 55.0, 30.0, global_position.y)
+		Fx.dust(get_parent(), tip + Vector2(0, 1), 4, 22.0, 5.0, 1.8)
+		Fx.shock(get_parent(), tip + Vector2(0, 2), ramp[3], 12.0, 0.2)
+		Snd.play("aterrizar", {"rate": 0.9, "vol": 0.5})
 
 
 func _anim_len(anim: String, fallback: float) -> float:
@@ -698,6 +719,9 @@ func _swing() -> void:
 			Fx.streak(get_parent(), global_position + Vector2(-face * (3.0 + 2.0 * i), -7.0 - 5.0 * i),
 				Vector2(-face * 130.0, 0), 0.12, Pal.W, 6.0)
 	else:
+		chop_fx = false
+		if is_on_floor():
+			Fx.dust(get_parent(), global_position + Vector2(-face * 4.0, 0), 2, 28.0, 5.0, 1.6, Pal.S, -face)
 		var hand := global_position + Vector2(face * 3.0, -12.0)
 		var col := Pal.O if rage_t > 0.0 else Pal.W
 		Fx.slash(get_parent(), hand, 16.0 if evo else 13.0, -115.0, 35.0, face, col, 5.0, 0.14)
@@ -711,6 +735,7 @@ func _big_swing() -> void:
 	swing_t = 0.0
 	swing_id += 1
 	hit_keys.clear()
+	chop_fx = true
 	if kind == "barb":
 		spin = true
 		big = false

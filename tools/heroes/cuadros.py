@@ -116,7 +116,8 @@ def grow(m, n=1):
 # la estela clara que PixelLab dibuja detrás de la hoja pasa a la rampa del héroe (rojo el caballero,
 # dorado el Paladín): el filo blanco queda, el resto toma color y lleva dos bordes de la rampa por fuera
 RAMPS = {"r": ["#490024", "#6d0024", "#b62449", "#ff6d6d", "#ffb692"],
-         "y": ["#924924", "#db9224", "#ffdb6d", "#ffffb6", "#ffffff"]}
+         "y": ["#924924", "#db9224", "#ffdb6d", "#ffffb6", "#ffffff"],
+         "o": ["#6d2400", "#b64924", "#ff6d49", "#ffb66d", "#ffdbb6"]}
 
 
 def hexa(c):
@@ -156,9 +157,9 @@ def green_to_fire(f):
     return f
 
 
-def big(rec, anim, spec, sheet, sizes):
+def big(rec, anim, spec, sheet, sizes, fire=False):
     """animación en lienzo grande: {"hoja": k, "cuadros": [...], "alinear": n (el cuadro de la hoja que se
-    parece al quieto) o "torso" (cada uno por su cuenta), "estelas": [[cuadro, [vecinos], "r" o "y", lmin], ...]}
+    parece al quieto) o "torso" (cada uno por su cuenta), "estelas": [[cuadro, [vecinos], "r", "y" u "o", lmin], ...]}
     (los números son cuadros de la hoja)"""
     sh = spec["hoja"]
     sheet(sh)
@@ -178,7 +179,7 @@ def big(rec, anim, spec, sheet, sizes):
     for f in os.listdir(d):
         os.remove(os.path.join(d, f))
     for j, f in enumerate(frames):
-        Image.fromarray(f).save(os.path.join(d, "frame_%03d.png" % j))
+        Image.fromarray(green_to_fire(f) if fire else f).save(os.path.join(d, "frame_%03d.png" % j))
     print(anim, len(frames), "lienzo", frames[0].shape[1], "x", frames[0].shape[0], "quieto en", off)
 
 
@@ -207,7 +208,7 @@ def main():
         if only and anim not in only:
             continue
         if isinstance(spec, dict):
-            big(rec, anim, spec, sheet, sizes)
+            big(rec, anim, spec, sheet, sizes, anim in fire)
             continue
         sh, row, idx = spec[:3]
         frames = [cell(sheet(sh), row, i, *sizes[sh]) for i in idx]
