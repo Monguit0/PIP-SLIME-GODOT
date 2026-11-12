@@ -23,14 +23,14 @@ Animaciones que usa `scripts/player.gd`:
 |----------|-----------------------------------|--------------------------------------|
 | idle     | respira con la espada baja        | respira con el hacha                 |
 | run      | corre con el mandoble en alto     | corre                                |
-| jump/fall| salto: despega estirado, encoge las piernas al subir; arriba la capa vuela y cae con las piernas estiradas (el cuadro sale de la velocidad) | salto (subiendo / bajando) |
-| land     | se agacha al aterrizar            | —                                    |
-| attack   | tajo con media luna (roja / dorada) | hachazo                            |
-| charge   | levanta la espada (carga)         | levanta el hacha (carga)             |
-| charge_hold | sostiene el mandoble en alto (loop) | —                                 |
+| jump/fall| salto: despega estirado, encoge las piernas al subir; arriba la capa vuela y cae con las piernas estiradas (el cuadro sale de la velocidad) | el mismo salto completo, con el hacha al hombro |
+| land     | se agacha al aterrizar            | se agacha al aterrizar               |
+| attack   | tajo con media luna (roja / dorada) | hachazo de 11 cuadros a 32 por segundo: levanta, baja con estela (naranja / roja) y muerde el piso |
+| charge   | levanta la espada (carga)         | lleva el hacha atrás (carga)         |
+| charge_hold | sostiene el mandoble en alto (loop) | sostiene el hacha atrás, tenso (loop) |
 | charge_walk | camina con el mandoble en alto (loop) | —                               |
 | big      | espadazo cargado de arriba abajo con un arco grande | —                  |
-| spin     | —                                 | giro con el hacha (el brillo verde o celeste de PixelLab pasa a fuego) |
+| spin     | —                                 | giro de 12 cuadros: dos barridos con el cuerpo dando la vuelta y la capa abierta; el barrido del arma se tiñe con la rampa (`"barrido"` en la receta) |
 | shield   | levanta el escudo adelante        | —                                    |
 | flourish | floreo con el mandoble (quieto 5 s) | —                                  |
 | fury     | —                                 | ruge (furia)                         |

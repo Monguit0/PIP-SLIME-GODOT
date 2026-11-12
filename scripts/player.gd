@@ -49,19 +49,22 @@ const RAGE_T := 5.0
 const SPIN_GAP := 0.2        # el giro del hacha pega cada 0,2 s
 const SPIN_HIT := 0.12
 const BIG_HIT := 0.12        # el espadazo llega al piso (el cuadro del impacto)
-const CHOP_K := 0.4          # el hachazo muerde el piso a esta altura de su animación
+const CHOP_ARC := 2.0 / 11.0  # el hachazo del bárbaro: a esta altura de la animación empieza a bajar el hacha...
+const CHOP_K := 4.0 / 11.0    # ...y a esta muerde el piso
+const SPIN_HITS := 2          # golpes del giro por cada vuelta de su animación (dos barridos dibujados)
 
 const ArrowScript := preload("res://scripts/arrow.gd")
 const SPR := "res://assets/sprites/"
 ## hearts, speed, jump y cool de CHARS; dir y evo_dir son las carpetas de los cuadros (PixelLab);
-## feet: fila de abajo de los pies en el lienzo (el sprite se dibuja con los pies en el origen)
+## feet: fila de abajo de los pies en el lienzo (el sprite se dibuja con los pies en el origen);
+## fps: animaciones que van a otra velocidad que la común (el bárbaro tiene el doble de cuadros en sus golpes)
 const HEROES := {
 	"archer": {"name": "ARQUERO", "evo": "CAZADOR", "hearts": 3, "speed": 92.0, "jump": 268.0, "cool": 0.25,
 		"dir": "pip", "evo_dir": "pip_cazador", "feet": 55.0},
 	"knight": {"name": "CABALLERO", "evo": "PALADÍN", "hearts": 4, "speed": 84.0, "jump": 262.0, "cool": 0.34,
 		"dir": "caballero", "evo_dir": "paladin", "feet": 57.0},
 	"barb": {"name": "BÁRBARO", "evo": "WARLORD", "hearts": 4, "speed": 94.0, "jump": 262.0, "cool": 0.46,
-		"dir": "barbaro", "evo_dir": "warlord", "feet": 57.0},
+		"dir": "barbaro", "evo_dir": "warlord", "feet": 57.0, "fps": {"attack": 32.0, "spin": 30.0}},
 }
 const KINDS := ["archer", "knight", "barb"]
 
@@ -118,6 +121,7 @@ var swing_id := 0
 var big := false             # espadazo cargado del caballero
 var big_fx := true           # ya llegó al piso el espadazo (el impacto va una vez por golpe)
 var chop_fx := true          # lo mismo para el hachazo del bárbaro
+var chop_arc := true         # ya salió la media luna del hachazo
 var spin := false            # giro del hacha del bárbaro
 var spin_n := 2
 var atk_buf := 0.0
@@ -213,8 +217,9 @@ func set_kind(k: String) -> void:
 	hearts = max_hearts
 	var dir: String = SPR + h.dir + "/"
 	var edir: String = SPR + h.evo_dir + "/"
-	sprite.sprite_frames = _build_frames(dir)
-	evo_frames = _build_frames(edir) if ResourceLoader.exists(edir + "idle/frame_000.png") else null
+	var fps: Dictionary = h.get("fps", {})
+	sprite.sprite_frames = _build_frames(dir, fps)
+	evo_frames = _build_frames(edir, fps) if ResourceLoader.exists(edir + "idle/frame_000.png") else null
 	sprite.play("idle")
 	if ResourceLoader.exists(dir + "aim_bow.png"):
 		bow.texture = load(dir + "aim_bow.png")
@@ -234,7 +239,7 @@ func _place_sprite() -> void:
 	bow.offset = Vector2(0, base_oy)
 
 
-func _build_frames(dir: String) -> SpriteFrames:
+func _build_frames(dir: String, fps: Dictionary = {}) -> SpriteFrames:
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
 	var anims := {"idle": 5.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 18.0, "aim": 10.0, "release": 18.0, "hurt": 14.0, "dash": 18.0, "death": 10.0,
@@ -242,7 +247,7 @@ func _build_frames(dir: String) -> SpriteFrames:
 		"charge_hold": 8.0, "charge_walk": 10.0, "flourish": 11.0, "land": 14.0}
 	for anim in anims:
 		sf.add_animation(anim)
-		sf.set_animation_speed(anim, anims[anim])
+		sf.set_animation_speed(anim, fps.get(anim, anims[anim]))
 		sf.set_animation_loop(anim, anim in ["idle", "run", "fall", "aim", "spin", "charge_hold", "charge_walk"])
 		var i := 0
 		while true:
@@ -632,8 +637,8 @@ func _attack_melee(dt: float) -> void:
 		else:
 			var was := charge
 			charge += dt
-			# el caballero junta la carga en el mandoble levantado detrás de la cabeza; el bárbaro, en el hacha
-			var at := global_position + (Vector2(-face * 6, -23) if kind == "knight" else Vector2(face * 2, -22))
+			# el caballero junta la carga en el mandoble levantado detrás de la cabeza; el bárbaro, en el hacha que lleva atrás, lista para girar
+			var at := global_position + (Vector2(-face * 6, -23) if kind == "knight" else Vector2(-face * (13 if evo else 11), -9))
 			if was < CHG_ON and charge >= CHG_ON:
 				Snd.play("menu", {"rate": 0.75, "vol": 0.3, "vary": false})
 			if was < chg_full() and charge >= chg_full():
@@ -654,9 +659,15 @@ func _attack_melee(dt: float) -> void:
 	if big and not big_fx and swing_t >= BIG_HIT:
 		big_fx = true
 		_big_impact()
-	if not chop_fx and not big and not spin and swing_t >= _anim_len("attack", 0.2) * CHOP_K:
-		chop_fx = true
-		_chop_impact()
+	if not chop_fx and not big and not spin:
+		var chop_len := _anim_len("attack", 0.2) * haste()
+		if not chop_arc and swing_t >= chop_len * CHOP_ARC:
+			chop_arc = true
+			var hand := global_position + Vector2(face * 3.0, -12.0)
+			Fx.slash(get_parent(), hand, 16.0 if evo else 13.0, -115.0, 35.0, face, _barb_col(), 5.0, 0.12)
+		if swing_t >= chop_len * CHOP_K:
+			chop_fx = true
+			_chop_impact()
 	if _slash_active():
 		_slash_hits()
 
@@ -680,8 +691,8 @@ func _big_impact() -> void:
 ## el hachazo del bárbaro: la hoja pega adelante y abajo; chispas naranjas (rojas con furia), polvo,
 ## un par de cascotes, un aro chico y un temblor corto. Más liviano que el espadazo cargado
 func _chop_impact() -> void:
-	var ramp: Array = Pal.RAMP_R if rage_t > 0.0 else Pal.RAMP_O
-	var tip := global_position + Vector2(face * (20.0 if evo else 17.0), -2.0)
+	var ramp: Array = Pal.RAMP_R if evo or rage_t > 0.0 else Pal.RAMP_O
+	var tip := global_position + Vector2(face * (12.0 if evo else 10.0), -2.0)
 	Fx.hit(get_parent(), tip, Vector2(face, -0.6), ramp[3], false)
 	Fx.burst(get_parent(), tip, 7, [ramp[2], ramp[3], ramp[4]], 90.0, 40.0, 0.3, 240.0)
 	Fx.shake(2.0, 0.1)
@@ -691,6 +702,14 @@ func _chop_impact() -> void:
 		Fx.dust(get_parent(), tip + Vector2(0, 1), 4, 22.0, 5.0, 1.8)
 		Fx.shock(get_parent(), tip + Vector2(0, 2), ramp[3], 12.0, 0.2)
 		Snd.play("aterrizar", {"rate": 0.9, "vol": 0.5})
+
+
+## el color de las estelas del bárbaro, como las que traen dibujadas sus cuadros: naranja, rojo el Warlord
+## y amarillo con la furia
+func _barb_col() -> Color:
+	if rage_t > 0.0:
+		return Pal.Y
+	return Pal.RAMP_R[3] if evo else Pal.RAMP_O[3]
 
 
 func _anim_len(anim: String, fallback: float) -> float:
@@ -719,12 +738,12 @@ func _swing() -> void:
 			Fx.streak(get_parent(), global_position + Vector2(-face * (3.0 + 2.0 * i), -7.0 - 5.0 * i),
 				Vector2(-face * 130.0, 0), 0.12, Pal.W, 6.0)
 	else:
+		# el hacha sube y baja en los cuadros: la media luna y el golpe contra el piso salen cuando baja
+		# (ver _attack_melee); acá, el polvo del pie de atrás
 		chop_fx = false
+		chop_arc = false
 		if is_on_floor():
 			Fx.dust(get_parent(), global_position + Vector2(-face * 4.0, 0), 2, 28.0, 5.0, 1.6, Pal.S, -face)
-		var hand := global_position + Vector2(face * 3.0, -12.0)
-		var col := Pal.O if rage_t > 0.0 else Pal.W
-		Fx.slash(get_parent(), hand, 16.0 if evo else 13.0, -115.0, 35.0, face, col, 5.0, 0.14)
 	sprite.play("attack")
 	sprite.frame = 0
 
@@ -736,6 +755,7 @@ func _big_swing() -> void:
 	swing_id += 1
 	hit_keys.clear()
 	chop_fx = true
+	chop_arc = true
 	if kind == "barb":
 		spin = true
 		big = false
@@ -1253,7 +1273,7 @@ func _animate(dt: float) -> void:
 			sprite.play("release")
 	elif sprite.animation != anim or (not sprite.is_playing() and anim in ["idle", "run", "fall"]):
 		sprite.play(anim)
-	# el ciclo de correr va con la velocidad (sin patinar al arrancar o frenar); el giro da una vuelta por golpe
+	# el ciclo de correr va con la velocidad (sin patinar al arrancar o frenar); el giro da un barrido por golpe
 	var ss := 1.0
 	match sprite.animation:
 		"run":
@@ -1261,7 +1281,7 @@ func _animate(dt: float) -> void:
 		"charge_walk":
 			ss = clampf(absf(velocity.x) / (speed * 0.6), 0.5, 1.2)
 		"spin":
-			ss = sprite.sprite_frames.get_frame_count("spin") / (SPIN_GAP * sprite.sprite_frames.get_animation_speed("spin"))
+			ss = sprite.sprite_frames.get_frame_count("spin") / (SPIN_GAP * SPIN_HITS * sprite.sprite_frames.get_animation_speed("spin"))
 		"attack", "big":
 			ss = 1.0 / haste()
 	sprite.speed_scale = ss
@@ -1336,7 +1356,7 @@ func _animate(dt: float) -> void:
 		var k := _spin_idx()
 		if swing_t - k * SPIN_GAP < 0.02:
 			var r := 30.0 if evo else 24.0
-			Fx.slash(get_parent(), global_position + Vector2(0, -9), r * 0.8, -180.0 + 180.0 * (k % 2), 180.0 + 180.0 * (k % 2), face, Pal.O if rage_t > 0.0 else Pal.W, 6.0, SPIN_GAP)
+			Fx.slash(get_parent(), global_position + Vector2(0, -9), r * 0.8, -180.0 + 180.0 * (k % 2), 180.0 + 180.0 * (k % 2), face, _barb_col(), 6.0, SPIN_GAP)
 			Fx.dust(get_parent(), global_position, 2, 40.0, 3.0, 1.4, Pal.S)
 	# Cazador: chispitas doradas de vez en cuando; con veneno, gotitas verdes
 	if evo and not dead and randf() < 0.08:

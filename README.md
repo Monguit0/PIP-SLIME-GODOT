@@ -42,6 +42,9 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   encoge las piernas al subir, arriba la capa se le vuela, cae con las piernas estiradas y al aterrizar se agacha.
 - **Bárbaro** (4 corazones, rápido): **hacha** (X, lenta pero pega 3), **giro** cargado (mantené X: tres vueltas que
   pegan alrededor) y **furia** (Shift con la barra llena): 5 segundos con más daño, ataques más rápidos y en rojo.
+  Sus golpes tienen el doble de cuadros que antes: el hachazo sube, baja con su estela y **muerde el piso** (chispas,
+  polvo, cascotes y un temblor corto); el giro da la vuelta de verdad, con la capa abierta y el barrido del arma en
+  naranja (rojo el Warlord). Salta, cae y aterriza con sus propios cuadros, como el caballero.
 - Los tres hechos con **PixelLab** a 68×68 con los pies en la misma fila, así que comparten física y colisión.
 - **Las flechas se clavan** donde pegan (las de Pip y las del esqueleto): en el piso, en las paredes, en los portones
   y en las plataformas si les caen desde arriba. La punta queda adentro, vibran un instante y quedan ahí un rato;
@@ -119,7 +122,7 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
 - `assets/sprites/caballero/`, `barbaro/`, `paladin/` y `warlord/`: los otros héroes y sus evoluciones, de **PixelLab**
   (lienzo de 68×68, pies en la fila 56; el tajo y el espadazo, más anchos, con el mismo centro), con `idle/`, `run/`,
   `jump/`, `fall/`, `attack/`, `charge/`, `hurt/`, `death/` y lo propio: `big/`, `shield/`, `charge_hold/` y `charge_walk/`
-  (cargando quieto y caminando), `flourish/` (el floreo cuando se queda quieto) y `land/` (aterrizaje) el caballero, `spin/` y `fury/` el bárbaro. Los pasa al juego `tools/heroes/cuadros.py`
+  (cargando quieto y caminando), `flourish/` (el floreo cuando se queda quieto) y `land/` (aterrizaje) el caballero, `spin/`, `fury/`, `charge_hold/` y `land/` el bárbaro. Los pasa al juego `tools/heroes/cuadros.py`
   (ver `tools/heroes/LEEME.md`).
 
 ## Plan

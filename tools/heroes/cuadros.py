@@ -25,12 +25,18 @@ def q9(a):
     return LV[np.abs(a[..., None].astype(int) - LV).argmin(-1)].astype(np.uint8)
 
 
-def cell(sheet, row, i, cw=CELL, ch=CELL, cols=None):
+def raw_cell(sheet, row, i, cw=CELL, ch=CELL, cols=None):
+    """el cuadro tal como vino (sin pasar a la paleta) y la máscara de lo que no es fondo"""
     if cols:  # hoja en grilla (join ... --as sheet --columns N): i cuenta de izquierda a derecha y de arriba abajo
         row, i = divmod(i, cols)
     f = sheet[LAB + row * ch:LAB + row * ch + ch, i * cw:i * cw + cw].copy()
     bg = sheet[LAB + 12, 2, :3]
     on = np.abs(f[..., :3].astype(int) - bg.astype(int)).sum(-1) > 0
+    return f, on
+
+
+def cell(sheet, row, i, cw=CELL, ch=CELL, cols=None):
+    f, on = raw_cell(sheet, row, i, cw, ch, cols)
     out = np.zeros((ch, cw, 4), np.uint8)
     out[..., :3] = q9(f[..., :3])
     out[..., 3] = np.where(on, 255, 0)
@@ -142,6 +148,60 @@ def tint_smear(f, others, ramp, lmin=120):
     return f
 
 
+def paint(f, m, lum, ramp):
+    """pinta la estela m con tres tonos de la rampa según su brillo relativo (suavizado, sin motas) y le pone
+    un borde del tono más oscuro por fuera"""
+    if m.sum() < 12:
+        return f
+    k, c = np.zeros(lum.shape), np.zeros(lum.shape)
+    lm, sm = np.where(m, lum, 0.0), m.astype(float)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            k += np.roll(np.roll(lm, dy, 0), dx, 1)
+            c += np.roll(np.roll(sm, dy, 0), dx, 1)
+    lum = k / np.maximum(c, 1)
+    lo, hi = np.percentile(lum[m], 10), np.percentile(lum[m], 90)
+    t = (lum - lo) / max(1.0, hi - lo)
+    for a, b, col in ((0.66, 9, ramp[4]), (0.33, 0.66, ramp[3]), (-9, 0.33, ramp[2])):
+        f[m & (t >= a) & (t < b)] = hexa(col)
+    f[(f[..., 3] == 0) & grow(m)] = hexa(ramp[2])
+    return f
+
+
+def tint_trail(f, raw, on, mode, ramp):
+    """el barrido del arma en un giro, donde el cuerpo cambia de cuadro a cuadro y no sirve compararlo con los
+    vecinos: PixelLab respeta la paleta en el personaje y dibuja la estela con colores de fuera de ella, en
+    manchas enteras. mode "claro": estela gris clara (y sus rayitas violetas); "oscuro": estela casi negra."""
+    rgb = raw[..., :3].astype(int)
+    off = on & (np.abs(rgb[..., None] - LV).min(-1).max(-1) > 3)
+    lum, sat = rgb.mean(-1), rgb.max(-1) - rgb.min(-1)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    if mode == "claro":
+        col = ((sat < 70) & (lum > 75)) | ((r > g + 30) & (b > g + 12) & (lum > 45) & (lum < 125))
+    else:
+        col = ((sat < 34) & (lum > 40) & (lum < 80)) | ((r > g + 18) & (r > b + 10) & (sat < 60) & (lum > 40) & (lum < 75) & (r < 125))
+    m = off & col
+    seed = ~grow(~m)  # solo las manchas enteras: las motas sueltas del cuerpo no cuentan
+    for _ in range(3):
+        seed = grow(seed) & m
+    if seed.sum() >= 80:  # estela grande: también lo gris pegado a ella aunque esté en la paleta (la hoja barrida)
+        for _ in range(5):
+            seed = grow(seed) & on & col
+    return paint(f, seed, lum, ramp)
+
+
+def tint_dark(f, others, ramp):
+    """como tint_smear pero para un arco casi negro (el martillo del Warlord)"""
+    body = np.zeros(f.shape[:2], bool)
+    for o in others:
+        body |= o[..., 3] > 0
+    body = grow(body, 2)
+    rgb = f[..., :3].astype(int)
+    lum, sat = rgb.mean(-1), rgb.max(-1) - rgb.min(-1)
+    core = (f[..., 3] > 0) & (lum < 80) & (sat < 60) & ~body
+    return paint(f, core, lum, ramp)
+
+
 # el resplandor verde o celeste que PixelLab le puso al giro pasa a viento de fuego (naranja y amarillo)
 FIRE = [(109, 36, 0), (182, 73, 36), (255, 109, 73), (255, 182, 109), (255, 219, 182), (255, 255, 255)]
 
@@ -159,21 +219,35 @@ def green_to_fire(f):
 
 def big(rec, anim, spec, sheet, sizes, fire=False):
     """animación en lienzo grande: {"hoja": k, "cuadros": [...], "alinear": n (el cuadro de la hoja que se
-    parece al quieto) o "torso" (cada uno por su cuenta), "estelas": [[cuadro, [vecinos], "r", "y" u "o", lmin], ...]}
-    (los números son cuadros de la hoja)"""
+    parece al quieto), [dx, dy] (dónde está el quieto en la celda) o "torso" (cada uno por su cuenta), "estelas": [[cuadro, [vecinos], "r", "y" u "o", lmin], ...]}
+    (los números son cuadros de la hoja; un quinto dato "oscuro" en una estela es para un arco casi negro);
+    "barrido": ["claro" u "oscuro", rampa] tiñe el barrido del arma en todos los cuadros (los giros)"""
     sh = spec["hoja"]
     sheet(sh)
     get = lambda i: cell(sheet(sh), 0, i, *sizes[sh])
     ref = np.array(Image.open(os.path.join(rec["out"], "idle", "frame_000.png")).convert('RGBA'))
     if spec["alinear"] == "torso":  # en el aire: cada cuadro con la cabeza y el torso donde están en el quieto
         off = [align(get(i), ref, (8, 34)) for i in spec["cuadros"]]
+        # ...pero ninguno baja de la fila de los pies (las piernas estiradas al despegar no se hunden en el piso)
+        low = [np.nonzero(get(i)[..., 3].any(1))[0].max() for i in spec["cuadros"]]
+        off = [(bx, max(by, lo - (FEET - 1))) for (bx, by), lo in zip(off, low)]
+    elif isinstance(spec["alinear"], list):  # [dx, dy]: dónde se puso el quieto en el lienzo de partida
+        off = tuple(spec["alinear"])
     else:
         off = align(get(spec["alinear"]), ref)
-    frames, pad = wide([get(i) for i in spec["cuadros"]], off)
-    for i, nb, rp, lmin in spec.get("estelas", []):
+    cells = [get(i) for i in spec["cuadros"]]
+    if "barrido" in spec:  # ["claro" u "oscuro", rampa]: el barrido del arma en todos los cuadros
+        mode, rp = spec["barrido"]
+        cells = [tint_trail(f, *raw_cell(sheet(sh), 0, i, *sizes[sh]), mode, RAMPS[rp]) for f, i in zip(cells, spec["cuadros"])]
+    frames, pad = wide(cells, off)
+    for e in spec.get("estelas", []):
+        i, nb, rp, lmin = e[:4]
         j = spec["cuadros"].index(i)
         others, _ = wide([get(n) for n in nb], off, pad)
-        frames[j] = tint_smear(frames[j], others, RAMPS[rp], lmin)
+        if len(e) > 4 and e[4] == "oscuro":
+            frames[j] = tint_dark(frames[j], others, RAMPS[rp])
+        else:
+            frames[j] = tint_smear(frames[j], others, RAMPS[rp], lmin)
     d = os.path.join(rec["out"], anim)
     os.makedirs(d, exist_ok=True)
     for f in os.listdir(d):

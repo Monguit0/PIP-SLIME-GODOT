@@ -3,7 +3,25 @@
  "hojas": {
   "b": "rows2.png",
   "c": "rows3.png",
-  "d": "rows4.png"
+  "d": "rows4.png",
+  "ch": [
+   "bchop.png",
+   116,
+   92,
+   8
+  ],
+  "sp": [
+   "bspin.png",
+   116,
+   92,
+   8
+  ],
+  "jc": [
+   "bjc.png",
+   116,
+   104,
+   8
+  ]
  },
  "anims": {
   "idle": [
@@ -28,55 +46,91 @@
     5
    ]
   ],
-  "jump": [
-   "b",
-   2,
-   [
+  "jump": {
+   "hoja": "jc",
+   "cuadros": [
+    1,
     2,
     3
-   ]
-  ],
-  "fall": [
-   "b",
-   2,
-   [
-    4,
-    5
-   ]
-  ],
-  "attack": [
-   "b",
-   3,
-   [
+   ],
+   "alinear": "torso"
+  },
+  "fall": {
+   "hoja": "jc",
+   "cuadros": [
+    5,
+    6,
+    7
+   ],
+   "alinear": "torso"
+  },
+  "attack": {
+   "hoja": "ch",
+   "cuadros": [
     1,
     2,
-    3,
-    4,
-    5
+    6,
+    7,
+    8,
+    9,
+    10,
+    12,
+    13,
+    14,
+    15
+   ],
+   "alinear": [
+    24,
+    16
+   ],
+   "estelas": [
+    [
+     7,
+     [
+      6,
+      8
+     ],
+     "o",
+     120
+    ]
    ]
-  ],
-  "charge": [
-   "b",
-   3,
-   [
-    1,
-    2
+  },
+  "charge": {
+   "hoja": "jc",
+   "cuadros": [
+    8,
+    9
+   ],
+   "alinear": [
+    24,
+    28
    ]
-  ],
-  "spin": [
-   "b",
-   4,
-   [
-    0,
-    1,
+  },
+  "spin": {
+   "hoja": "sp",
+   "cuadros": [
     2,
     3,
     4,
     5,
     6,
-    7
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13
+   ],
+   "alinear": [
+    24,
+    16
+   ],
+   "barrido": [
+    "claro",
+    "o"
    ]
-  ],
+  },
   "fury": [
    "c",
    1,
@@ -110,10 +164,32 @@
     4,
     5
    ]
-  ]
+  ],
+  "charge_hold": {
+   "hoja": "jc",
+   "cuadros": [
+    10,
+    11,
+    12,
+    13
+   ],
+   "alinear": [
+    24,
+    28
+   ]
+  },
+  "land": {
+   "hoja": "jc",
+   "cuadros": [
+    0,
+    0
+   ],
+   "alinear": [
+    24,
+    28
+   ]
+  }
  },
- "verde_a_fuego": [
-  "spin"
- ],
- "nota": "PixelLab \"Pip bárbaro E\" 4ed4c531-1e90-4756-b884-e7411752c788. b = join (caballero hurt death) jump-air chop spin idle; c = join run fury hurt death; d = join (caballero hurt-v2 run-tpl) hurt-v2 death-v2 run-tpl"
+ "verde_a_fuego": [],
+ "nota": "PixelLab \"Pip bárbaro E\" 4ed4c531-1e90-4756-b884-e7411752c788. b = join (caballero hurt death) jump-air chop spin idle; c = join run fury hurt death; d = join (caballero hurt-v2 run-tpl) hurt-v2 death-v2 run-tpl || ch = chop-16-b, sp = spin-16-b (join --as sheet --columns 8), jc = join jump-full-b charge-b --as rows: pixminimax desde el quieto en un lienzo de 116x92 (en 24,16) o 104x104 (salto)"
 }
