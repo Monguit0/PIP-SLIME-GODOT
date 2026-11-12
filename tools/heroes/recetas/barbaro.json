@@ -21,6 +21,18 @@
    116,
    104,
    8
+  ],
+  "rw": [
+   "brw.png",
+   116,
+   92,
+   8
+  ],
+  "j2": [
+   "bj16.png",
+   104,
+   104,
+   8
   ]
  },
  "anims": {
@@ -34,33 +46,41 @@
     3
    ]
   ],
-  "run": [
-   "c",
-   0,
-   [
-    0,
+  "run": {
+   "hoja": "rw",
+   "cuadros": [
     1,
     2,
     3,
     4,
-    5
+    5,
+    6,
+    7
+   ],
+   "alinear": [
+    24,
+    16
    ]
-  ],
+  },
   "jump": {
-   "hoja": "jc",
+   "hoja": "j2",
    "cuadros": [
-    1,
-    2,
-    3
+    3,
+    4,
+    5,
+    6,
+    7
    ],
    "alinear": "torso"
   },
   "fall": {
-   "hoja": "jc",
+   "hoja": "j2",
    "cuadros": [
-    5,
-    6,
-    7
+    9,
+    10,
+    11,
+    12,
+    13
    ],
    "alinear": "torso"
   },
@@ -179,17 +199,34 @@
    ]
   },
   "land": {
-   "hoja": "jc",
+   "hoja": "j2",
    "cuadros": [
-    0,
-    0
+    14,
+    15
+   ],
+   "alinear": [
+    18,
+    28
+   ]
+  },
+  "charge_walk": {
+   "hoja": "rw",
+   "cuadros": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
    ],
    "alinear": [
     24,
-    28
+    16
    ]
   }
  },
  "verde_a_fuego": [],
- "nota": "PixelLab \"Pip bárbaro E\" 4ed4c531-1e90-4756-b884-e7411752c788. b = join (caballero hurt death) jump-air chop spin idle; c = join run fury hurt death; d = join (caballero hurt-v2 run-tpl) hurt-v2 death-v2 run-tpl || ch = chop-16-b, sp = spin-16-b (join --as sheet --columns 8), jc = join jump-full-b charge-b --as rows: pixminimax desde el quieto en un lienzo de 116x92 (en 24,16) o 104x104 (salto)"
+ "nota": "PixelLab \"Pip bárbaro E\" 4ed4c531-1e90-4756-b884-e7411752c788. b = join (caballero hurt death) jump-air chop spin idle; c = join run fury hurt death; d = join (caballero hurt-v2 run-tpl) hurt-v2 death-v2 run-tpl || ch = chop-16-b, sp = spin-16-b (join --as sheet --columns 8), jc = join jump-full-b charge-b --as rows: pixminimax desde el quieto en un lienzo de 116x92 (en 24,16) o 104x104 (salto) || rw = join run-8-c charge-walk-c --as rows (la caminata cargando sale del cuadro de charge_hold); j2 = jump-16-c (join --as sheet --columns 8)"
 }

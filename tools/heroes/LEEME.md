@@ -22,13 +22,13 @@ Animaciones que usa `scripts/player.gd`:
 | carpeta  | caballero                         | bárbaro                              |
 |----------|-----------------------------------|--------------------------------------|
 | idle     | respira con la espada baja        | respira con el hacha                 |
-| run      | corre con el mandoble en alto     | corre                                |
-| jump/fall| salto: despega estirado, encoge las piernas al subir; arriba la capa vuela y cae con las piernas estiradas (el cuadro sale de la velocidad) | el mismo salto completo, con el hacha al hombro |
+| run      | corre con el mandoble en alto     | corrida de embestida: agachado, la capa volando y el hacha a un costado |
+| jump/fall| salto: despega estirado, encoge las piernas al subir; arriba la capa vuela y cae con las piernas estiradas (el cuadro sale de la velocidad) | el mismo salto, con 5 cuadros subiendo y 5 bajando |
 | land     | se agacha al aterrizar            | se agacha al aterrizar               |
 | attack   | tajo con media luna (roja / dorada) | hachazo de 11 cuadros a 32 por segundo: levanta, baja con estela (naranja / roja) y muerde el piso |
 | charge   | levanta la espada (carga)         | lleva el hacha atrás (carga)         |
 | charge_hold | sostiene el mandoble en alto (loop) | sostiene el hacha atrás, tenso (loop) |
-| charge_walk | camina con el mandoble en alto (loop) | —                               |
+| charge_walk | camina con el mandoble en alto (loop) | camina con el hacha atrás, lista para girar (loop) |
 | big      | espadazo cargado de arriba abajo con un arco grande | —                  |
 | spin     | —                                 | giro de 12 cuadros: dos barridos con el cuerpo dando la vuelta y la capa abierta; el barrido del arma se tiñe con la rampa (`"barrido"` en la receta) |
 | shield   | levanta el escudo adelante        | —                                    |

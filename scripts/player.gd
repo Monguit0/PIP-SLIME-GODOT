@@ -589,7 +589,11 @@ func _fury_step(dt: float, pressed: bool) -> void:
 		rage_t -= dt
 		energy_delay = maxf(energy_delay, EN_DELAY)
 		if rage_t <= 0.0:
+			# se apaga: una bocanada de vapor y un aro que se cierra
 			Snd.play("menu", {"rate": 0.6, "vol": 0.5, "vary": false})
+			squash = Vector2(0.9, 1.1)
+			Fx.dust(get_parent(), global_position + Vector2(0, -8), 6, 26.0, 16.0, 2.2, Pal.S)
+			Fx.ring(get_parent(), global_position + Vector2(0, -10), Pal.S, 0.0, 14.0, 1.0, 0.25)
 	if not pressed or rage_t > 0.0:
 		return
 	if energy < RAGE:
@@ -611,6 +615,20 @@ func _fury_step(dt: float, pressed: bool) -> void:
 	Fx.ring(get_parent(), global_position + Vector2(0, -12), Pal.R, 0.0, 18.0, 1.0, 0.3)
 	Fx.ring(get_parent(), global_position + Vector2(0, -12), Pal.O, -0.08, 24.0, 1.0, 0.3)
 	Fx.shock(get_parent(), global_position, Pal.O, 18.0, 0.35)
+	# el rugido: el juego se frena un instante, el piso tiembla y se rompe a sus pies, sube una columna de
+	# brasas y sale una segunda onda más grande
+	Fx.hitstop(0.08)
+	Fx.impact(global_position + Vector2(0, -10), 0.1)
+	Fx.shake(5.0, 0.3)
+	Fx.kick(Vector2(0, 1), 2.0)
+	Fx.ring(get_parent(), global_position + Vector2(0, -12), Pal.Y, -0.16, 34.0, 1.0, 0.35)
+	Fx.shock(get_parent(), global_position, Pal.R, 32.0, 0.45)
+	for i in 10:
+		Fx.streak(get_parent(), global_position + Vector2(randf_range(-9, 9), -randf_range(0, 14)),
+			Vector2(randf_range(-10, 10), -randf_range(120, 220)), 0.22 + 0.2 * randf(), [Pal.R, Pal.O, Pal.Y][i % 3], 9.0)
+	if is_on_floor():
+		Fx.chunks(get_parent(), global_position, 8, [Pal.S, Pal.SS, Pal.D], 80.0, 60.0, global_position.y)
+		Fx.dust(get_parent(), global_position, 8, 44.0, 5.0, 2.4)
 
 
 ## Ataque cuerpo a cuerpo (chargeStep del original): apretar pega; mantener carga y al soltar
@@ -767,6 +785,14 @@ func _big_swing() -> void:
 		squash = Vector2(1.3, 0.8)
 		Fx.shake(3.0, 0.2)
 		Fx.burst(get_parent(), global_position + Vector2(0, -6), 12, [Pal.O, Pal.Y, Pal.W], 90.0, 20.0, 0.4, 160.0)
+		# suelta la carga: un instante congelado, destello y el piso que salta alrededor
+		Fx.hitstop(0.05)
+		Fx.impact(global_position + Vector2(0, -9), 0.08)
+		Fx.kick(Vector2(face, 0), 2.0)
+		Fx.shock(get_parent(), global_position, _barb_col(), 30.0 if evo else 24.0, 0.3)
+		if is_on_floor():
+			Fx.chunks(get_parent(), global_position, 6, [Pal.S, Pal.SS, Pal.D], 90.0, 50.0, global_position.y)
+			Fx.dust(get_parent(), global_position, 6, 50.0, 4.0, 2.2)
 		sprite.play("spin")
 		sprite.frame = 0
 	else:
@@ -1349,6 +1375,10 @@ func _animate(dt: float) -> void:
 	if rage_t > 0.0 and not dead:
 		if randf() < 0.45:
 			Fx.part(get_parent(), global_position + Vector2(randf_range(-6, 6), -randf_range(2, 20)), Vector2(randf_range(-6, 6), -30), -20.0, 0.4, Pal.R if randf() < 0.5 else (Pal.O if randf() < 0.7 else Pal.Y))
+		if (absf(velocity.x) > 40.0 or not is_on_floor()) and Engine.get_physics_frames() % 5 == 0:
+			Fx.afterimage(get_parent(), sprite, Pal.R)  # con la furia deja una estela roja al correr y saltar
+		if is_on_floor() and absf(velocity.x) > 40.0 and Engine.get_physics_frames() % 6 == 0:
+			Fx.part(get_parent(), global_position + Vector2(-signf(velocity.x) * 3.0, -1), Vector2(-signf(velocity.x) * 20.0, -30), 60.0, 0.35, Pal.O if randf() < 0.6 else Pal.Y)
 		if evo and Engine.get_physics_frames() % 10 == 0:
 			Fx.ring(get_parent(), global_position + Vector2(0, -9), Pal.R if Engine.get_physics_frames() % 20 == 0 else Pal.O, 0.0, 26.0, 0.6, 0.3)
 	# el giro del bárbaro: anillo de viento a cada vuelta
@@ -1357,7 +1387,17 @@ func _animate(dt: float) -> void:
 		if swing_t - k * SPIN_GAP < 0.02:
 			var r := 30.0 if evo else 24.0
 			Fx.slash(get_parent(), global_position + Vector2(0, -9), r * 0.8, -180.0 + 180.0 * (k % 2), 180.0 + 180.0 * (k % 2), face, _barb_col(), 6.0, SPIN_GAP)
-			Fx.dust(get_parent(), global_position, 2, 40.0, 3.0, 1.4, Pal.S)
+			Fx.dust(get_parent(), global_position, 4, 55.0, 3.0, 1.8, Pal.S)
+			# cada barrido: un tirón de cámara para su lado, viento a los costados y brasas que salen despedidas
+			var sd := face * (1.0 if k % 2 == 0 else -1.0)
+			Fx.shake(2.0, 0.1)
+			Fx.kick(Vector2(sd, 0), 1.5)
+			for i in 5:
+				Fx.streak(get_parent(), global_position + Vector2(sd * randf_range(4, 12), -randf_range(3, 17)),
+					Vector2(sd * randf_range(150, 240), randf_range(-12, 12)), 0.14, _barb_col() if i % 2 == 0 else Pal.W, 9.0)
+			Fx.burst(get_parent(), global_position + Vector2(sd * r * 0.6, -9), 5, [_barb_col(), Pal.Y, Pal.W], 110.0, 30.0, 0.3, 200.0)
+		if Engine.get_physics_frames() % 3 == 0:
+			Fx.afterimage(get_parent(), sprite, _barb_col())
 	# Cazador: chispitas doradas de vez en cuando; con veneno, gotitas verdes
 	if evo and not dead and randf() < 0.08:
 		Fx.part(get_parent(), global_position + Vector2(randf_range(-5, 5), -randf_range(4, 18)), Vector2(0, -14), -10.0, 0.4, Pal.Y if randf() < 0.6 else Pal.W)

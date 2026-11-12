@@ -23,6 +23,18 @@
    116,
    104,
    8
+  ],
+  "rw": [
+   "wrw.png",
+   116,
+   92,
+   8
+  ],
+  "j2": [
+   "wj16.png",
+   104,
+   104,
+   8
   ]
  },
  "anims": {
@@ -36,33 +48,41 @@
     3
    ]
   ],
-  "run": [
-   "e",
-   0,
-   [
-    0,
+  "run": {
+   "hoja": "rw",
+   "cuadros": [
     1,
     2,
     3,
     4,
-    5
+    5,
+    6,
+    7
+   ],
+   "alinear": [
+    24,
+    16
    ]
-  ],
+  },
   "jump": {
-   "hoja": "jc",
+   "hoja": "j2",
    "cuadros": [
     3,
     4,
-    5
+    5,
+    6,
+    7
    ],
    "alinear": "torso"
   },
   "fall": {
-   "hoja": "jc",
+   "hoja": "j2",
    "cuadros": [
-    5,
-    6,
-    7
+    9,
+    10,
+    11,
+    12,
+    13
    ],
    "alinear": "torso"
   },
@@ -182,17 +202,34 @@
    ]
   },
   "land": {
-   "hoja": "jc",
+   "hoja": "j2",
    "cuadros": [
-    1,
-    2
+    14,
+    15
+   ],
+   "alinear": [
+    18,
+    28
+   ]
+  },
+  "charge_walk": {
+   "hoja": "rw",
+   "cuadros": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
    ],
    "alinear": [
     24,
-    28
+    16
    ]
   }
  },
  "verde_a_fuego": [],
- "nota": "PixelLab \"Pip bárbaro E\", estado Warlord bba9208a-4b9d-4fcc-87aa-cece02a0f49e. a = join jump-air spin fury; b = join (caballero death-v3) idle hurt; c = chop; d = death; e = run || ch = chop-16-b, sp = spin-16-b (join --as sheet --columns 8), jc = join jump-full-b charge-b --as rows: pixminimax desde el quieto en un lienzo de 116x92 (en 24,16) o 104x104 (salto)"
+ "nota": "PixelLab \"Pip bárbaro E\", estado Warlord bba9208a-4b9d-4fcc-87aa-cece02a0f49e. a = join jump-air spin fury; b = join (caballero death-v3) idle hurt; c = chop; d = death; e = run || ch = chop-16-b, sp = spin-16-b (join --as sheet --columns 8), jc = join jump-full-b charge-b --as rows: pixminimax desde el quieto en un lienzo de 116x92 (en 24,16) o 104x104 (salto) || rw = join run-8-c charge-walk-c --as rows (la caminata cargando sale del cuadro de charge_hold); j2 = jump-16-c (join --as sheet --columns 8)"
 }

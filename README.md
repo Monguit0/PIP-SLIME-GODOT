@@ -45,6 +45,9 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   Sus golpes tienen el doble de cuadros que antes: el hachazo sube, baja con su estela y **muerde el piso** (chispas,
   polvo, cascotes y un temblor corto); el giro da la vuelta de verdad, con la capa abierta y el barrido del arma en
   naranja (rojo el Warlord). Salta, cae y aterriza con sus propios cuadros, como el caballero.
+  Corre embistiendo, con la capa volando, y **camina con el hacha atrás** mientras carga. La **furia** arranca con el
+  juego congelado un instante, el piso que se rompe y una columna de brasas, y deja una estela roja al correr; el
+  giro cargado sacude la cámara y tira viento y brasas en cada barrido.
 - Los tres hechos con **PixelLab** a 68×68 con los pies en la misma fila, así que comparten física y colisión.
 - **Las flechas se clavan** donde pegan (las de Pip y las del esqueleto): en el piso, en las paredes, en los portones
   y en las plataformas si les caen desde arriba. La punta queda adentro, vibran un instante y quedan ahí un rato;
