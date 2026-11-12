@@ -470,7 +470,7 @@ func _draw_over() -> void:
 	_text("PUNTOS %d" % main.score, W / 2.0, 46, Pal.Y)
 	_text("RÉCORD %d" % maxi(main.best, main.score), W / 2.0, 56, Pal.S)
 	if main.end_t > 1.2 and int(t * 2.0) % 2 == 0:
-		_text("SALTO PARA JUGAR DE NUEVO", W / 2.0, 80, Pal.W)
+		_text("SALTO: ELEGIR HÉROE · R: REINTENTAR", W / 2.0, 80, Pal.W)
 
 
 func _draw_win() -> void:
@@ -479,4 +479,4 @@ func _draw_win() -> void:
 	_text("PUNTOS %d" % main.score, W / 2.0, 46, Pal.W)
 	_text("RÉCORD %d" % maxi(main.best, main.score), W / 2.0, 56, Pal.S)
 	if main.end_t > 3.2 and int(t * 2.0) % 2 == 0:
-		_text("SALTO PARA JUGAR DE NUEVO", W / 2.0, 80, Pal.W)
+		_text("SALTO: ELEGIR HÉROE · R: REINTENTAR", W / 2.0, 80, Pal.W)

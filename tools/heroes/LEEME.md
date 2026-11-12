@@ -23,8 +23,8 @@ Animaciones que usa `scripts/player.gd`:
 |----------|-----------------------------------|--------------------------------------|
 | idle     | respira con la espada baja        | respira con el hacha                 |
 | run      | corre con el mandoble en alto     | corrida de embestida: agachado, la capa volando y el hacha a un costado |
-| jump/fall| salto: despega estirado, encoge las piernas al subir; arriba la capa vuela y cae con las piernas estiradas (el cuadro sale de la velocidad) | el mismo salto, con 5 cuadros subiendo y 5 bajando |
-| land     | se agacha al aterrizar            | se agacha al aterrizar               |
+| jump/fall| salto: despega estirado, encoge las piernas al subir; arriba la capa vuela y cae con las piernas estiradas (el cuadro sale de la velocidad) | salto con grito: sube con el hacha en alto y las rodillas encogidas, cae abierto listo para aplastar (5 + 3 cuadros); en el doble salto da una vuelta carnero |
+| land     | se agacha al aterrizar            | cae con un hachazo al piso y queda agachado |
 | attack   | tajo con media luna (roja / dorada) | hachazo de 11 cuadros a 32 por segundo: levanta, baja con estela (naranja / roja) y muerde el piso |
 | charge   | levanta la espada (carga)         | lleva el hacha atrás (carga)         |
 | charge_hold | sostiene el mandoble en alto (loop) | sostiene el hacha atrás, tenso (loop) |

@@ -67,6 +67,12 @@ const HEROES := {
 		"dir": "barbaro", "evo_dir": "warlord", "feet": 57.0, "fps": {"attack": 32.0, "spin": 30.0}},
 }
 const KINDS := ["archer", "knight", "barb"]
+const FLIP_T := 0.38          # lo que dura la vuelta carnero del bárbaro en el doble salto
+const FLIP_C := 14.0          # alto del centro del cuerpo: la vuelta gira alrededor de ahí, no de los pies
+## las animaciones de los héroes y sus cuadros por segundo (cada héroe puede cambiarlos con "fps")
+const ANIMS := {"idle": 5.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 18.0, "aim": 10.0, "release": 18.0, "hurt": 14.0, "dash": 18.0, "death": 10.0,
+	"attack": 24.0, "charge": 16.0, "big": 14.0, "spin": 40.0, "shield": 18.0, "fury": 12.0,
+	"charge_hold": 8.0, "charge_walk": 10.0, "flourish": 11.0, "land": 14.0}
 
 ## qué héroe es (main.gd lo pone antes de agregarlo; en el título se cambia con set_kind)
 var kind := "archer"
@@ -104,6 +110,7 @@ var recent_bottoms: Array = []
 var stomp_inv := 0.0
 var shoot_t := 0.0
 var evo := false            # evolucionó a Cazador: dos flechas seguidas y veneno
+var flip_t := 0.0             # bárbaro: la vuelta carnero del doble salto (cuenta hacia cero)
 var evo_frames: SpriteFrames  # el diseño del Cazador (se cambia al evolucionar)
 var venom := false          # veneno prendido (gasta energía)
 var cure_used := false      # la poción, una vez por zona
@@ -239,12 +246,31 @@ func _place_sprite() -> void:
 	bow.offset = Vector2(0, base_oy)
 
 
+## Los cuadros de los otros héroes (y sus evoluciones), para cargarlos en segundo plano desde el título:
+## así cambiar de héroe la primera vez no frena el juego.
+static func asset_paths(skip: String = "") -> Array:
+	var out: Array = []
+	for k in KINDS:
+		if k == skip:
+			continue
+		for d in [HEROES[k].dir, HEROES[k].evo_dir]:
+			for anim in ANIMS:
+				var i := 0
+				while ResourceLoader.exists("%s%s/%s/frame_%03d.png" % [SPR, d, anim, i]):
+					out.append("%s%s/%s/frame_%03d.png" % [SPR, d, anim, i])
+					i += 1
+	return out
+
+
+## Los SpriteFrames ya armados, por carpeta: quedan entre partidas, así que cada héroe se arma una sola vez.
+static var _frames_cache := {}
+
 func _build_frames(dir: String, fps: Dictionary = {}) -> SpriteFrames:
+	if _frames_cache.has(dir):
+		return _frames_cache[dir]
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
-	var anims := {"idle": 5.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 18.0, "aim": 10.0, "release": 18.0, "hurt": 14.0, "dash": 18.0, "death": 10.0,
-		"attack": 24.0, "charge": 16.0, "big": 14.0, "spin": 40.0, "shield": 18.0, "fury": 12.0,
-		"charge_hold": 8.0, "charge_walk": 10.0, "flourish": 11.0, "land": 14.0}
+	var anims := ANIMS
 	for anim in anims:
 		sf.add_animation(anim)
 		sf.set_animation_speed(anim, fps.get(anim, anims[anim]))
@@ -270,6 +296,7 @@ func _build_frames(dir: String, fps: Dictionary = {}) -> SpriteFrames:
 				sf.add_frame(anim, sf.get_frame_texture("idle", 0))
 			else:
 				sf.add_frame(anim, still)
+	_frames_cache[dir] = sf
 	return sf
 
 
@@ -367,6 +394,13 @@ func _physics_process(dt: float) -> void:
 				Fx.dust(get_parent(), global_position + Vector2(-signf(velocity.x) * 3.0, 0), 2, 36.0, 4.0, 1.5, Pal.S, -signf(velocity.x))
 			for i in 3:
 				Fx.streak(get_parent(), global_position + Vector2(-4.0 + 4.0 * i, -1.0 - 3.0 * (i % 2)), Vector2(0, 90.0), 0.12, Pal.W, 5.0)
+			if kind == "barb":
+				# el bárbaro salta pateando el piso: más polvo, piedritas y un golpecito de cámara
+				squash = Vector2(0.62, 1.45)
+				Fx.dust(get_parent(), global_position, 4, 40.0, 4.0, 2.0)
+				Fx.chunks(get_parent(), global_position, 2, [Pal.S, Pal.SS], 50.0, 40.0, global_position.y)
+				Fx.shake(1.5, 0.08)
+				Snd.play("pisoton", {"rate": 1.5, "vol": 0.35})
 	elif buffer > 0.0 and not is_on_floor() and not double_jumped and not dashing:
 		double_jumped = true
 		velocity.y = -jump_v * DJ
@@ -376,6 +410,10 @@ func _physics_process(dt: float) -> void:
 			charge = -1.0
 		squash = Vector2(0.75, 1.3)
 		Snd.play("salto", {"rate": 1.35})
+		if kind == "barb" and charge < 0.0:
+			# el bárbaro da una vuelta carnero hacia adelante con el arma
+			flip_t = FLIP_T
+			Snd.play("tajo", {"rate": 0.8, "vol": 0.5})
 		# anillo de aire aplastado bajo los pies y unas estelas que bajan
 		Fx.ring(get_parent(), global_position + Vector2(0, 1), Pal.C, 0.0, 9.0, 0.3, 0.24)
 		Fx.ring(get_parent(), global_position + Vector2(0, 3), Pal.W, -0.04, 6.0, 0.3, 0.2)
@@ -412,6 +450,14 @@ func _physics_process(dt: float) -> void:
 				Fx.shock(get_parent(), global_position, Pal.S, 10.0 + 6.0 * k, 0.25)
 				Fx.chunks(get_parent(), global_position, 2, [Pal.S, Pal.SS], 40.0, 30.0, global_position.y)
 			Snd.play("aterrizar", {"vol": 0.5 + 0.5 * k})
+			if kind == "barb":
+				# cae pesado: siempre sacude, abre un aro de polvo y salta piedra
+				squash = Vector2(1.3 + 0.3 * k, 0.75 - 0.2 * k)
+				Fx.shake(1.5 + 2.0 * k, 0.1 + 0.08 * k)
+				Fx.kick(Vector2(0, 1), 1.0 + 1.5 * k)
+				Fx.shock(get_parent(), global_position, Pal.S, 12.0 + 6.0 * k, 0.25)
+				Fx.chunks(get_parent(), global_position, 2 + roundi(2 * k), [Pal.S, Pal.SS], 50.0, 40.0, global_position.y)
+				Snd.play("pisoton", {"rate": 1.25, "vol": 0.3 + 0.4 * k})
 		elif not was_floor and fall_speed > 60.0:
 			squash = Vector2(1.08, 0.93)
 			Fx.dust(get_parent(), global_position, 2, 14.0, 3.0, 1.2)
@@ -1339,6 +1385,22 @@ func _animate(dt: float) -> void:
 			Fx.streak(get_parent(), global_position + Vector2(randf_range(-7, 7), -randf_range(2, 18)),
 				Vector2(0, -110.0), 0.1, Pal.W if randf() < 0.5 else Pal.S, 6.0)
 	sprite.scale = squash * breath * air * 0.5
+	# vuelta carnero del bárbaro: gira alrededor del centro del cuerpo, con fantasmas atrás
+	sprite.position = Vector2.ZERO
+	if flip_t > 0.0:
+		flip_t -= dt
+		if is_on_floor() or dead or String(sprite.animation) not in ["jump", "fall"]:
+			flip_t = 0.0
+		if flip_t > 0.0:
+			var k := 1.0 - flip_t / FLIP_T
+			k = 1.0 - pow(1.0 - k, 2.0)  # arranca rápido y frena al final
+			sprite.position = Vector2(0, -FLIP_C)
+			sprite.offset.y = base_oy + FLIP_C * 2.0
+			sprite.rotation = face * TAU * k
+			if Engine.get_physics_frames() % 2 == 0:
+				Fx.afterimage(get_parent(), sprite, Pal.RAMP_O[2] if not evo else Pal.RAMP_R[2])
+		else:
+			sprite.rotation = 0.0
 	# el arco y la flecha no respiran: quedan clavados para dar tensión
 	bow.visible = sprite.animation == "aim"
 	bow.flip_h = sprite.flip_h

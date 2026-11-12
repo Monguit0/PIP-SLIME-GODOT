@@ -475,6 +475,7 @@ func afterimage(parent: Node, src: AnimatedSprite2D, tint: Color = Pal.C) -> voi
 	s.flip_h = src.flip_h
 	s.scale = src.scale
 	s.global_position = src.global_position
+	s.global_rotation = src.global_rotation
 	s.material = silhouette(tint)
 	s.modulate = Color(1, 1, 1, 0.6)
 	parent.add_child(s)

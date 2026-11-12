@@ -13,7 +13,8 @@ La primera vez Godot tarda unos segundos en importar las imágenes.
 ## Qué hay: el Nivel 1 completo con tres héroes
 El **Nivel 1 (El Reino)** igual que en el juego web: **título** (con ← y → elegís héroe: arquero, caballero o bárbaro), una **carta** para elegir al empezar, **Pradera**, **Ruinas** y
 **Murallas** con sus slimes y esqueletos, monedas y flechas que caen, y el **Salón del Trono** con el **Mega Caballero**. Al ganar o perder,
-la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
+la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu); salto vuelve al título para elegir otro
+héroe y R reintenta con el mismo.
 
 - Se ve como el original: el mundo es de 256×144, los sprites HD (Pip, slimes, el jefe) se dibujan con el doble de detalle y
   los textos usan la misma fuente de 5×7 del juego web.
@@ -27,7 +28,8 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
 - **Fondos pintados con PixelLab**: cielo con luna, cordillera con el castillo del rey a lo lejos, y adelante el bosque
   de la Pradera, las ruinas con arcos y enredaderas y las murallas con ventanas encendidas; el Salón del Trono tiene
   rosetón, estandartes, trono y antorchas que chisporrotean. Las capas de atrás se oscurecen para que se vean lejos.
-- **Sin tirones**: los cuadros del jefe y de los esqueletos y la música se cargan en segundo plano desde el título, y
+- **Sin tirones**: los cuadros de los otros héroes, del jefe y de los esqueletos y la música se cargan en segundo plano
+  desde el título (cambiar de héroe no frena), y
   los shaders se compilan al arrancar (antes el primer dash y la entrada al castillo trababan un instante).
 - **Pip arquero** con los números del juego web: doble salto, coyote time, salto corto, **dash** intangible, flecha
   normal y **flechazo cargado** (3 de daño, atraviesa). Máximo cuatro flechas en el aire.
@@ -44,7 +46,8 @@ la pantalla de fin con tus **puntos** y el **récord** (se guarda en la compu).
   pegan alrededor) y **furia** (Shift con la barra llena): 5 segundos con más daño, ataques más rápidos y en rojo.
   Sus golpes tienen el doble de cuadros que antes: el hachazo sube, baja con su estela y **muerde el piso** (chispas,
   polvo, cascotes y un temblor corto); el giro da la vuelta de verdad, con la capa abierta y el barrido del arma en
-  naranja (rojo el Warlord). Salta, cae y aterriza con sus propios cuadros, como el caballero.
+  naranja (rojo el Warlord). Salta con un grito y el arma en alto, cae abierto listo para aplastar y aterriza con un
+  hachazo al piso que sacude la pantalla; en el doble salto da una vuelta carnero con fantasmas.
   Corre embistiendo, con la capa volando, y **camina con el hacha atrás** mientras carga. La **furia** arranca con el
   juego congelado un instante, el piso que se rompe y una columna de brasas, y deja una estela roja al correr; el
   giro cargado sacude la cámara y tira viento y brasas en cada barrido.

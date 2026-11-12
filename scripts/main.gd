@@ -58,6 +58,8 @@ const SCALE := [0, 2, 4, 5, 7, 9, 11, 12, 14, 16]  # combo de monedas: escala ma
 
 ## al reiniciar desde el fin del juego se saltea el título
 static var skip_title := false
+## al reiniciar (a la partida o al título) la pantalla entra desde negro
+static var fade_in := false
 ## el héroe elegido en el título (queda para la próxima partida)
 static var kind := "archer"
 
@@ -107,7 +109,8 @@ func _ready() -> void:
 	add_child(camera)
 	camera.make_current()
 	Fx.warm(self, player.global_position + Vector2(0, -12))
-	_warm_paths = BossScript.asset_paths() + SkelScript.asset_paths()
+	# primero los otros héroes (se pueden elegir ya en el título), después el jefe y los esqueletos
+	_warm_paths = Player.asset_paths(player.kind) + BossScript.asset_paths() + SkelScript.asset_paths()
 	for p in _warm_paths:
 		ResourceLoader.load_threaded_request(p)
 	hud = HudScript.new()
@@ -117,6 +120,8 @@ func _ready() -> void:
 	if skip_title:
 		skip_title = false
 		start_game()
+	if fade_in:
+		fade_in = false
 		fade = 0.9
 
 
@@ -158,7 +163,7 @@ func _process(dt: float) -> void:
 		return
 	if (state == "over" and end_t > 1.2) or (state == "win" and end_t > 3.2):
 		if Input.is_action_just_pressed("saltar") or Input.is_action_just_pressed("atacar"):
-			restart()
+			restart(true)
 			return
 	_check_zone()
 	_update_gates(dt)
@@ -191,8 +196,11 @@ func _physics_process(dt: float) -> void:
 		_hazards(dt)
 
 
-func restart() -> void:
-	skip_title = true
+## Vuelve a empezar. Desde el fin del juego (to_title) vuelve al título para elegir otro héroe;
+## con R arranca directo con el mismo.
+func restart(to_title: bool = false) -> void:
+	skip_title = not to_title
+	fade_in = true
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	get_tree().reload_current_scene()
