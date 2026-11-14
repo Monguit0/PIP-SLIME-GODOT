@@ -324,6 +324,17 @@ func _dodge(p: Player) -> void:
 				seen[k2] = randf() < skill
 			if seen[k2]:
 				_jump()
+	# espadas de costado (el castigo del portón): las salta igual que a una flecha
+	for a in p.get_tree().get_nodes_in_group("espadas_lado"):
+		if a.warn > 0.0:
+			continue
+		var ds: float = (cx - a.global_position.x) * a.dir
+		if ds > 0.0 and ds < 46.0 and absf(a.global_position.y - (p.global_position.y - 8.0)) < 9.0 and p.is_on_floor():
+			var ks: int = a.get_instance_id()
+			if not seen.has(ks):
+				seen[ks] = randf() < skill
+			if seen[ks]:
+				_jump()
 	# el hachero que levantó el hacha: se aparta
 	for m in p.get_tree().get_nodes_in_group("enemigos"):
 		if m.get("kind") == "skaxe" and not m.dead and m.windup > 0.0 and absf(m.global_position.x - cx) < 28.0:

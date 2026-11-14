@@ -184,7 +184,10 @@ la misma compu, con el teclado y hasta ocho joysticks. Los lugares que nadie eli
   Hay **10 segundos** para cruzar (cuenta regresiva arriba, que late en rojo los últimos 3, y una flecha que
   parpadea hacia el portón). Si nadie cruza a tiempo, **llueven espadas**: una sobre cada héroe y otras al azar,
   cada vez más y con menos aviso; atraviesan las plataformas, así que no hay resguardo ni arriba ni abajo de
-  una. Además, los que llegan tarde se quedan sin los 2 corazones de premio. Vale también en el modo Villano.
+  una. Son **imparables** (rojas): ni un golpe las rompe ni el escudo las frena. A los **20 segundos** se suman
+  espadas que cruzan la pantalla **de costado**, de un lado y del otro, a la altura de alguno de los que faltan,
+  cada vez más seguido (`scripts/side_sword.gd`). Además, los que llegan tarde se quedan sin los 2 corazones de
+  premio. Vale también en el modo Villano.
 - **En pantalla**: sobre cada héroe manejado por una persona, una flechita con su control (*TEC*, *J1*...) y en
   la lista de arriba, su barra de energía. Los héroes de las personas corren a velocidad completa (los del bot
   siguen al 62%). El héroe que cae no vuelve en esa partida.

@@ -44,6 +44,8 @@ const SEATS := ["v", "archer", "knight", "barb", "mage"]
 const CAM_Z_MIN := 0.5   # lo más lejos que se va la cámara: la zona entera (dos pantallas)
 const CAM_PAD := 30.0
 const CROSS_TIME := 10.0  # segundos para cruzar el portón de una zona limpia, antes de que lluevan espadas
+const SIDE_TIME := 20.0   # y a los 20, además, espadas que cruzan de costado
+const SideSword := preload("res://scripts/side_sword.gd")
 
 const ZONES := [
 	{"start": 0, "end": 512, "name": "PRADERA", "green": 4, "red": 1, "arch": 0, "axe": 1, "haz": 0.55},
@@ -138,6 +140,8 @@ var cross_t := 0.0           # lo que queda para cruzar el portón
 var late := false            # se acabó el tiempo: llueven espadas y no hay curación al cruzar
 var rain_t := 0.0
 var rain_n := 0
+var side_t := 0.0
+var side_n := 0
 var zone_lost := false      # se quedó sin bichos: el portón se abre y los héroes avanzan
 var fade := 0.0
 var _warm_paths: Array = []  # cuadros del jefe y los esqueletos que se están cargando en segundo plano
@@ -365,7 +369,7 @@ func _villano_zone(n: int) -> void:
 func _villano_next() -> void:
 	var n := z + 1
 	gates[z].want = 0.0
-	for g in ["babas", "flechas_malas", "hechizos"]:
+	for g in ["babas", "flechas_malas", "hechizos", "peligros", "espadas_lado"]:
 		for o in get_tree().get_nodes_in_group(g):
 			o.queue_free()
 	if n >= VILLAIN_MOBS.size():
@@ -597,17 +601,37 @@ func _cross_clock(dt: float) -> void:
 			late = true
 			rain_t = 0.35
 			rain_n = 0
+			side_t = 0.0
+			side_n = 0
 			_show_banner("¡SE ACABÓ EL TIEMPO!", "LLUEVEN ESPADAS · SIN CURACIÓN")
 			Snd.play("rugido", {"rate": 1.3, "vol": 0.6, "vary": false})
 			Fx.shake(3.0, 0.4)
 		elif ceili(cross_t) != was and cross_t <= 3.0:
 			Snd.play("alerta", {"rate": 1.0 + (3.0 - cross_t) * 0.12, "vol": 0.6, "vary": false})
 		return
+	var gx: float = gates[z].x
+	if cross_t <= CROSS_TIME - SIDE_TIME:
+		# a los 20 segundos: espadas de costado, de los dos lados, a la altura de alguno de los que faltan
+		if side_n == 0 and side_t <= 0.0:
+			_show_banner("¡ESPADAS POR TODOS LADOS!", "CRUCEN YA")
+		side_t -= dt
+		if side_t <= 0.0:
+			var left: Array = heroes.filter(func(h): return not h.dead and h.global_position.x < gx + 20.0)
+			var sy := GROUND - 7.0
+			if not left.is_empty() and randf() < 0.7:
+				sy = left[randi() % left.size()].global_position.y - 7.0
+			var s := SideSword.new()
+			s.game = self
+			s.dir = 1.0 if side_n % 2 == 0 else -1.0
+			var vw := W / cam_z
+			s.position = Vector2(cam_x + 2.0 if s.dir > 0.0 else cam_x + vw - 2.0, sy)
+			add_child(s)
+			side_n += 1
+			side_t = maxf(0.45, 1.3 - side_n * 0.07)
 	rain_t -= dt
 	if rain_t > 0.0:
 		return
 	var warn := maxf(0.45, 0.75 - rain_n * 0.03)
-	var gx: float = gates[z].x
 	var n := 0
 	for h in heroes:
 		if not h.dead and h.global_position.x < gx + 20.0:
@@ -624,6 +648,7 @@ func _cross_clock(dt: float) -> void:
 func _rain_sword(x: float, delay: float, warn: float) -> void:
 	var s := spawn_hazard(x, delay, true, warn)
 	s.land_y = GROUND  # atraviesa las plataformas: ni arriba ni abajo de una hay resguardo
+	s.unstoppable = true
 
 
 func _villano_end(_won: bool) -> void:

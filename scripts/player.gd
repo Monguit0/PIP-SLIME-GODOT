@@ -1460,7 +1460,7 @@ func hurt(from_x: float, amount: int = 1, src: Object = null) -> bool:
 	var dir := signf(global_position.x - from_x)
 	if dir == 0.0:
 		dir = -face
-	if shield:
+	if shield and not (src != null and src.get("unstoppable") == true):
 		# se da vuelta hacia el golpe: el escudo siempre queda entre él y lo que le pega
 		face = -int(dir)
 		sprite.flip_h = face < 0

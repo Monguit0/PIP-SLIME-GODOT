@@ -620,7 +620,7 @@ func _draw_villano() -> void:
 func _cross_hud() -> void:
 	var blink := int(t * 6.0) % 2 == 0
 	if main.late:
-		_text("¡LLUEVEN ESPADAS!", W / 2.0, 4, Pal.R if blink else Pal.Y, 1, 1, Pal.K)
+		_text("¡ESPADAS POR TODOS LADOS!" if main.side_n > 0 else "¡LLUEVEN ESPADAS!", W / 2.0, 4, Pal.R if blink else Pal.Y, 1, 1, Pal.K)
 	else:
 		var left := ceili(maxf(0.0, main.cross_t))
 		var hot := left <= 3

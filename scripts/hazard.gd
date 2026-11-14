@@ -12,6 +12,7 @@ static var warn_tex: Texture2D = null
 
 var game  # main.gd
 var big := false
+var unstoppable := false  # las del castigo del portón: ni el golpe las rompe ni el escudo las frena
 var land_y := 128.0
 var phase := "warn"
 var warn := 1.1
@@ -98,7 +99,7 @@ func _physics_process(dt: float) -> void:
 
 ## Un golpe cuerpo a cuerpo (o el escudo) la parte en el aire: +5.
 func smash() -> void:
-	if phase != "fall":
+	if phase != "fall" or unstoppable:
 		return
 	phase = "gone"
 	if game != null:
@@ -136,7 +137,7 @@ func _draw() -> void:
 		wx = 1.0 if int(wob * 40.0) % 2 == 1 else -1.0
 	var flip := phase == "back"  # devuelta por el parry: sube con la punta para arriba
 	if big:
-		draw_texture_rect(SWORD, Rect2(-2 + wx, roundf(y) + (11.0 if flip else 0.0), 5, -11 if flip else 11), false)
+		draw_texture_rect(SWORD, Rect2(-2 + wx, roundf(y) + (11.0 if flip else 0.0), 5, -11 if flip else 11), false, Color(1.0, 0.55, 0.5) if unstoppable else Color.WHITE)
 	else:
 		draw_texture_rect(ARROW, Rect2(-1 + wx, roundf(y) + (8.0 if flip else 0.0), 3, -8 if flip else 8), false)
 
@@ -145,7 +146,7 @@ func _draw() -> void:
 ## que se cierra sobre donde va a caer, la sombra que crece y el cartelito de peligro arriba.
 func _draw_warn() -> void:
 	var k := 1.0 - warn / warn_max
-	var ramp: Array = Pal.RAMP_C if big else Pal.RAMP_R
+	var ramp: Array = Pal.RAMP_C if big and not unstoppable else Pal.RAMP_R
 	var on := int(t * (6.0 + 18.0 * k)) % 2 == 0
 	var top := 17.0
 	var bottom := land_y - 3.0
