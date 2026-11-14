@@ -54,13 +54,13 @@ joven de abrigo rasgado con un bastón torcido y una gema roja) y "Nigromante" (
 bastón con calavera en llamas verdes). Las animaciones se pidieron en modo v3 desde el quieto (lienzo de 68×68);
 las que necesitan otra pose de arranque (corrida con el bastón adelante, bastón cruzado detrás de la cabeza quieto
 y caminando) se piden igual y se usan solo los cuadros del final, cuando ya está en la pose. El salto es una sola
-animación de 16 cuadros de la que salen `jump`, `fall` y `land`.
+animación de 16 cuadros; de una segunda (`jump-swag`) salen el vuelo bajo (`run`), la picada y el aterrizaje.
 
 | carpeta | qué hace |
 |---|---|
 | idle | respira con el bastón apoyado |
-| run | corre con el bastón a un costado, la gema adelante |
-| jump / fall / land | salto con magia: sube con las piernas encogidas, arriba abre el abrigo como alas, cae y aterriza agachado |
+| run_in / run | no corre: despega y vuela bajo con el bastón cruzado en los hombros (el Nigromante flota como un espectro) |
+| jump / apex / fall / land | sube con las piernas encogidas, arriba abre el abrigo como alas (`apex`, según la velocidad), cae en picada y aterriza agachado con una mano en el piso |
 | attack | estocada corta con el bastón |
 | charge, charge_hold, charge_walk | cruza el bastón detrás de la cabeza, lo sostiene (loop) y camina con él (loop) |
 | big | bastonazo cargado: baja el bastón y la gema revienta contra el piso (el Nigromante trae su arco verde dibujado) |

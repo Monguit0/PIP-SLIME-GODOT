@@ -3,24 +3,202 @@
  "hojas": {
   "a": "ng_a.png",
   "b": "ng_b.png",
-  "j": ["ng_j.png", 68, 68, 9]
+  "j": [
+   "ng_j.png",
+   68,
+   68,
+   9
+  ],
+  "j2": [
+   "ng_j2.png",
+   68,
+   68,
+   9
+  ]
  },
  "anims": {
-  "idle": ["a", 0, [1, 2, 3, 4]],
-  "run": ["a", 1, [5, 6, 7, 8, 9, 10]],
-  "jump": {"hoja": "j", "cuadros": [6, 7, 8, 9], "alinear": "torso"},
-  "fall": {"hoja": "j", "cuadros": [11, 12, 13, 14], "alinear": "torso"},
-  "land": ["j", 0, [16, 16]],
-  "attack": ["a", 2, [2, 3, 4, 5, 6, 2]],
-  "charge": ["a", 3, [1, 2, 3, 4]],
-  "charge_hold": ["a", 4, [4, 5, 6, 7, 8]],
-  "charge_walk": ["a", 5, [4, 5, 6, 7, 8, 9, 10]],
-  "big": ["b", 1, [2, 3, 4, 5, 6, 7, 8]],
-  "cast": ["b", 0, [2, 3, 4, 5, 7, 8]],
-  "summon": ["b", 2, [1, 2, 3, 4, 5, 6]],
-  "hurt": ["b", 3, [1, 2, 3, 4]],
-  "death": ["b", 4, [1, 2, 3, 4, 5, 6]]
+  "idle": [
+   "a",
+   0,
+   [
+    1,
+    2,
+    3,
+    4
+   ]
+  ],
+  "run": {
+   "hoja": "j2",
+   "cuadros": [
+    8,
+    9,
+    10,
+    11,
+    12
+   ],
+   "alinear": [
+    0,
+    0
+   ]
+  },
+  "jump": {
+   "hoja": "j",
+   "cuadros": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "alinear": "torso"
+  },
+  "fall": {
+   "hoja": "j2",
+   "cuadros": [
+    14,
+    15
+   ],
+   "alinear": [
+    0,
+    0
+   ]
+  },
+  "land": {
+   "hoja": "j2",
+   "cuadros": [
+    16,
+    16
+   ],
+   "alinear": [
+    0,
+    4
+   ]
+  },
+  "attack": [
+   "a",
+   2,
+   [
+    2,
+    3,
+    4,
+    5,
+    6,
+    2
+   ]
+  ],
+  "charge": [
+   "a",
+   3,
+   [
+    1,
+    2,
+    3,
+    4
+   ]
+  ],
+  "charge_hold": [
+   "a",
+   4,
+   [
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  ],
+  "charge_walk": [
+   "a",
+   5,
+   [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ]
+  ],
+  "big": [
+   "b",
+   1,
+   [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  ],
+  "cast": [
+   "b",
+   0,
+   [
+    2,
+    3,
+    4,
+    5,
+    7,
+    8
+   ]
+  ],
+  "summon": [
+   "b",
+   2,
+   [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ]
+  ],
+  "hurt": [
+   "b",
+   3,
+   [
+    1,
+    2,
+    3,
+    4
+   ]
+  ],
+  "death": [
+   "b",
+   4,
+   [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ]
+  ],
+  "run_in": {
+   "hoja": "j2",
+   "cuadros": [
+    4,
+    5
+   ],
+   "alinear": [
+    0,
+    0
+   ]
+  },
+  "apex": {
+   "hoja": "j",
+   "cuadros": [
+    10,
+    11,
+    12
+   ],
+   "alinear": "torso"
+  }
  },
  "bajar": 1,
- "nota": "PixelLab \"Pip mago brujo A\", estado \"Nigromante\" ff8b2b5f-7ee6-40ae-8967-4803befce1d1 (lienzo de 68x68). a = join idle run-b staff-hit charge charge-hold charge-walk --as rows; b = join cast slam summon hurt death --as rows; j = join jump --as sheet --columns 9."
+ "nota": "PixelLab \"Pip mago brujo A\", estado \"Nigromante\" ff8b2b5f-7ee6-40ae-8967-4803befce1d1 (lienzo de 68x68). a = join idle run-b staff-hit charge charge-hold charge-walk --as rows; b = join cast slam summon hurt death --as rows; j = join jump --as sheet --columns 9. j2 = join jump-swag --as sheet --columns 9: run (flota como un espectro con el bastón cruzado), run_in, fall (picada) y land; apex, del salto viejo (vuela acostado)."
 }

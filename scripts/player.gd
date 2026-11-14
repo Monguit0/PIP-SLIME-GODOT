@@ -59,6 +59,8 @@ const FIRE_WIND := 0.07       # del botón a que sale la bola: lo que tarda en e
 const SUMMON_COST := 50.0
 const SLAM_K := 0.45          # el bastonazo cargado toca el piso a esta altura de su animación
 const BLINK_T := 0.3          # el destello del doble salto del mago
+const TWIRL_T := 0.34         # el giro en tirabuzón del doble salto del mago
+const HANG := 45.0            # arriba de todo del salto el mago queda un instante flotando (por debajo de esta velocidad)
 
 const ArrowScript := preload("res://scripts/arrow.gd")
 const FireballScript := preload("res://scripts/fireball.gd")
@@ -83,7 +85,8 @@ const FLIP_C := 14.0          # alto del centro del cuerpo: la vuelta gira alred
 ## las animaciones de los héroes y sus cuadros por segundo (cada héroe puede cambiarlos con "fps")
 const ANIMS := {"idle": 5.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 18.0, "aim": 10.0, "release": 18.0, "hurt": 14.0, "dash": 18.0, "death": 10.0,
 	"attack": 24.0, "charge": 16.0, "big": 14.0, "spin": 40.0, "shield": 18.0, "fury": 12.0,
-	"charge_hold": 8.0, "charge_walk": 10.0, "flourish": 11.0, "land": 14.0, "cast": 24.0, "summon": 14.0}
+	"charge_hold": 8.0, "charge_walk": 10.0, "flourish": 11.0, "land": 14.0, "cast": 24.0, "summon": 14.0,
+	"run_in": 22.0, "apex": 8.0}
 
 ## qué héroe es (main.gd lo pone antes de agregarlo; en el título se cambia con set_kind)
 var kind := "archer"
@@ -158,6 +161,11 @@ var cast_wind := -1.0        # cuenta hasta que la bola sale (-1: no hay ninguna
 var summon_t := 0.0          # el gesto de invocar del Nigromante
 var blink_t := 0.0           # destello del doble salto
 var gem_t := 0.0             # brasas que suelta la gema del bastón
+var twirl_t := 0.0           # girando en el aire (doble salto y al rebotar en un enemigo)
+var run_in_t := 0.0          # recién arrancó a moverse: el despegue antes de volar bajo
+var gliding := false         # venía moviéndose por el piso (para el arranque y la frenada)
+var glide_fx := 0.0
+var apex_fx := false         # ya salió el destello de arriba de todo del salto
 var base_oy := -23.0         # dónde va el lienzo para que los pies queden en el origen
 
 
@@ -450,6 +458,8 @@ func _physics_process(dt: float) -> void:
 		if kind == "mage":
 			# el mago pisa un círculo mágico que aparece en el aire: se enciende, lo empuja y se deshace en brasas
 			blink_t = BLINK_T
+			twirl_t = TWIRL_T
+			apex_fx = false
 			squash = Vector2(0.65, 1.45)
 			Snd.play("hechizo", {"rate": 1.5, "vol": 0.45})
 			var c0 := global_position + Vector2(0, 2)
@@ -476,7 +486,13 @@ func _physics_process(dt: float) -> void:
 	if dashing:
 		velocity.y = 0.0
 	else:
-		velocity.y = minf(velocity.y + GRAV * (FALL_MUL if velocity.y > 0.0 else 1.0) * dt, MAX_FALL)
+		var gmul := FALL_MUL if velocity.y > 0.0 else 1.0
+		if kind == "mage" and not is_on_floor() and absf(velocity.y) < HANG and jump_held:
+			gmul = 0.5  # arriba de todo queda un instante flotando con el abrigo abierto
+		var vy0 := velocity.y
+		velocity.y = minf(velocity.y + GRAV * gmul * dt, MAX_FALL)
+		if kind == "mage" and not is_on_floor() and not apex_fx and velocity.y >= 0.0 and vy0 < 0.0:
+			_apex_pop()
 
 	var fall_speed := velocity.y
 	var was_floor := is_on_floor()
@@ -486,9 +502,13 @@ func _physics_process(dt: float) -> void:
 	if recent_bottoms.size() > 4:
 		recent_bottoms.pop_back()
 	move_and_slide()
+	if kind == "mage":
+		_glide_step(dt)
 	if is_on_floor():
 		double_jumped = false
 		air_dash = false
+		apex_fx = false
+		twirl_t = 0.0
 		if not was_floor and fall_speed > 140.0:
 			var k := minf(1.0, (fall_speed - 140.0) / 130.0)
 			squash = Vector2(1.1 + 0.4 * k, 0.92 - 0.32 * k)
@@ -503,6 +523,16 @@ func _physics_process(dt: float) -> void:
 				Fx.ring(get_parent(), global_position + Vector2(0, -1), _mage_col(2), 0.0, 9.0 + 5.0 * k, 0.3, 0.25)
 				for i in 3 + roundi(3 * k):
 					Fx.part(get_parent(), global_position + Vector2(randf_range(-7, 7), -1), Vector2(randf_range(-25, 25), -randf_range(20, 55)), 40.0, 0.4, _mage_col(i % 3 + 1))
+				if k > 0.3:
+					# caída larga: aterriza agachado con una mano en el piso y el abrigo que cae después;
+					# una onda de su color, líneas que se abren a los costados y un golpecito de cámara
+					Fx.shock(get_parent(), global_position, _mage_col(1), 16.0 + 8.0 * k, 0.3)
+					Fx.kick(Vector2(0, 1), 0.8 + 0.8 * k)
+					Fx.shake(1.0 + k, 0.08)
+					for sd in [-1.0, 1.0]:
+						for i in 3:
+							Fx.streak(get_parent(), global_position + Vector2(sd * 3.0, -1.0 - 2.0 * i), Vector2(sd * (150.0 - 30.0 * i), 0), 0.14, _mage_col(i % 2), 8.0)
+					Fx.twinkle(get_parent(), gem_pos(), _mage_col(0), 3.0, 0.16)
 			if kind == "barb":
 				# cae pesado: siempre sacude, abre un aro de polvo y salta piedra
 				squash = Vector2(1.3 + 0.3 * k, 0.75 - 0.2 * k)
@@ -517,7 +547,7 @@ func _physics_process(dt: float) -> void:
 		if not was_floor and fall_speed > 60.0:
 			land_t = _anim_len("land", 0.0) * (0.5 if absf(velocity.x) > 10.0 else 1.0)
 		# polvito al correr (al pisar) y derrape al dar la vuelta corriendo
-		if absf(velocity.x) > 60.0:
+		if absf(velocity.x) > 60.0 and kind != "mage":  # el mago no pisa: vuela bajo (ver _glide_step)
 			dust_t -= dt
 			if dust_t <= 0.0:
 				dust_t = 0.16
@@ -549,6 +579,8 @@ func _timers(dt: float) -> void:
 	cast_t -= dt
 	summon_t -= dt
 	blink_t -= dt
+	twirl_t -= dt
+	run_in_t -= dt
 	swing_t += dt
 	if drop_t > 0.0:
 		drop_t -= dt
@@ -1178,13 +1210,60 @@ func gem_pos() -> Vector2:
 		return global_position + Vector2(-face * 7.0, -21.0)
 	if a == "cast":
 		return global_position + Vector2(face * 14.0, -7.0)
-	if a == "run":
-		return global_position + Vector2(face * 12.0, -5.0)
+	if a in ["run", "run_in"]:
+		return global_position + Vector2(face * 13.0, -13.0)
 	return global_position + Vector2(face * 7.0, -23.0)
 
 
 func _big_hit_t() -> float:
 	return _anim_len("big", 0.3) * SLAM_K if kind == "mage" else BIG_HIT
+
+
+## El mago no corre: vuela bajo con el bastón cruzado en los hombros. Al arrancar despega con un aro y un
+## empujón de aire, mientras va deja una estela de brasas y fantasmas de su color, y al frenar el abrigo lo alcanza.
+func _glide_step(dt: float) -> void:
+	var moving := is_on_floor() and absf(velocity.x) > 30.0 and charge < CHG_ON and not dead
+	if moving and not gliding:
+		run_in_t = _anim_len("run_in", 0.0)
+		var d := signf(velocity.x)
+		squash = Vector2(1.18, 0.86)
+		Snd.play("dash", {"rate": 1.5, "vol": 0.35})
+		Fx.ring(get_parent(), global_position + Vector2(-d * 5.0, -9.0), _mage_col(1), 0.0, 9.0, 1.0, 0.2)
+		Fx.shock(get_parent(), global_position, _mage_col(2), 10.0, 0.22)
+		for i in 4:
+			Fx.streak(get_parent(), global_position + Vector2(-d * 2.0, -3.0 - 4.0 * i), Vector2(-d * randf_range(120, 180), 0), 0.14, _mage_col(i % 2), 8.0)
+		for i in 4:
+			Fx.part(get_parent(), global_position + Vector2(-d * 3.0, -1), Vector2(-d * randf_range(20, 60), -randf_range(10, 40)), 60.0, 0.35, _mage_col(1 + i % 2))
+	elif gliding and not moving and is_on_floor() and not dead:
+		# frena: el abrigo que venía atrás lo alcanza y las brasas siguen de largo
+		squash = Vector2(0.9, 1.12)
+		for i in 5:
+			Fx.part(get_parent(), global_position + Vector2(randf_range(-4, 4), -randf_range(1, 12)), Vector2(face * randf_range(30, 80), -randf_range(5, 30)), 40.0, 0.35, _mage_col(1 + i % 2))
+	gliding = moving
+	if not moving:
+		return
+	glide_fx -= dt
+	if glide_fx <= 0.0:
+		glide_fx = 0.04
+		var d2 := signf(velocity.x)
+		# brasas que caen de abajo de él y el resplandor en el piso
+		Fx.part(get_parent(), global_position + Vector2(-d2 * randf_range(0, 8), -randf_range(0, 3)), Vector2(-d2 * randf_range(10, 40), -randf_range(0, 18)), 50.0, 0.35, _mage_col(1 + randi() % 3))
+		if randf() < 0.35:
+			Fx.streak(get_parent(), global_position + Vector2(-d2 * 4.0, -randf_range(4, 16)), Vector2(-d2 * 150.0, 0), 0.1, _mage_col(0) if randf() < 0.4 else Pal.W, 7.0)
+	if absf(velocity.x) > speed * 0.85 and Engine.get_physics_frames() % 6 == 0:
+		Fx.afterimage(get_parent(), sprite, _mage_col(2))
+
+
+## arriba de todo del salto: el abrigo se abre de golpe; un destello en la gema, un aro y un soplo de brasas
+func _apex_pop() -> void:
+	apex_fx = true
+	squash = Vector2(1.14, 0.9)
+	Snd.play("hechizo", {"rate": 2.2, "vol": 0.18})
+	Fx.twinkle(get_parent(), gem_pos(), _mage_col(0), 3.5, 0.18)
+	Fx.ring(get_parent(), global_position + Vector2(0, -10), _mage_col(2), 0.0, 13.0, 0.5, 0.24)
+	for i in 6:
+		var a := PI + PI * i / 5.0  # hacia arriba, en abanico
+		Fx.part(get_parent(), global_position + Vector2(cos(a) * 8.0, -10.0), Vector2(cos(a) * 45.0, sin(a) * 30.0), 70.0, 0.35, _mage_col(1 + i % 2))
 
 
 ## Bola de fuego: el especial del mago. Estira el bastón (un instante de aviso con chispas que se juntan
@@ -1519,6 +1598,18 @@ func _pick_melee(anim: String, has: Callable, dt: float) -> void:
 	# recién aterrizado: se agacha un instante (con armadura pesa) antes de quedarse quieto o seguir corriendo
 	if land_t > 0.0 and want in ["idle", "run"] and is_on_floor() and has.call("land"):
 		want = "land"
+	# el mago despega antes de volar bajo, y arriba de todo del salto abre el abrigo como alas
+	if want == "run" and run_in_t > 0.0 and has.call("run_in"):
+		want = "run_in"
+	if want in ["jump", "fall"] and absf(velocity.y) < 75.0 and has.call("apex"):
+		if sprite.animation != "apex":
+			sprite.play("apex")
+		sprite.pause()
+		var an := sprite.sprite_frames.get_frame_count("apex")
+		sprite.frame = clampi(int((velocity.y + 75.0) / 150.0 * an), 0, an - 1)
+		idle_t = 0.0
+		flourish_t = 0.0
+		return
 	# en el aire el cuadro sale de la velocidad y no del reloj
 	if want in ["jump", "fall"] and has.call(want):
 		if sprite.animation != want:
@@ -1583,6 +1674,10 @@ func bounce() -> void:
 	double_jumped = false
 	air_dash = false
 	squash = Vector2(0.8, 1.25)
+	if kind == "mage":  # rebota en el bicho con un giro
+		twirl_t = TWIRL_T
+		apex_fx = false
+		Fx.ring(get_parent(), global_position, _mage_col(1), 0.0, 9.0, 0.35, 0.2)
 
 
 func _animate(dt: float) -> void:
@@ -1631,7 +1726,7 @@ func _animate(dt: float) -> void:
 			ss = 1.0 / haste()
 	sprite.speed_scale = ss
 	# pisadas con armadura: suenan y levantan polvo cuando el pie toca el piso (dos por vuelta del ciclo)
-	if melee() and String(sprite.animation) in ["run", "charge_walk"] and is_on_floor() and not dead:
+	if melee() and String(sprite.animation) in ["run", "charge_walk"] and is_on_floor() and not dead and not (kind == "mage" and sprite.animation == "run"):
 		var cur := sprite.frame
 		var half := int(sprite.sprite_frames.get_frame_count(sprite.animation) / 2.0)
 		if cur != step_fr and half >= 2 and cur % half == int(half / 2.0):  # el cuadro con las piernas más abiertas
@@ -1658,6 +1753,21 @@ func _animate(dt: float) -> void:
 			Fx.streak(get_parent(), global_position + Vector2(randf_range(-7, 7), -randf_range(2, 18)),
 				Vector2(0, -110.0), 0.1, Pal.W if randf() < 0.5 else Pal.S, 6.0)
 	sprite.scale = squash * breath * air * 0.5
+	# el mago vuela bajo: sube y baja apenas, como flotando; en el doble salto gira en tirabuzón (el sprite se
+	# angosta, se da vuelta y vuelve) dejando fantasmas
+	if kind == "mage" and not dead:
+		if String(sprite.animation) in ["run", "run_in"]:
+			sprite.offset.y = base_oy + roundf(sin(Time.get_ticks_msec() / 1000.0 * 9.0) * 1.2)
+		if twirl_t > 0.0 and not is_on_floor():
+			var tk := 1.0 - twirl_t / TWIRL_T
+			tk = 1.0 - pow(1.0 - tk, 2.0)
+			var c := cos(tk * TAU * 2.0)  # dos vueltas
+			sprite.scale.x *= c if absf(c) > 0.12 else 0.12 * (1.0 if c >= 0.0 else -1.0)
+			if Engine.get_physics_frames() % 2 == 0:
+				Fx.afterimage(get_parent(), sprite, _mage_col(1 + Engine.get_physics_frames() / 2 % 2))
+			if Engine.get_physics_frames() % 3 == 0:
+				var ang := tk * TAU * 2.0
+				Fx.part(get_parent(), global_position + Vector2(cos(ang) * 9.0, -10.0 + sin(ang) * 3.0), Vector2(cos(ang) * 40.0, -20.0), 40.0, 0.3, _mage_col(randi() % 3))
 	# vuelta carnero del bárbaro: gira alrededor del centro del cuerpo, con fantasmas atrás
 	sprite.position = Vector2.ZERO
 	if flip_t > 0.0:

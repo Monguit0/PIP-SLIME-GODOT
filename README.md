@@ -58,10 +58,13 @@ héroe y R reintenta con el mismo.
   lenguas de fuego por el piso, cascotes y temblor) y **bola de fuego** (Shift, un poco menos de un tercio de la
   energía): estira el bastón, sale derecho con retroceso, explota al tocar un enemigo, al jefe, una pared o el
   piso, pega 2 al que toca y 1 a los de alrededor, y **quema**: 1 de vida cada 0,8 s durante 2,4 s (se ven las
-  llamitas). **Salta con magia**: despega sobre un aro de su color con brasas que suben, en el aire abre el abrigo
-  como alas, el **doble salto** pisa un círculo mágico que aparece bajo sus pies y deja fantasmas, y cae liviano
-  con un aro y brasas. La gema suelta chispas todo el tiempo (más cuando carga) y si lo dejás quieto hace un floreo
-  con el bastón.
+  llamitas). **No corre: vuela bajo**, acostado en el aire con el bastón cruzado en los hombros y el abrigo
+  flameando; al arrancar despega con un aro y un empujón de aire, mientras va sube y baja apenas y deja brasas y
+  fantasmas de su color, y al frenar el abrigo lo alcanza. **Salta con magia**: despega sobre un aro con brasas que
+  suben, arriba de todo queda un instante flotando con el abrigo abierto como alas (un destello en la gema), el
+  **doble salto** pisa un círculo mágico y gira en tirabuzón dejando fantasmas (también al rebotar en un bicho),
+  cae en picada con el abrigo hacia arriba y aterriza agachado con una mano en el piso, una onda y líneas a los
+  costados. La gema suelta chispas todo el tiempo (más cuando carga) y si lo dejás quieto hace un floreo con el bastón.
 - Los cuatro hechos con **PixelLab** a 68×68 con los pies en la misma fila, así que comparten física y colisión.
 - **Las flechas se clavan** donde pegan (las de Pip y las del esqueleto): en el piso, en las paredes, en los portones
   y en las plataformas si les caen desde arriba. La punta queda adentro, vibran un instante y quedan ahí un rato;
@@ -146,7 +149,7 @@ héroe y R reintenta con el mismo.
   Si falta alguna carpeta, el juego usa el cuadro quieto. `pip_cazador/` es la evolución.
 - `assets/sprites/mago/` y `nigromante/`: el mago y su evolución, de **PixelLab** (lienzo de 68×68, pies en la fila
   54), con `idle/`, `run/`, `jump/`, `fall/`, `land/`, `attack/` (estocada), `charge/`, `charge_hold/`, `charge_walk/`,
-  `big/` (bastonazo), `cast/` (bola de fuego), `hurt/`, `death/`, `flourish/` (solo el mago) y `summon/` (solo el
+  `big/` (bastonazo), `cast/` (bola de fuego), `run_in/` (el despegue), `apex/` (arriba de todo del salto), `hurt/`, `death/`, `flourish/` (solo el mago) y `summon/` (solo el
   Nigromante). Recetas `mago.json` y `nigromante.json` en `tools/heroes/recetas`.
 - `assets/sprites/caballero/`, `barbaro/`, `paladin/` y `warlord/`: los otros héroes y sus evoluciones, de **PixelLab**
   (lienzo de 68×68, pies en la fila 56; el tajo y el espadazo, más anchos, con el mismo centro), con `idle/`, `run/`,
