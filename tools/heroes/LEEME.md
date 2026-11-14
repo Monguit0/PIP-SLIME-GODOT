@@ -54,13 +54,14 @@ joven de abrigo rasgado con un bastón torcido y una gema roja) y "Nigromante" (
 bastón con calavera en llamas verdes). Las animaciones se pidieron en modo v3 desde el quieto (lienzo de 68×68);
 las que necesitan otra pose de arranque (corrida con el bastón adelante, bastón cruzado detrás de la cabeza quieto
 y caminando) se piden igual y se usan solo los cuadros del final, cuando ya está en la pose. El salto es una sola
-animación de 16 cuadros; de una segunda (`jump-swag`) salen el vuelo bajo (`run`), la picada y el aterrizaje.
+animación de 16 cuadros (`jump-B-vampiro`) de la que salen `jump`, `apex`, `fall`, `land` y `twirl`.
 
 | carpeta | qué hace |
 |---|---|
 | idle | respira con el bastón apoyado |
-| run_in / run | no corre: despega y vuela bajo con el bastón cruzado en los hombros (el Nigromante flota como un espectro) |
-| jump / apex / fall / land | sube con las piernas encogidas, arriba abre el abrigo como alas (`apex`, según la velocidad), cae en picada y aterriza agachado con una mano en el piso |
+| run | camina como un galán, con una mano en el pelo y el abrigo abriéndose a cada paso (el Nigromante, con la calavera del bastón adelante) |
+| jump / apex / fall / land | salto de murciélago: sube envuelto en el abrigo, arriba lo abre (`apex`, según la velocidad), planea con el abrigo como alas y al caer se envuelve |
+| twirl | el giro envuelto en el abrigo del doble salto |
 | attack | estocada corta con el bastón |
 | charge, charge_hold, charge_walk | cruza el bastón detrás de la cabeza, lo sostiene (loop) y camina con él (loop) |
 | big | bastonazo cargado: baja el bastón y la gema revienta contra el piso (el Nigromante trae su arco verde dibujado) |

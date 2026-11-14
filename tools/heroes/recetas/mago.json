@@ -3,18 +3,13 @@
  "hojas": {
   "a": "mg_a.png",
   "b": "mg_b.png",
-  "j": [
-   "mg_j.png",
+  "jb": [
+   "mg_jb.png",
    68,
    68,
-   9
+   13
   ],
-  "j2": [
-   "mg_j2.png",
-   68,
-   68,
-   9
-  ]
+  "w": "mg_w.png"
  },
  "anims": {
   "idle": [
@@ -27,35 +22,41 @@
     4
    ]
   ],
-  "run": {
-   "hoja": "j2",
-   "cuadros": [
+  "run": [
+   "w",
+   2,
+   [
+    4,
+    5,
+    6,
+    7,
+    8,
     9,
     10,
     11,
-    12,
-    13
+    12
+   ]
+  ],
+  "jump": {
+   "hoja": "jb",
+   "cuadros": [
+    21,
+    22,
+    23,
+    24
    ],
    "alinear": [
     0,
     0
    ]
   },
-  "jump": {
-   "hoja": "j",
-   "cuadros": [
-    6,
-    7,
-    8,
-    9
-   ],
-   "alinear": "torso"
-  },
   "fall": {
-   "hoja": "j2",
+   "hoja": "jb",
    "cuadros": [
-    14,
-    15
+    29,
+    30,
+    31,
+    32
    ],
    "alinear": [
     0,
@@ -63,14 +64,14 @@
    ]
   },
   "land": {
-   "hoja": "j2",
+   "hoja": "jb",
    "cuadros": [
-    16,
-    16
+    33,
+    33
    ],
    "alinear": [
     0,
-    3
+    1
    ]
   },
   "attack": [
@@ -179,26 +180,32 @@
     8
    ]
   ],
-  "run_in": {
-   "hoja": "j2",
+  "apex": {
+   "hoja": "jb",
    "cuadros": [
-    6,
-    7
+    26,
+    27,
+    28
    ],
    "alinear": [
     0,
     0
    ]
   },
-  "apex": {
-   "hoja": "j",
+  "twirl": {
+   "hoja": "jb",
    "cuadros": [
-    10,
-    11,
-    12
+    19,
+    20,
+    21,
+    22,
+    23
    ],
-   "alinear": "torso"
+   "alinear": [
+    0,
+    0
+   ]
   }
  },
- "nota": "PixelLab \"Pip mago brujo A\", estado \"Baston\" bf5d2746-b956-419a-b2aa-1f27e2be20fc (lienzo de 68x68). a = join idle run staff-hit charge cast slam hurt death --as rows; b = join staff-jab run-b charge-hold charge-walk flourish --as rows; j = join jump --as sheet --columns 9. La corrida sale de run-b (los primeros cuadros son la transición desde el quieto); charge_hold y charge_walk, de los últimos cuadros de sus animaciones. attack es la estocada de staff-hit (los cuadros en que no se da vuelta). El floreo saltea el cuadro con el aro celeste. j2 = join jump-swag --as sheet --columns 9: de ahí salen run (vuela bajo con el bastón adelante: cuadros 9 a 13), run_in (el arranque), fall (se tira en picada con el abrigo hacia arriba) y land (aterriza agachado con una mano en el piso). apex son los cuadros de arriba del salto viejo, con el abrigo abierto como alas. Estas van con \"alinear\": [dx, dy] para que queden donde vinieron (flotando) y no se bajen solas a la fila de los pies."
+ "nota": "PixelLab \"Pip mago brujo A\", estado \"Baston\" bf5d2746-b956-419a-b2aa-1f27e2be20fc (lienzo de 68x68). a = join idle run staff-hit charge cast slam hurt death --as rows; b = join staff-jab run-b charge-hold charge-walk flourish --as rows; w = join walk-D-levita walk-E-bolsillos walk-F-galan --as rows: run es la caminata \"galán\" (fila 2; los primeros cuadros son la transición desde el quieto); jb = join jump-A-pirueta jump-B-vampiro jump-C-mortal --as sheet --columns 13: el salto de murciélago son los cuadros 17 a 33: jump (sube envuelto en el abrigo), apex (lo abre), fall (planea con el abrigo abierto como alas de murciélago), land (se envuelve al caer) y twirl (el giro del doble salto); van con \"alinear\": [dx, dy] para que queden donde vinieron. charge_hold y charge_walk salen de los últimos cuadros de sus animaciones. attack es la estocada de staff-hit (los cuadros en que no se da vuelta). El floreo saltea el cuadro con el aro celeste."
 }
