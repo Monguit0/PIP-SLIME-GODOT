@@ -163,8 +163,16 @@ Son tres zonas (Pradera, Ruinas y Murallas) y al final el Salón del Trono, dond
 Diferencias con el original, a propósito, porque acá los héroes limpian una zona mucho más rápido que en la web:
 los slimes tienen **1 de vida más** (3 el verde, 4 el rojo), los héroes del bot **avanzan al 62%** de su velocidad
 y pegan un poco más espaciado, hay **refuerzos** que van llegando de a uno cuando cae alguno (seis en la Pradera,
-cuatro en las Ruinas y en las Murallas) y el Mega Caballero que manejás tiene **60 de vida** (42 en la web). Son
+cuatro en las Ruinas y en las Murallas) y el Mega Caballero que manejás tiene **80 de vida** (42 en la web). Son
 números para ajustar jugando. Todavía no hay cartas del villano, ni experiencia y evolución de los héroes.
+
+Cómo se cuidan los héroes del bot (sobre todo el caballero y el bárbaro, que pelean pegados al enemigo): pegan
+**apenas el enemigo entra en el alcance del arma** (cuadro a cuadro, no en la próxima pensada) y se paran a la
+distancia del arma, no encima; el **caballero levanta el escudo** cuando algo lo va a tocar (un slime, una flecha,
+un hacha, una baba, el hachero levantando el hacha), y recién levantado es un parry; el **bárbaro entra en furia**
+al llegar a la pelea y se aparta mientras recarga el golpe. Todos saltan el hacha lanzada, suben a las plataformas
+altas con el salto doble y, contra el Mega Caballero, el caballero frena el tajo con el escudo y los demás lo
+saltan. Nada de eso es infalible: cada amenaza la ven venir con cierta probabilidad (`skill`, 0,62).
 
 Código: `scripts/hero_bot.gd` (el bot: `botThink`, `botClimb` y `botDodge`), `scripts/spit.gd` (la baba: `lob` y
 `updateShots`), en `scripts/slime.gd` la parte "modo Villano" (`playerMob`, `aiMob`, `aiLob`), en `scripts/main.gd`

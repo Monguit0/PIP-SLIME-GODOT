@@ -11,7 +11,9 @@ const GROUND := 128.0
 
 var game                    # main.gd
 var react := 0.2            # cada cuánto piensa
-var skill := 0.5            # probabilidad de ver venir cada baba
+var guard_t := 0.0           # caballero: cada cuánto vuelve a decidir si se cubre de una amenaza
+var guard_ok := false
+var skill := 0.62            # probabilidad de ver venir cada baba
 var think_t := 0.0
 var move := 0               # -1, 0, 1
 var step = null             # plataforma [x, y, ancho] a la que quiere subir
@@ -61,7 +63,9 @@ func think(p: Player, dt: float) -> void:
 		_decide(p)
 	_climb(p)
 	_dodge(p)
+	_guard(p, dt)
 	_leap(p)
+	_sweep_guard(p)
 	p.inp = {
 		"derecha": move > 0, "izquierda": move < 0,
 		"saltar": jump_hold > 0.0 and jump_gap <= 0.0,
@@ -83,7 +87,9 @@ func _attack(p: Player) -> void:
 	if atk_cd > 0.0:
 		return
 	atk_hold = 0.05
-	atk_cd = float(Player.HEROES[p.kind].cool) + 0.55 + randf() * 0.5
+	# el caballero y el bárbaro pegan más seguido: pelean pegados al enemigo y cada golpe que tardan es un toque que reciben
+	var slow := 0.25 + randf() * 0.3 if p.kind == "knight" or p.kind == "barb" else 0.55 + randf() * 0.5
+	atk_cd = float(Player.HEROES[p.kind].cool) + slow
 
 
 func _on_platform(p: Player) -> bool:
@@ -151,8 +157,9 @@ func _decide(p: Player) -> void:
 			elif dist < 22.0:
 				_attack(p)
 		else:
-			move = toward if dist > 15.0 else 0
-			if dist < 24.0:
+			# se para a la distancia de su arma, no encima del enemigo (tocarlo lastima)
+			move = toward if dist > 18.0 else 0
+			if dist < 25.0:
 				_attack(p)
 		# parado pero mirando para el otro lado: un pasito para darse vuelta
 		if move == 0 and p.face != toward:
@@ -164,7 +171,9 @@ func _decide(p: Player) -> void:
 		for pl in game.PLATS:
 			if pl[0] < zd.start or pl[0] >= zd.end:
 				continue
-			if pl[1] < foot - 4.0 and pl[1] >= foot - 34.0:
+			# hasta 34 px llega con un salto; hasta 68, con el doble (si no, el que se sube a una
+			# plataforma alta queda fuera del alcance de todos)
+			if pl[1] < foot - 4.0 and pl[1] >= foot - 68.0:
 				var d2 := absf(pl[0] + pl[2] / 2.0 - tx)
 				if d2 < bx:
 					bx = d2
@@ -226,11 +235,12 @@ func _boss(p: Player, b) -> void:
 					_jump()
 			return
 	if p.kind == "archer":
-		move = -toward if dist < 60.0 and not cornered else (toward if dist > 120.0 else 0)
+		# de lejos: fuera del alcance del tajo (llega a unos 62 px)
+		move = -toward if dist < 76.0 and not cornered else (toward if dist > 130.0 else 0)
 		if p.face == toward:
 			_attack(p)
 	elif p.kind == "mage":
-		move = -toward if dist < 44.0 and not cornered else (toward if dist > 100.0 else 0)
+		move = -toward if dist < 70.0 and not cornered else (toward if dist > 112.0 else 0)
 		if spc_cd <= 0.0 and p.energy >= Player.FIRE_COST and dist > 24.0 and p.face == toward:
 			spc_hold = 0.05
 			spc_cd = 2.2 + randf() * 1.6
@@ -242,6 +252,38 @@ func _boss(p: Player, b) -> void:
 			_attack(p)
 	if move == 0 and p.face != toward:
 		move = toward
+
+
+## El tajo del Mega Caballero, cuadro a cuadro (el aviso dura menos que una pensada): el caballero lo frena
+## con el escudo y los demás lo saltan con el salto doble, alejándose. No siempre lo ven venir.
+func _sweep_guard(p: Player) -> void:
+	var b = game.boss
+	if game.z < 3 or b == null or not is_instance_valid(b) or not b.active() or b.atk != "sweep":
+		return
+	if b.state != "tele" and not (b.state == "act" and b.t < 0.16):
+		return
+	var cx := p.global_position.x
+	var dist: float = absf(cx - b.cx())
+	if signf(cx - b.cx()) != float(b.face) or dist > 68.0:
+		return
+	var k: int = b.atk_n * 17 + 3
+	if not seen.has(k):
+		seen[k] = randf() < maxf(skill, 0.8)
+	if not seen[k]:
+		return
+	if p.kind == "knight" and (p.shield or p.energy >= Player.SH_MIN + 6.0):
+		spc_hold = maxf(spc_hold, 0.2)
+		atk_hold = 0.0
+		return
+	if b.state == "tele" and p.is_on_floor() and leap_t <= 0.0:
+		var away := 1 if cx >= b.cx() else -1
+		var cornered: bool = (away > 0 and cx > b.ARENA_MAX - 16.0) or (away < 0 and cx < b.ARENA_MIN + 16.0)
+		jump_hold = 0.22
+		jump_gap = 0.0
+		leap2 = 0.2
+		leap_t = 0.55
+		leap_dir = 0 if cornered else away
+		move = leap_dir
 
 
 ## La embestida del jefe no se salta con un salto solo (mide 40): salto doble justo antes de que llegue, yendo
@@ -278,6 +320,79 @@ func _leap(p: Player) -> void:
 		move = 0 if cornered else -toward
 
 
+## Los de cuerpo a cuerpo se cuidan. El caballero levanta el escudo cuando algo lo va a tocar (un slime
+## encima, una flecha, un hacha, una baba, el hachero levantando el hacha): recién levantado es un parry.
+## El bárbaro entra en furia al llegar a la pelea y, mientras recarga el golpe, se aparta del que tiene encima.
+func _guard(p: Player, dt: float) -> void:
+	if p.kind != "knight" and p.kind != "barb":
+		return
+	guard_t -= dt
+	var cx := p.global_position.x
+	var foot := p.global_position.y
+	var near = null
+	var nd := 1e9
+	for m in p.get_tree().get_nodes_in_group("enemigos"):
+		if m.dead or m.spawn > 0.0 or absf(m.global_position.y - foot) > 16.0:
+			continue
+		var d := absf(m.global_position.x - cx)
+		if d < nd:
+			nd = d
+			near = m
+	# pegan apenas el enemigo entra en el alcance del arma (cuadro a cuadro: esperando a la próxima
+	# pensada, el slime ya lo tocó)
+	if near != null and nd < 25.0 and atk_cd <= 0.0 and not p.shield:
+		var tw := 1 if near.global_position.x >= cx else -1
+		if p.face != tw:
+			move = tw
+		else:
+			_attack(p)
+	if p.kind == "barb":
+		if near == null:
+			return
+		if nd < 46.0 and p.energy >= Player.RAGE and p.rage_t <= 0.0 and spc_hold <= 0.0 and spc_cd <= 0.0:
+			spc_hold = 0.05
+			spc_cd = 1.0
+		if nd < (26.0 if p.hearts <= 2 else 21.0) and atk_cd > 0.15:
+			var away := -1 if near.global_position.x >= cx else 1
+			var zd: Dictionary = game.ZONES[mini(game.z, 3)]
+			if cx + away * 14.0 > zd.start + 8.0 and cx + away * 14.0 < zd.end - 8.0:
+				move = away
+		return
+	# caballero
+	var threat := false
+	if near != null:
+		if nd < 13.0 and atk_cd > 0.1:
+			threat = true
+		elif near.get("kind") == "skaxe" and near.windup > 0.0 and nd < 30.0:
+			threat = true
+	if not threat:
+		for a in p.get_tree().get_nodes_in_group("flechas_malas"):
+			if a.stuck or a.hero:
+				continue
+			var da: float = (cx - a.global_position.x) * a.face
+			if da > 0.0 and da < 42.0 and absf(a.global_position.y - (foot - 11.0)) < 12.0:
+				threat = true
+				break
+	if not threat:
+		for a in p.get_tree().get_nodes_in_group("hachas"):
+			if not a.lost and absf(a.global_position.x - cx) < 34.0 and absf(a.global_position.y - (foot - 11.0)) < 14.0:
+				threat = true
+				break
+	if not threat:
+		for s in p.get_tree().get_nodes_in_group("babas"):
+			if s.vel.y > 0.0 and absf(s.global_position.x - cx) < 16.0 and s.global_position.y < foot and foot - s.global_position.y < 40.0:
+				threat = true
+				break
+	if not threat:
+		return
+	if guard_t <= 0.0:
+		guard_t = 0.7
+		guard_ok = randf() < skill + 0.2
+	if guard_ok and (p.shield or p.energy >= Player.SH_MIN + 10.0):
+		spc_hold = maxf(spc_hold, 0.14)
+		atk_hold = 0.0
+
+
 func _climb(p: Player) -> void:
 	if step == null:
 		return
@@ -299,6 +414,8 @@ func _climb(p: Player) -> void:
 				edge = absf(edge_x - cx) < 9.0
 				break
 	if under or edge:
+		if jump_hold <= 0.0 and p.global_position.y - step[1] > 32.0:
+			leap2 = 0.2   # está alto: salto doble
 		_jump()
 
 
@@ -334,6 +451,20 @@ func _dodge(p: Player) -> void:
 			if not seen.has(ks):
 				seen[ks] = randf() < skill
 			if seen[ks]:
+				_jump()
+	# el hacha que tiró el hachero (a la ida y a la vuelta): la salta
+	for a in p.get_tree().get_nodes_in_group("hachas"):
+		if a.lost:
+			continue
+		var av: float = a.dir
+		if a.back and a.thrower != null and is_instance_valid(a.thrower):
+			av = signf(a.thrower.global_position.x - a.global_position.x)
+		var da: float = (cx - a.global_position.x) * av
+		if da > 0.0 and da < 46.0 and absf(a.global_position.y - (p.global_position.y - 11.0)) < 13.0 and p.is_on_floor():
+			var ka: int = a.get_instance_id() * 3 + int(a.back)
+			if not seen.has(ka):
+				seen[ka] = randf() < skill
+			if seen[ka]:
 				_jump()
 	# el hachero que levantó el hacha: se aparta
 	for m in p.get_tree().get_nodes_in_group("enemigos"):

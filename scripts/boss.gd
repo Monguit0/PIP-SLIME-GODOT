@@ -41,7 +41,7 @@ const PB := {
 	"charge": {"key": "especial", "cd": 3.2, "tele": 0.32},
 	"rain": {"key": "poder", "cd": 6.5, "tele": 0.45},
 }
-const PB_HP := 60   # 42 en el original; acá los héroes pegan más seguido y con 42 dura un suspiro
+const PB_HP := 80   # 42 en el original; acá los héroes del bot pegan más seguido y se cuidan mejor
 
 ## Puño de la espada en cada cuadro del Mega Caballero (detectado en los cuadros de PixelLab):
 ## en píxeles del mundo desde los pies, mirando a la derecha. Los genera la herramienta de cuadros.
@@ -309,7 +309,6 @@ func _pick() -> String:
 func _start(pick: String, dir: int, chain: bool) -> void:
 	chain = chain and _can_combo()
 	combo = (maxi(combo, 1) + 1) if chain else 1
-	atk_n += 1
 	chain_t = 0.0
 	atk = pick
 	last = pick
@@ -388,6 +387,8 @@ func _rain_targeted() -> void:
 
 
 func _to(s: String) -> void:
+	if s == "tele":
+		atk_n += 1
 	state = s
 	t = 0.0
 	if s == "tele":
