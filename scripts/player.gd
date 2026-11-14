@@ -1,6 +1,6 @@
 class_name Player
 extends CharacterBody2D
-## Los héroes: Pip arquero, el caballero y el bárbaro. Valores copiados del juego web
+## Los héroes: Pip arquero, el caballero, el bárbaro y el mago. Valores copiados del juego web
 ## (index.html: CHARS, SK, GRAV, DJ, skillStep, chargeStep, slashBoxOf, hurt).
 
 signal hearts_changed
@@ -53,7 +53,16 @@ const CHOP_ARC := 2.0 / 11.0  # el hachazo del bárbaro: a esta altura de la ani
 const CHOP_K := 4.0 / 11.0    # ...y a esta muerde el piso
 const SPIN_HITS := 2          # golpes del giro por cada vuelta de su animación (dos barridos dibujados)
 
+# mago: bola de fuego (SK.fire) y, de Nigromante, los esqueletos aliados (SK.summon)
+const FIRE_COST := 30.0
+const FIRE_WIND := 0.07       # del botón a que sale la bola: lo que tarda en estirar el bastón
+const SUMMON_COST := 50.0
+const SLAM_K := 0.45          # el bastonazo cargado toca el piso a esta altura de su animación
+const BLINK_T := 0.3          # el destello del doble salto del mago
+
 const ArrowScript := preload("res://scripts/arrow.gd")
+const FireballScript := preload("res://scripts/fireball.gd")
+const AllyScript := preload("res://scripts/ally.gd")
 const SPR := "res://assets/sprites/"
 ## hearts, speed, jump y cool de CHARS; dir y evo_dir son las carpetas de los cuadros (PixelLab);
 ## feet: fila de abajo de los pies en el lienzo (el sprite se dibuja con los pies en el origen);
@@ -65,14 +74,16 @@ const HEROES := {
 		"dir": "caballero", "evo_dir": "paladin", "feet": 57.0},
 	"barb": {"name": "BÁRBARO", "evo": "WARLORD", "hearts": 4, "speed": 94.0, "jump": 262.0, "cool": 0.46,
 		"dir": "barbaro", "evo_dir": "warlord", "feet": 57.0, "fps": {"attack": 32.0, "spin": 30.0}},
+	"mage": {"name": "MAGO", "evo": "NIGROMANTE", "hearts": 3, "speed": 88.0, "jump": 264.0, "cool": 0.4,
+		"dir": "mago", "evo_dir": "nigromante", "feet": 55.0, "fps": {"attack": 26.0, "big": 22.0}},
 }
-const KINDS := ["archer", "knight", "barb"]
+const KINDS := ["archer", "knight", "barb", "mage"]
 const FLIP_T := 0.38          # lo que dura la vuelta carnero del bárbaro en el doble salto
 const FLIP_C := 14.0          # alto del centro del cuerpo: la vuelta gira alrededor de ahí, no de los pies
 ## las animaciones de los héroes y sus cuadros por segundo (cada héroe puede cambiarlos con "fps")
 const ANIMS := {"idle": 5.0, "run": 12.0, "jump": 12.0, "fall": 6.0, "shoot": 18.0, "aim": 10.0, "release": 18.0, "hurt": 14.0, "dash": 18.0, "death": 10.0,
 	"attack": 24.0, "charge": 16.0, "big": 14.0, "spin": 40.0, "shield": 18.0, "fury": 12.0,
-	"charge_hold": 8.0, "charge_walk": 10.0, "flourish": 11.0, "land": 14.0}
+	"charge_hold": 8.0, "charge_walk": 10.0, "flourish": 11.0, "land": 14.0, "cast": 24.0, "summon": 14.0}
 
 ## qué héroe es (main.gd lo pone antes de agregarlo; en el título se cambia con set_kind)
 var kind := "archer"
@@ -141,6 +152,12 @@ var heal_at := -9.0
 var rage_t := 0.0
 var rage_mul := 1.0
 var fury_t := 0.0            # lo que dura el rugido de la furia
+# mago
+var cast_t := 0.0            # lo que dura el gesto de tirar la bola
+var cast_wind := -1.0        # cuenta hasta que la bola sale (-1: no hay ninguna por salir)
+var summon_t := 0.0          # el gesto de invocar del Nigromante
+var blink_t := 0.0           # destello del doble salto
+var gem_t := 0.0             # brasas que suelta la gema del bastón
 var base_oy := -23.0         # dónde va el lienzo para que los pies queden en el origen
 
 
@@ -167,6 +184,8 @@ func special_cost() -> float:
 			return SH_MIN
 		"barb":
 			return RAGE
+		"mage":
+			return FIRE_COST
 	return dash_cost()
 
 
@@ -233,6 +252,9 @@ func set_kind(k: String) -> void:
 	shield = false
 	rage_t = 0.0
 	charge = -1.0
+	cast_t = 0.0
+	cast_wind = -1.0
+	summon_t = 0.0
 	_place_sprite()
 	hearts_changed.emit()
 
@@ -336,6 +358,10 @@ func _physics_process(dt: float) -> void:
 			_shield_step(dt, Input.is_action_pressed("especial") and playing, Input.is_action_just_pressed("especial") and playing)
 		"barb":
 			_fury_step(dt, Input.is_action_just_pressed("especial") and playing)
+		"mage":
+			_cast_step(dt, Input.is_action_just_pressed("especial") and playing)
+			if evo:
+				_necro_step(Input.is_action_just_pressed("poder") and playing)
 		_:
 			_special(dt, Input.is_action_just_pressed("especial") and playing)
 			if evo:
@@ -394,6 +420,13 @@ func _physics_process(dt: float) -> void:
 				Fx.dust(get_parent(), global_position + Vector2(-signf(velocity.x) * 3.0, 0), 2, 36.0, 4.0, 1.5, Pal.S, -signf(velocity.x))
 			for i in 3:
 				Fx.streak(get_parent(), global_position + Vector2(-4.0 + 4.0 * i, -1.0 - 3.0 * (i % 2)), Vector2(0, 90.0), 0.12, Pal.W, 5.0)
+			if kind == "mage":
+				# el mago se impulsa con magia: un aro de su color bajo los pies y brasas que suben con él
+				squash = Vector2(0.68, 1.4)
+				Fx.ring(get_parent(), global_position + Vector2(0, 1), _mage_col(2), 0.0, 10.0, 0.3, 0.22)
+				for i in 5:
+					Fx.part(get_parent(), global_position + Vector2(randf_range(-6, 6), -randf_range(0, 6)), Vector2(randf_range(-10, 10), -randf_range(50, 110)), -20.0, 0.4, _mage_col(i % 3 + 1))
+				Fx.twinkle(get_parent(), global_position + Vector2(0, -2), _mage_col(1), 3.0, 0.16)
 			if kind == "barb":
 				# el bárbaro salta pateando el piso: más polvo, piedritas y un golpecito de cámara
 				squash = Vector2(0.62, 1.45)
@@ -414,6 +447,20 @@ func _physics_process(dt: float) -> void:
 			# el bárbaro da una vuelta carnero hacia adelante con el arma
 			flip_t = FLIP_T
 			Snd.play("tajo", {"rate": 0.8, "vol": 0.5})
+		if kind == "mage":
+			# el mago pisa un círculo mágico que aparece en el aire: se enciende, lo empuja y se deshace en brasas
+			blink_t = BLINK_T
+			squash = Vector2(0.65, 1.45)
+			Snd.play("hechizo", {"rate": 1.5, "vol": 0.45})
+			var c0 := global_position + Vector2(0, 2)
+			Fx.ring(get_parent(), c0, _mage_col(1), 0.0, 13.0, 0.28, 0.3)
+			Fx.ring(get_parent(), c0, _mage_col(0), 0.0, 8.0, 0.28, 0.24)
+			Fx.ring(get_parent(), c0, _mage_col(2), -0.06, 17.0, 0.28, 0.3)
+			for i in 8:
+				var a2 := TAU * i / 8.0
+				Fx.part(get_parent(), c0 + Vector2(cos(a2) * 11.0, sin(a2) * 3.0), Vector2(cos(a2) * 30.0, 40.0 + 20.0 * sin(a2)), -60.0, 0.4, _mage_col(i % 2 + 1))
+			for i in 3:
+				Fx.twinkle(get_parent(), c0 + Vector2(-10.0 + 10.0 * i, randf_range(-1, 1)), _mage_col(0), 3.0, 0.18 + 0.05 * i)
 		# anillo de aire aplastado bajo los pies y unas estelas que bajan
 		Fx.ring(get_parent(), global_position + Vector2(0, 1), Pal.C, 0.0, 9.0, 0.3, 0.24)
 		Fx.ring(get_parent(), global_position + Vector2(0, 3), Pal.W, -0.04, 6.0, 0.3, 0.2)
@@ -450,6 +497,12 @@ func _physics_process(dt: float) -> void:
 				Fx.shock(get_parent(), global_position, Pal.S, 10.0 + 6.0 * k, 0.25)
 				Fx.chunks(get_parent(), global_position, 2, [Pal.S, Pal.SS], 40.0, 30.0, global_position.y)
 			Snd.play("aterrizar", {"vol": 0.5 + 0.5 * k})
+			if kind == "mage":
+				# cae liviano, frenado por la magia: un aro de su color y brasas que se levantan
+				squash = Vector2(1.06 + 0.2 * k, 0.94 - 0.16 * k)
+				Fx.ring(get_parent(), global_position + Vector2(0, -1), _mage_col(2), 0.0, 9.0 + 5.0 * k, 0.3, 0.25)
+				for i in 3 + roundi(3 * k):
+					Fx.part(get_parent(), global_position + Vector2(randf_range(-7, 7), -1), Vector2(randf_range(-25, 25), -randf_range(20, 55)), 40.0, 0.4, _mage_col(i % 3 + 1))
 			if kind == "barb":
 				# cae pesado: siempre sacude, abre un aro de polvo y salta piedra
 				squash = Vector2(1.3 + 0.3 * k, 0.75 - 0.2 * k)
@@ -493,6 +546,9 @@ func _timers(dt: float) -> void:
 	parry_inv -= dt
 	fury_t -= dt
 	land_t -= dt
+	cast_t -= dt
+	summon_t -= dt
+	blink_t -= dt
 	swing_t += dt
 	if drop_t > 0.0:
 		drop_t -= dt
@@ -680,7 +736,7 @@ func _fury_step(dt: float, pressed: bool) -> void:
 ## Ataque cuerpo a cuerpo (chargeStep del original): apretar pega; mantener carga y al soltar
 ## con la carga llena sale el espadazo grande (caballero) o el giro del hacha (bárbaro).
 func _attack_melee(dt: float) -> void:
-	var can := not shield and dash_t <= 0.0 and fury_t <= 0.0
+	var can := not shield and dash_t <= 0.0 and fury_t <= 0.0 and cast_wind < 0.0 and summon_t <= 0.0
 	var pressed := Input.is_action_just_pressed("atacar")
 	var held := Input.is_action_pressed("atacar")
 	if pressed:
@@ -703,12 +759,20 @@ func _attack_melee(dt: float) -> void:
 			charge += dt
 			# el caballero junta la carga en el mandoble levantado detrás de la cabeza; el bárbaro, en el hacha que lleva atrás, lista para girar
 			var at := global_position + (Vector2(-face * 6, -23) if kind == "knight" else Vector2(-face * (13 if evo else 11), -9))
+			if kind == "mage":
+				at = gem_pos()
 			if was < CHG_ON and charge >= CHG_ON:
 				Snd.play("menu", {"rate": 0.75, "vol": 0.3, "vary": false})
 			if was < chg_full() and charge >= chg_full():
 				Snd.play("cargado", {"vary": false})
-				Fx.twinkle(get_parent(), at, Pal.Y, 6.0, 0.3)
-				Fx.ring(get_parent(), at, Pal.Y, 0.0, 9.0, 1.0, 0.22)
+				Fx.twinkle(get_parent(), at, _mage_col(1) if kind == "mage" else Pal.Y, 6.0, 0.3)
+				Fx.ring(get_parent(), at, _mage_col(1) if kind == "mage" else Pal.Y, 0.0, 9.0, 1.0, 0.22)
+				if kind == "mage":
+					# la gema se enciende: un segundo aro y el piso que se ilumina a sus pies
+					Fx.ring(get_parent(), at, _mage_col(0), -0.05, 14.0, 1.0, 0.26)
+					Snd.play("hechizo", {"rate": 1.2, "vol": 0.4})
+					if is_on_floor():
+						Fx.shock(get_parent(), global_position, _mage_col(2), 14.0, 0.3)
 			# chispitas que se juntan en el arma levantada mientras carga
 			if charge >= CHG_ON:
 				chg_fx -= dt
@@ -716,13 +780,21 @@ func _attack_melee(dt: float) -> void:
 					var full := charge >= chg_full()
 					chg_fx = 0.09 if full else 0.035
 					var col := Pal.O if kind == "barb" else Pal.Y
+					if kind == "mage":
+						col = _mage_col(1 + randi() % 2)
+						# la magia sube del piso hacia la gema: brasas que trepan alrededor del cuerpo
+						if is_on_floor():
+							Fx.part(get_parent(), global_position + Vector2(randf_range(-8, 8), -1), Vector2(randf_range(-4, 4), -randf_range(45, 80)), -30.0, 0.4, col)
 					if full:
 						Fx.part(get_parent(), at + Vector2(randf_range(-3, 3), randf_range(-3, 3)), Vector2(randf_range(-8, 8), -22), -30.0, 0.35, col)
 					else:
 						Fx.converge(get_parent(), at, 9.0 + randf() * 5.0, col if randf() < 0.6 else Pal.W, 0.18)
-	if big and not big_fx and swing_t >= BIG_HIT:
+	if big and not big_fx and swing_t >= _big_hit_t():
 		big_fx = true
-		_big_impact()
+		if kind == "mage":
+			_slam_impact()
+		else:
+			_big_impact()
 	if not chop_fx and not big and not spin:
 		var chop_len := _anim_len("attack", 0.2) * haste()
 		if not chop_arc and swing_t >= chop_len * CHOP_ARC:
@@ -791,9 +863,24 @@ func _swing() -> void:
 	hit_keys.clear()
 	velocity.x += face * 48.0
 	squash = Vector2(1.2, 0.86)
-	Snd.play("tajo", {"rate": 0.75 if kind == "barb" else 1.0})
+	Snd.play("tajo", {"rate": 0.75 if kind == "barb" else (1.3 if kind == "mage" else 1.0)})
 	Fx.kick(Vector2(face, 0), 0.5)
-	if kind == "knight":
+	if kind == "mage":
+		# estocada con el bastón: la gema sale hacia adelante dejando una estela de su color, un destello en la
+		# punta y chispas que se abren
+		velocity.x -= face * 8.0
+		var tip := global_position + Vector2(face * 15.0, -12.0)
+		for i in 3:
+			Fx.streak(get_parent(), global_position + Vector2(face * 4.0, -12.0 + (i - 1) * 2.0), Vector2(face * (190.0 - 30.0 * absi(i - 1)), 0), 0.1, _mage_col(0 if i == 1 else 1), 10.0)
+		Fx.twinkle(get_parent(), tip, _mage_col(0), 3.5, 0.14)
+		Fx.ring(get_parent(), tip, _mage_col(1), -0.03, 6.0, 1.0, 0.16)
+		for i in 5:
+			var a := deg_to_rad(-50.0 + 25.0 * i)
+			Fx.part(get_parent(), tip, Vector2(face * cos(a), sin(a)) * randf_range(60, 120), 80.0, 0.28, _mage_col(i % 3))
+		Snd.play("hechizo", {"rate": 2.0, "vol": 0.3})
+		if is_on_floor():
+			Fx.dust(get_parent(), global_position + Vector2(-face * 4.0, 0), 2, 26.0, 5.0, 1.4, Pal.S, -face)
+	elif kind == "knight":
 		# el tajo trae su media luna dibujada en los cuadros (roja, dorada el Paladín): acá van el polvo
 		# que levanta el pie de atrás al pisar fuerte y las líneas de velocidad
 		if is_on_floor():
@@ -841,6 +928,20 @@ func _big_swing() -> void:
 			Fx.dust(get_parent(), global_position, 6, 50.0, 4.0, 2.2)
 		sprite.play("spin")
 		sprite.frame = 0
+	elif kind == "mage":
+		# bastonazo de fuego: baja el bastón con todo y la gema revienta contra el piso (ver _slam_impact)
+		big = true
+		big_fx = false
+		spin = false
+		Snd.play("poder", {"rate": 1.1})
+		Snd.play("tajo", {"rate": 0.85})
+		velocity.x += face * 60.0
+		squash = Vector2(0.8, 1.3)
+		Fx.kick(Vector2(face, 0), 1.2)
+		Fx.slash(get_parent(), global_position + Vector2(face * 2.0, -12.0), 20.0 if evo else 17.0, -150.0, 60.0, face, _mage_col(1), 6.0, 0.16)
+		Fx.slash(get_parent(), global_position + Vector2(face * 2.0, -12.0), 15.0 if evo else 13.0, -140.0, 50.0, face, _mage_col(0), 3.0, 0.13)
+		sprite.play("big")
+		sprite.frame = 0
 	else:
 		big = true
 		big_fx = false  # el arco grande viene dibujado; el impacto contra el piso sale en _big_impact
@@ -865,6 +966,8 @@ func _slash_active() -> bool:
 	if spin:
 		var k := _spin_idx()
 		return k < spin_n and swing_t - k * SPIN_GAP < SPIN_HIT
+	if big and kind == "mage":  # pega cuando el bastón llega abajo
+		return swing_t >= _big_hit_t() - 0.04 and swing_t < _big_hit_t() + 0.1
 	return swing_t < (0.16 if big else 0.1)
 
 
@@ -884,7 +987,7 @@ func slash_box() -> Rect2:
 	var h := 26.0
 	var knight := kind == "knight"  # el mandoble del caballero llega más lejos que el hacha
 	if big:
-		near = -2.0
+		near = -2.0 if kind != "mage" else -6.0  # la explosión del bastonazo también agarra a los que tiene encima
 		w = (52.0 if evo else 44.0) if knight else (46.0 if evo else 36.0)
 		top = 36.0 if knight else (34.0 if evo else 32.0)
 		h = top + 4.0
@@ -905,7 +1008,9 @@ func _slash_base() -> int:
 	if spin:
 		return 2
 	if big:
-		return 4
+		return 3 if kind == "mage" else 4
+	if kind == "mage":
+		return 1
 	return 3 if kind == "barb" else 2
 
 
@@ -926,7 +1031,9 @@ func _slash_hits() -> void:
 			d = 1 if e.global_position.x >= global_position.x else -1
 		# el caballero que le pega a uno aturdido por su parry: crítico seguro
 		var how := "riposte" if kind == "knight" and e.get("parry_t") != null and e.parry_t > 0.0 else "sword"
-		e.take_hit(dmg(_slash_base()), d, how)
+		e.take_hit(dmg(_slash_base()), d, "fire" if big and kind == "mage" else how)
+		if big and kind == "mage" and not e.dead and e.has_method("apply_burn"):
+			e.apply_burn(has_card("brasas"), evo)
 		if war and not e.dead and e.has_method("parried"):
 			e.parried(d, 1.6)
 	var b = game.boss if game != null else null
@@ -941,6 +1048,8 @@ func _slash_hits() -> void:
 			var hx := maxf(hb.position.x, bb.position.x + 3.0) + 2.0 if face > 0 else minf(hb.end.x, bb.end.x - 3.0) - 2.0
 			var riposte: bool = kind == "knight" and b.state == "stun" and b.parry_stun
 			b.damage(dmg(_slash_base()), hx, global_position.y - 10.0, riposte)
+			if big and kind == "mage":
+				b.apply_burn(has_card("brasas"), evo)
 	for h in get_tree().get_nodes_in_group("peligros"):
 		if h.phase == "fall" and h.box().intersects(hb):
 			h.smash()
@@ -1049,6 +1158,160 @@ func heal_wave() -> void:
 		Fx.popup(get_parent(), global_position + Vector2(0, -36), "+1 VIDA", Pal.L)
 
 
+# ---------------------------------------------------------------- mago
+
+## los tonos de la magia del mago, del más claro al más oscuro: carmesí como su gema; verde de almas el Nigromante
+func _mage_col(i: int) -> Color:
+	var c: Array = [Pal.RAMP_L[4], Pal.L, Pal.G, Pal.RAMP_G[1]] if evo else [Pal.RAMP_R[4], Pal.RAMP_R[3], Pal.R, Pal.RAMP_R[1]]
+	return c[clampi(i, 0, 3)]
+
+
+## los tonos del fuego del mago: amarillo, naranja y rojo; verde el del Nigromante
+func _fire_cols() -> Array:
+	return [Pal.RAMP_L[4], Pal.L, Pal.G, Pal.RAMP_G[1]] if evo else [Pal.RAMP_Y[4], Pal.Y, Pal.O, Pal.R]
+
+
+## dónde está la gema del bastón según la pose (para que las chispas salgan de ahí)
+func gem_pos() -> Vector2:
+	var a := String(sprite.animation)
+	if a in ["charge", "charge_hold", "charge_walk"]:  # el bastón cruzado detrás de la cabeza
+		return global_position + Vector2(-face * 7.0, -21.0)
+	if a == "cast":
+		return global_position + Vector2(face * 14.0, -7.0)
+	if a == "run":
+		return global_position + Vector2(face * 12.0, -5.0)
+	return global_position + Vector2(face * 7.0, -23.0)
+
+
+func _big_hit_t() -> float:
+	return _anim_len("big", 0.3) * SLAM_K if kind == "mage" else BIG_HIT
+
+
+## Bola de fuego: el especial del mago. Estira el bastón (un instante de aviso con chispas que se juntan
+## en la gema) y sale la bola con retroceso.
+func _cast_step(dt: float, pressed: bool) -> void:
+	if cast_wind >= 0.0:
+		cast_wind -= dt
+		if cast_wind < 0.0:
+			_fire()
+	if not pressed or cast_wind >= 0.0 or summon_t > 0.0 or hurt_t > 0.0:
+		return
+	if energy < FIRE_COST:
+		no_energy()
+		return
+	energy -= FIRE_COST
+	energy_delay = EN_DELAY
+	charge = -1.0
+	cast_t = _anim_len("cast", 0.26)
+	cast_wind = FIRE_WIND
+	sprite.play("cast")
+	sprite.frame = 0
+	squash = Vector2(1.15, 0.88)  # se encoge un instante antes de estirarse
+	var at := global_position + Vector2(face * 6.0, -13.0)
+	for i in 6:
+		Fx.converge(get_parent(), at, 8.0 + randf() * 6.0, _mage_col(i % 3), 0.07)
+	Snd.play("hechizo", {"rate": 1.7, "vol": 0.5})
+
+
+func _fire() -> void:
+	var f := FireballScript.new()
+	f.face = face
+	f.evo = evo
+	f.big = has_card("inferno")
+	f.long_burn = has_card("brasas")
+	f.dmg = dmg(2)
+	f.game = game
+	var at := global_position + Vector2(face * 12.0, -13.0)
+	f.global_position = at
+	get_parent().add_child(f)
+	velocity.x -= face * 46.0
+	squash = Vector2(0.78, 1.2)
+	Snd.play("fuego")
+	Snd.play("poder", {"rate": 1.3, "vol": 0.6})
+	Fx.shake(1.5, 0.1)
+	Fx.kick(Vector2(-face, 0), 1.6)
+	# fogonazo en la gema: estrella, aro, chispas hacia adelante y el aire que empuja hacia atrás
+	var c := _fire_cols()
+	Fx.hit(get_parent(), at, Vector2(face, 0), c[1], true)
+	Fx.ring(get_parent(), at, c[2], 0.0, 10.0, 1.0, 0.22)
+	Fx.burst(get_parent(), at, 9, [c[0], c[1], c[2]], 80.0, 10.0, 0.25, 0.0)
+	for i in 4:
+		Fx.streak(get_parent(), global_position + Vector2(-face * randf_range(0, 6), -randf_range(4, 18)), Vector2(-face * randf_range(120, 190), randf_range(-10, 10)), 0.12, _mage_col(i % 2), 7.0)
+	if is_on_floor():
+		Fx.dust(get_parent(), global_position + Vector2(-face * 3.0, 0), 3, 30.0, 4.0, 1.6, Pal.S, -face)
+
+
+## el bastonazo cargado: la gema revienta contra el piso. Fogonazo, una columna de llamas, lenguas de fuego
+## que corren por el piso para los dos lados, cascotes, humo y temblor
+func _slam_impact() -> void:
+	var tip := global_position + Vector2(face * (22.0 if evo else 19.0), -1.0)
+	var c := _fire_cols()
+	FireballScript.blast(get_parent(), tip + Vector2(0, -5), 15.0 if evo else 13.0, c)
+	Fx.hit(get_parent(), tip + Vector2(0, -3), Vector2(face * 0.3, -1.0), c[1], true)
+	Fx.burst(get_parent(), tip + Vector2(0, -2), 16, c, 130.0, 60.0, 0.5, 240.0)
+	Fx.ring(get_parent(), tip + Vector2(0, -4), c[1], 0.0, 18.0, 1.0, 0.28)
+	Fx.hitstop(0.05)
+	Fx.shake(4.0, 0.16)
+	Fx.kick(Vector2(0, 1), 1.6)
+	Snd.play("explotar", {"rate": 1.0, "vol": 0.8})
+	Snd.play("fuego", {"rate": 0.7, "vol": 0.7})
+	Snd.boom(0.45)
+	for i in 8:  # la columna
+		Fx.streak(get_parent(), tip + Vector2(randf_range(-5, 5), -randf_range(0, 8)), Vector2(randf_range(-12, 12), -randf_range(130, 240)), 0.18 + 0.14 * randf(), c[1 + i % 3], 9.0)
+	for i in 5:  # lenguas que corren por el piso
+		for sd in [-1.0, 1.0]:
+			Fx.part(get_parent(), tip + Vector2(sd * (3.0 + 4.0 * i), -1), Vector2(sd * (40.0 + 14.0 * i), -randf_range(30, 70)), 120.0, 0.3 + 0.05 * i, c[1 + i % 3], 2 if i < 2 else 1)
+	if is_on_floor():
+		Fx.chunks(get_parent(), tip, 6, [Pal.S, Pal.SS, Pal.D], 75.0, 50.0, global_position.y)
+		Fx.dust(get_parent(), tip, 6, 34.0, 8.0, 2.4, Pal.SS)
+		Fx.shock(get_parent(), tip, c[2], 24.0, 0.32)
+
+
+## Nigromante: el botón de poder (media barra de energía) levanta dos esqueletos aliados al azar, de hacha
+## o de arco. Si ya tenía, los viejos se deshacen.
+func _necro_step(pressed: bool) -> void:
+	if not pressed or summon_t > 0.0 or cast_wind >= 0.0:
+		return
+	if energy < SUMMON_COST:
+		no_energy()
+		return
+	energy -= SUMMON_COST
+	energy_delay = EN_DELAY
+	charge = -1.0
+	summon_t = maxf(0.4, _anim_len("summon", 0.0))
+	for a in get_tree().get_nodes_in_group("aliados"):
+		a.crumble()
+	var ground := is_on_floor()
+	for i in 2:
+		var a := AllyScript.new()
+		a.kind = "skaxe" if randf() < 0.5 else "skarch"
+		a.owner_hero = self
+		a.game = game
+		a.face = float(face)
+		a.cool = 0.5 + i * 0.35
+		a.global_position = global_position + Vector2(16.0 if i == 1 else -16.0, 0.0 if ground else -2.0)
+		get_parent().add_child(a)
+	Fx.popup(get_parent(), global_position + Vector2(0, -30), "¡ALZAOS!", Pal.L, true)
+	Snd.play("posesion", {"rate": 1.4, "vol": 0.8, "vary": false})
+	Snd.play("huesos", {"rate": 0.7})
+	Snd.play("huesos", {"rate": 0.9, "delay": 0.18})
+	squash = Vector2(0.75, 1.3)
+	Fx.hitstop(0.05)
+	Fx.shake(2.5, 0.2)
+	# el círculo de invocación: un aro de almas que se cierra hacia él, tierra que salta y almas que suben
+	var at := global_position
+	Fx.shock(get_parent(), at, Pal.L, 30.0, 0.45)
+	Fx.shock(get_parent(), at, Pal.G, 22.0, 0.35)
+	for i in 22:
+		var ang := TAU * i / 22.0
+		Fx.part(get_parent(), at + Vector2(cos(ang) * 22.0, -1.0 + sin(ang) * 3.0), Vector2(-cos(ang) * 30.0, -randf_range(20, 50)), -15.0, 0.6, Pal.W if i % 3 == 0 else Pal.L)
+	Fx.chunks(get_parent(), at, 8, [Pal.W, Pal.S, Pal.SS], 60.0, 90.0, at.y)
+	for i in 6:
+		Fx.streak(get_parent(), at + Vector2(randf_range(-14, 14), -randf_range(0, 6)), Vector2(0, -randf_range(90, 170)), 0.25 + 0.15 * randf(), Pal.L if i % 2 == 0 else Pal.G, 9.0)
+	for i in 3:
+		Fx.twinkle(get_parent(), gem_pos() + Vector2(randf_range(-4, 4), randf_range(-4, 4)), Pal.L, 4.0, 0.2 + 0.06 * i)
+
+
 func _flying_arrows() -> int:
 	var n := 0
 	for a in get_tree().get_nodes_in_group("flechas"):
@@ -1146,6 +1409,9 @@ func hurt(from_x: float, amount: int = 1, src: Object = null) -> bool:
 	hurt_t = 0.3
 	charge = -1.0
 	dash_t = 0.0
+	cast_wind = -1.0
+	cast_t = 0.0
+	summon_t = 0.0
 	flash_t = 0.09
 	velocity = Vector2(dir * 140.0, -170.0)
 	squash = Vector2(1.3, 0.75)
@@ -1235,6 +1501,10 @@ func _pick_melee(anim: String, has: Callable, dt: float) -> void:
 		want = "big"
 	elif not big and not spin and swing_t < _anim_len("attack", 0.2):
 		want = "attack"
+	elif summon_t > 0.0 and (has.call("summon") or has.call("cast")):
+		want = "summon" if has.call("summon") else "cast"
+	elif cast_t > 0.0 and has.call("cast"):
+		want = "cast"
 	elif charge >= 0.08 and has.call("charge"):
 		# levanta el arma una vez y después la sostiene en alto: quieto respira y tiembla, caminando avanza con ella
 		want = "charge"
@@ -1265,7 +1535,10 @@ func _pick_melee(anim: String, has: Callable, dt: float) -> void:
 			flourish_t = _anim_len("flourish", 0.0)
 			idle_t = -5.0
 			Snd.play("tajo", {"rate": 1.35, "vol": 0.35})
-			Snd.play("metal", {"rate": 2.0, "vol": 0.25, "delay": flourish_t * 0.55, "vary": false})
+			if kind == "mage":
+				Snd.play("hechizo", {"rate": 1.4, "vol": 0.3, "delay": flourish_t * 0.4})
+			else:
+				Snd.play("metal", {"rate": 2.0, "vol": 0.25, "delay": flourish_t * 0.55, "vary": false})
 		if flourish_t > 0.0:
 			flourish_t -= dt
 			want = "flourish"
@@ -1362,7 +1635,7 @@ func _animate(dt: float) -> void:
 		var cur := sprite.frame
 		var half := int(sprite.sprite_frames.get_frame_count(sprite.animation) / 2.0)
 		if cur != step_fr and half >= 2 and cur % half == int(half / 2.0):  # el cuadro con las piernas más abiertas
-			Snd.play("paso", {"rate": 1.9 if kind == "knight" else 1.5, "vol": 0.22})
+			Snd.play("paso", {"rate": 1.9 if kind == "knight" else (2.4 if kind == "mage" else 1.5), "vol": 0.1 if kind == "mage" else 0.22})
 			Fx.dust(get_parent(), global_position + Vector2(-face * 2, 0), 1, 16.0, 6.0, 1.3, Pal.S, -face)
 		step_fr = cur
 	else:
@@ -1406,6 +1679,8 @@ func _animate(dt: float) -> void:
 	bow.flip_h = sprite.flip_h
 	# parpadeo de invulnerable, fantasma del dash y brillo de carga
 	var m := Color.WHITE
+	if kind == "mage" and evo:
+		m = Color(1.3, 1.3, 1.38)  # el Nigromante es muy oscuro: un poco más claro para que se lea de noche y en el castillo
 	if ghost_t > 0.0:
 		m = Color(0.7, 0.9, 1.0, 0.55)
 	elif invuln > 0.0 and int(invuln * 20.0) % 2 == 0:
@@ -1460,8 +1735,21 @@ func _animate(dt: float) -> void:
 			Fx.burst(get_parent(), global_position + Vector2(sd * r * 0.6, -9), 5, [_barb_col(), Pal.Y, Pal.W], 110.0, 30.0, 0.3, 200.0)
 		if Engine.get_physics_frames() % 3 == 0:
 			Fx.afterimage(get_parent(), sprite, _barb_col())
-	# Cazador: chispitas doradas de vez en cuando; con veneno, gotitas verdes
+	# mago: la gema del bastón suelta brasas (más cuando carga), el doble salto deja fantasmas de su color
+	# y cayendo se le escapan chispas del abrigo
+	if kind == "mage" and not dead:
+		gem_t -= dt
+		if gem_t <= 0.0:
+			gem_t = 0.05 if charge >= CHG_ON or cast_t > 0.0 else 0.16
+			Fx.part(get_parent(), gem_pos() + Vector2(randf_range(-1.5, 1.5), randf_range(-1.5, 1.5)), Vector2(randf_range(-6, 6), -randf_range(10, 24)), -12.0, 0.4, _mage_col(1 + randi() % 2))
+		if blink_t > 0.0 and Engine.get_physics_frames() % 2 == 0:
+			Fx.afterimage(get_parent(), sprite, _mage_col(2))
+		if not is_on_floor() and velocity.y > 40.0 and Engine.get_physics_frames() % 4 == 0:
+			Fx.part(get_parent(), global_position + Vector2(-face * randf_range(2, 8), -randf_range(4, 14)), Vector2(-face * 8.0, -randf_range(20, 40)), -10.0, 0.35, _mage_col(1 + randi() % 3))
+		if charge >= chg_full() and Engine.get_physics_frames() % 8 == 0:
+			Fx.ring(get_parent(), gem_pos(), _mage_col(1), 0.0, 7.0, 1.0, 0.2)
+	# evolucionado: chispitas de vez en cuando (doradas; verdes el Nigromante); con veneno, gotitas verdes
 	if evo and not dead and randf() < 0.08:
-		Fx.part(get_parent(), global_position + Vector2(randf_range(-5, 5), -randf_range(4, 18)), Vector2(0, -14), -10.0, 0.4, Pal.Y if randf() < 0.6 else Pal.W)
+		Fx.part(get_parent(), global_position + Vector2(randf_range(-5, 5), -randf_range(4, 18)), Vector2(0, -14), -10.0, 0.4, (Pal.L if kind == "mage" else Pal.Y) if randf() < 0.6 else Pal.W)
 	if venom and not dead and randf() < 0.3:
 		Fx.part(get_parent(), global_position + Vector2(face * 8 + randf_range(-2, 2), -11), Vector2(0, -18), -10.0, 0.4, Pal.L if randf() < 0.5 else Pal.G)

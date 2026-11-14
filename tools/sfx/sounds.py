@@ -349,6 +349,34 @@ def paso():
     return drive(mix(d, (thud, 0, 1.0), (grit, 0, 0.35), (clink, 0.012, 0.22)), 1.7)
 
 
+def fuego():
+    """la bola de fuego que sale: el soplido de la llama que se enciende, un rugido grave y el chisporroteo"""
+    d = 0.42
+    t = T(d)
+    whoomp = osc(sweep(210, 60, 0.12, len(t)), 'sine') * exp_env(d, 0.09, 0.004)
+    roar_am = 0.65 + 0.35 * np.sin(2 * np.pi * 23 * t + 3 * np.sin(2 * np.pi * 7 * t))
+    flame = svf(noise(d), sweep(500, 2600, 0.08, len(t)), 0.9, 'bp') * roar_am * ad(d, 0.02, 0.06, 0.3)
+    air = svf(noise(d), sweep(4200, 900, 0.3, len(t)), 1.4, 'bp') * bell_env(d, 0.04, 2.0)
+    crack = np.zeros(len(t))
+    for k in range(9):
+        i = n_(0.03 + rng.uniform(0, 0.3))
+        g = hp1(noise(0.006), 3000) * exp_env(0.006, 0.0015, 0)
+        crack[i:i + len(g)] += g[:max(0, len(crack) - i)] * rng.uniform(0.3, 0.7)
+    return drive(whoomp * 0.9 + flame * 0.8 + air * 0.4 + crack * 0.35, 1.9)
+
+
+def hechizo():
+    """magia que se junta en la gema: dos campanitas oscuras y un aire que sube, con eco"""
+    d = 0.3
+    t = T(d)
+    rise = svf(noise(d), sweep(900, 5200, 0.16, len(t)), 3.0, 'bp') * bell_env(d, 0.09, 2.0)
+    a = bell(466.16, 0.16, 0.06, ratio=3.5, idx=1.8, sq=0.06)
+    b = bell(698.46, 0.22, 0.09, ratio=3.5, idx=1.6, sq=0.06)
+    hum = svf(osc(sweep(140, 230, 0.12, len(t)), 'saw'), 500, 1.2) * ad(d, 0.03, 0.04, 0.2)
+    out = mix(d, (rise, 0, 0.3), (a, 0.0, 0.5), (b, 0.045, 0.55), (hum, 0, 0.25))
+    return echo(out, 0.08, 0.3, 0.3, 4000, 0.14)
+
+
 ALL = ["salto", "aterrizar", "disparo", "tajo", "clavar", "acierto", "critico", "moneda", "pisoton",
        "explotar", "dano", "alerta", "porton", "metal", "rugido", "huesos", "baba", "posesion", "dash",
-       "escudo", "cargado", "poder", "oleada", "menu", "derrota", "boom", "paso"]
+       "escudo", "cargado", "poder", "oleada", "menu", "derrota", "boom", "paso", "fuego", "hechizo"]

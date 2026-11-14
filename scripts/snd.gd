@@ -47,7 +47,7 @@ func _ready() -> void:
 	AudioServer.set_bus_volume_db(sfx_bus, linear_to_db(0.9))
 	for n in ["salto", "aterrizar", "disparo", "tajo", "clavar", "acierto", "critico", "moneda", "pisoton",
 			"explotar", "dano", "alerta", "porton", "metal", "rugido", "huesos", "baba", "posesion", "dash",
-			"escudo", "cargado", "poder", "oleada", "menu", "derrota", "boom", "paso"]:
+			"escudo", "cargado", "poder", "oleada", "menu", "derrota", "boom", "paso", "fuego", "hechizo"]:
 		var path: String = SFX_DIR + n + ".wav"
 		if ResourceLoader.exists(path):
 			_sfx[n] = load(path)

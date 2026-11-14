@@ -42,6 +42,9 @@ var squash := Vector2.ONE
 var anim_t := 0.0
 var ven_t := 0.0
 var ven_k := 0.0
+var burn_t := 0.0  # quemadura del mago: 1 de daño cada 0,8 s mientras dura
+var burn_k := 0.0
+var burn_g := false  # fuego verde (Nigromante)
 var parry_t := 0.0  # mareado por el parry del caballero: no lastima y el próximo espadazo es crítico
 var sprite: Sprite2D
 var hurtbox: Area2D
@@ -175,6 +178,10 @@ func _physics_process(dt: float) -> void:
 	sprite.position.y = 0.0
 	if ven_t > 0.0:
 		_venom_tick(dt)
+		if dead:
+			return
+	if burn_t > 0.0:
+		_burn_tick(dt)
 		if dead:
 			return
 
@@ -348,7 +355,7 @@ func parried(d: float, t: float) -> void:
 func take_hit(dmg: int, from_dir: int, how: String = "arrow") -> void:
 	if dead or spawn > 0.0:
 		return
-	var crit := how == "riposte" or (how != "trap" and how != "poison" and Fx.rand_crit())
+	var crit := how == "riposte" or (how != "trap" and how != "poison" and how != "burn" and Fx.rand_crit())
 	hp -= dmg * 3 if crit else dmg
 	if crit:
 		Fx.crit(get_parent(), global_position + Vector2(0, -10))
@@ -378,6 +385,32 @@ func apply_venom() -> void:
 	ven_t = 3.0
 	if ven_k <= 0.0:
 		ven_k = 0.7
+
+
+## Quemadura del mago (applyBurn y burnTick del original): 2,4 s (el doble con la carta), 1 de daño cada 0,8 s.
+func apply_burn(long: bool = false, green: bool = false) -> void:
+	if dead:
+		return
+	burn_t = maxf(burn_t, 4.8 if long else 2.4)
+	burn_g = green
+	if burn_k <= 0.0:
+		burn_k = 0.8
+
+
+func _burn_tick(dt: float) -> void:
+	burn_t -= dt
+	burn_k -= dt
+	if randf() < 0.55:  # llamitas
+		var fc: Color = (Pal.L if randf() < 0.5 else Pal.G) if burn_g else [Pal.Y, Pal.O, Pal.R][randi() % 3]
+		Fx.part(get_parent(), global_position + Vector2(randf_range(-4, 4), -randf_range(4, 16)), Vector2(randf_range(-4, 4), -randf_range(22, 44)), -20.0, 0.35, fc)
+	if burn_k <= 0.0:
+		burn_k = 0.8
+		hp -= 1
+		flash = 0.08
+		Snd.play("explotar", {"rate": 2.2, "vol": 0.3})
+		Fx.popup(get_parent(), global_position + Vector2(0, -24), "-1", Pal.L if burn_g else Pal.O)
+		if hp <= 0:
+			_die("burn", 0, false)
 
 
 func _venom_tick(dt: float) -> void:
@@ -447,6 +480,8 @@ func _animate(dt: float) -> void:
 		sprite.modulate = Color(1.6, 1.3, 1.3)
 	elif ven_t > 0.0:
 		sprite.modulate = Color(0.75, 1.25, 0.6)
+	elif burn_t > 0.0:
+		sprite.modulate = Color(0.8, 1.3, 0.7) if burn_g else Color(1.35, 0.95, 0.7)
 	else:
 		sprite.modulate = Color.WHITE
 

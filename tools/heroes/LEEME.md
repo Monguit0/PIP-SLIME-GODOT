@@ -1,4 +1,4 @@
-# Héroes (caballero, bárbaro y sus evoluciones)
+# Héroes (caballero, bárbaro, mago y sus evoluciones)
 
 Los cuadros salen de **PixelLab** (personajes de 48 px, vista lateral, mirando al este), animados con
 `animate_character` en modo v3 (lienzo de 68×68). `cuadros.py` los pasa a la paleta de 9 bits, saca el
@@ -46,3 +46,28 @@ cuadros en el mismo punto de la misma animación.
 El caballero y el Paladín llevan un mandoble (estados "Espada grande" y "Paladin espada grande" en PixelLab).
 `charge_hold`, `charge_walk` y `run` se animaron desde un cuadro propio (el último o el segundo de `charge`),
 así que vienen en otro lienzo: la receta da el tamaño de esas hojas y con qué cuadro tienen que calzar.
+
+## Mago y Nigromante
+
+Recetas `mago.json` y `nigromante.json`: personaje "Pip mago brujo A" de PixelLab, estados "Baston" (el mago: brujo
+joven de abrigo rasgado con un bastón torcido y una gema roja) y "Nigromante" (capucha, máscara de calavera y
+bastón con calavera en llamas verdes). Las animaciones se pidieron en modo v3 desde el quieto (lienzo de 68×68);
+las que necesitan otra pose de arranque (corrida con el bastón adelante, bastón cruzado detrás de la cabeza quieto
+y caminando) se piden igual y se usan solo los cuadros del final, cuando ya está en la pose. El salto es una sola
+animación de 16 cuadros de la que salen `jump`, `fall` y `land`.
+
+| carpeta | qué hace |
+|---|---|
+| idle | respira con el bastón apoyado |
+| run | corre con el bastón a un costado, la gema adelante |
+| jump / fall / land | salto con magia: sube con las piernas encogidas, arriba abre el abrigo como alas, cae y aterriza agachado |
+| attack | estocada corta con el bastón |
+| charge, charge_hold, charge_walk | cruza el bastón detrás de la cabeza, lo sostiene (loop) y camina con él (loop) |
+| big | bastonazo cargado: baja el bastón y la gema revienta contra el piso (el Nigromante trae su arco verde dibujado) |
+| cast | estira el bastón y tira la bola de fuego |
+| summon | solo el Nigromante: clava el bastón y levanta la mano para invocar |
+| flourish | solo el mago: floreo con el bastón cuando se queda quieto |
+| hurt, death | recibe un golpe, cae |
+
+El Nigromante vino dibujado una fila más arriba que el mago: `"bajar": 1` en su receta corre todos los cuadros una
+fila para que compartan la fila de los pies (54; `"feet": 55.0` en `HEROES`).

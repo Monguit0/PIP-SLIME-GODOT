@@ -110,6 +110,9 @@ var boom_t := 0.0
 var walking := false
 var ven_t := 0.0
 var ven_k := 0.0
+var burn_t := 0.0  # quemadura del mago
+var burn_k := 0.0
+var burn_g := false
 var clock := 0.0
 
 var sprite: Sprite2D
@@ -296,6 +299,15 @@ func war_stun() -> void:
 	Fx.popup(get_parent(), Vector2(cx(), y - 6), "¡ATURDIDO!", Pal.Y, true)
 
 
+func apply_burn(long: bool = false, green: bool = false) -> void:
+	if not active():
+		return
+	burn_t = maxf(burn_t, 4.8 if long else 2.4)
+	burn_g = green
+	if burn_k <= 0.0:
+		burn_k = 0.8
+
+
 func apply_venom() -> void:
 	if not active():
 		return
@@ -416,6 +428,15 @@ func _physics_process(dt: float) -> void:
 			damage(1, cx(), y + 10, false, true)
 		if randf() < 0.4:
 			Fx.part(get_parent(), Vector2(cx() + randf_range(-10, 10), y + 8 + randf() * 16), Vector2(0, -20), -10.0, 0.5, Pal.L if randf() < 0.5 else Pal.G)
+	if burn_t > 0.0 and state != "dying" and state != "gone":
+		burn_t -= dt
+		burn_k -= dt
+		if burn_k <= 0.0:
+			burn_k = 0.8
+			damage(1, cx(), y + 10, false, true)
+		if randf() < 0.55:
+			var fc: Color = (Pal.L if randf() < 0.5 else Pal.G) if burn_g else [Pal.Y, Pal.O, Pal.R][randi() % 3]
+			Fx.part(get_parent(), Vector2(cx() + randf_range(-10, 10), y + 8 + randf() * 18), Vector2(randf_range(-4, 4), -randf_range(22, 44)), -20.0, 0.4, fc)
 	flash -= dt
 	bar_shake -= dt
 	sx += (1.0 - sx) * minf(1.0, dt * 8.0)
@@ -878,6 +899,8 @@ func _visuals(dt: float) -> void:
 		m = Color(1.0 + 0.25 * k, 1.0 - 0.1 * k, 1.0 - 0.1 * k)
 	if ven_t > 0.0 and flash <= 0.0:
 		m = m * Color(0.8, 1.15, 0.7)
+	elif burn_t > 0.0 and flash <= 0.0:
+		m = m * (Color(0.85, 1.2, 0.75) if burn_g else Color(1.25, 0.95, 0.8))
 	sprite.modulate = m
 	fist.modulate = m
 	queue_redraw()

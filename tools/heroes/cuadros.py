@@ -310,6 +310,14 @@ def main():
                 f = green_to_fire(f)
             Image.fromarray(f).save(os.path.join(d, "frame_%03d.png" % j))
         print(anim, len(frames), "dy", dy)
+    # "bajar": n corre todos los cuadros n filas hacia abajo (una evolución que vino dibujada una fila más
+    # arriba que su héroe: así comparten la fila de los pies). Solo si se armó la receta entera.
+    if rec.get("bajar") and not only:
+        for anim in rec["anims"]:
+            d = os.path.join(rec["out"], anim)
+            for fn in os.listdir(d):
+                im = np.array(Image.open(os.path.join(d, fn)).convert('RGBA'))
+                Image.fromarray(np.roll(im, rec["bajar"], axis=0)).save(os.path.join(d, fn))
     # el cuadro quieto
     Image.open(os.path.join(rec["out"], "idle", "frame_000.png")).save(os.path.join(rec["out"], "east.png"))
 

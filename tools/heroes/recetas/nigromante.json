@@ -1,0 +1,26 @@
+{
+ "out": "assets/sprites/nigromante",
+ "hojas": {
+  "a": "ng_a.png",
+  "b": "ng_b.png",
+  "j": ["ng_j.png", 68, 68, 9]
+ },
+ "anims": {
+  "idle": ["a", 0, [1, 2, 3, 4]],
+  "run": ["a", 1, [5, 6, 7, 8, 9, 10]],
+  "jump": {"hoja": "j", "cuadros": [6, 7, 8, 9], "alinear": "torso"},
+  "fall": {"hoja": "j", "cuadros": [11, 12, 13, 14], "alinear": "torso"},
+  "land": ["j", 0, [16, 16]],
+  "attack": ["a", 2, [2, 3, 4, 5, 6, 2]],
+  "charge": ["a", 3, [1, 2, 3, 4]],
+  "charge_hold": ["a", 4, [4, 5, 6, 7, 8]],
+  "charge_walk": ["a", 5, [4, 5, 6, 7, 8, 9, 10]],
+  "big": ["b", 1, [2, 3, 4, 5, 6, 7, 8]],
+  "cast": ["b", 0, [2, 3, 4, 5, 7, 8]],
+  "summon": ["b", 2, [1, 2, 3, 4, 5, 6]],
+  "hurt": ["b", 3, [1, 2, 3, 4]],
+  "death": ["b", 4, [1, 2, 3, 4, 5, 6]]
+ },
+ "bajar": 1,
+ "nota": "PixelLab \"Pip mago brujo A\", estado \"Nigromante\" ff8b2b5f-7ee6-40ae-8967-4803befce1d1 (lienzo de 68x68). a = join idle run-b staff-hit charge charge-hold charge-walk --as rows; b = join cast slam summon hurt death --as rows; j = join jump --as sheet --columns 9."
+}

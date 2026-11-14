@@ -43,7 +43,7 @@ const HALL_TORCHES := [[1556.5, 62.5], [1586.5, 70.5], [1741.5, 72.0], [1770.0, 
 ## las cartas de los héroes (HERO_CARDS del original): "only" es el héroe que la puede sacar
 const CARDS := [
 	{"id": "vida", "name": "CORAZÓN EXTRA", "desc": "MÁS VIDA MÁXIMA", "col": "r"},
-	{"id": "dmg", "name": {"archer": "ARCO REFORZADO", "knight": "ESPADA AFILADA", "barb": "HACHA PESADA"}, "desc": "+1 DE DAÑO EN CADA GOLPE", "col": "o"},
+	{"id": "dmg", "name": {"archer": "ARCO REFORZADO", "knight": "ESPADA AFILADA", "barb": "HACHA PESADA", "mage": "BASTÓN RÚNICO"}, "desc": "+1 DE DAÑO EN CADA GOLPE", "col": "o"},
 	{"id": "cura", "name": "POCIÓN DE EMERGENCIA", "desc": "TE CURA A MITAD DE VIDA, 1 VEZ POR ZONA", "col": "l"},
 	{"id": "energia", "name": "CRISTAL DE MANÁ", "desc": "ENERGÍA 60% MÁS RÁPIDA", "col": "c"},
 	{"id": "veloz", "name": "BOTAS LIGERAS", "desc": "CORRÉS 15% MÁS RÁPIDO", "col": "y"},
@@ -53,6 +53,8 @@ const CARDS := [
 	{"id": "muralla", "name": "ESCUDO LIVIANO", "desc": "EL ESCUDO GASTA LA MITAD", "col": "b", "only": "knight"},
 	{"id": "ira", "name": "SANGRE CALIENTE", "desc": "LA FURIA DURA EL DOBLE", "col": "r", "only": "barb"},
 	{"id": "remolino", "name": "REMOLINO", "desc": "EL GIRO PEGA TRES VECES", "col": "o", "only": "barb"},
+	{"id": "inferno", "name": "GRAN BOLA", "desc": "LA EXPLOSIÓN ES MUCHO MÁS GRANDE", "col": "o", "only": "mage"},
+	{"id": "brasas", "name": "BRASAS ETERNAS", "desc": "LA QUEMADURA DURA EL DOBLE", "col": "r", "only": "mage"},
 ]
 const SCALE := [0, 2, 4, 5, 7, 9, 11, 12, 14, 16]  # combo de monedas: escala mayor
 

@@ -19,6 +19,7 @@ var stuck_pos := Vector2.ZERO
 
 
 var hero := false  # la devolvió el parry: ahora le pega a los bichos y al jefe
+var hero_dmg := 2  # lo que pega devuelta (1 la de los esqueletos del Nigromante)
 var hit_list: Array = []
 
 
@@ -88,12 +89,12 @@ func _hit_foes() -> void:
 		if e in hit_list or e.dead or e.spawn > 0.0 or not e.hit_rect().grow(1.0).has_point(tip):
 			continue
 		hit_list.append(e)
-		e.take_hit(2, int(signf(vel.x)), "arrow")
+		e.take_hit(hero_dmg, int(signf(vel.x)), "arrow")
 		queue_free()
 		return
 	var b = game.boss if game != null else null
 	if b != null and is_instance_valid(b) and b.active() and b.body().has_point(tip):
-		b.damage(2, tip.x, tip.y)
+		b.damage(hero_dmg, tip.x, tip.y)
 		queue_free()
 
 

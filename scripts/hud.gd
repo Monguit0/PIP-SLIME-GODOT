@@ -442,6 +442,7 @@ func _draw_title() -> void:
 		"archer": ["Z SALTO · X FLECHA", "MANTENÉ X: FLECHAZO", "SHIFT: DASH · C: VENENO"],
 		"knight": ["Z SALTO · X ESPADA", "MANTENÉ X: ESPADAZO", "SHIFT: ESCUDO (PARRY)"],
 		"barb": ["Z SALTO · X HACHA", "MANTENÉ X: GIRO", "SHIFT: FURIA"],
+		"mage": ["Z SALTO · X BASTÓN", "MANTENÉ X: BASTONAZO", "SHIFT: FUEGO · C: HUESOS"],
 	}.get(player.kind, [])
 	for i in lines.size():
 		_text(lines[i], 160, 92 + i * 8, Pal.S)

@@ -10,3 +10,7 @@ y madera, un poco de saturación y el eco tipo SNES en los sonidos mágicos y en
 `build.py` iguala la sonoridad de cada uno con la del sonido original del mismo nombre (los jsfxr del
 juego web quedaron en `assets/audio/sfx_original`), así los volúmenes del código siguen andando.
 Para volver a los originales alcanza con copiar esos `.wav` encima de los de `assets/audio/sfx`.
+
+Sonidos que no existían en el juego web (no tienen original con su nombre): `paso`, y del mago `fuego` (la bola
+que sale y las explosiones) y `hechizo` (la magia que se junta en la gema). `build.py` los iguala con un sonido
+viejo parecido (tabla `REF`).

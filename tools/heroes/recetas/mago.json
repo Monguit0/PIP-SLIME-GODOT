@@ -1,0 +1,25 @@
+{
+ "out": "assets/sprites/mago",
+ "hojas": {
+  "a": "mg_a.png",
+  "b": "mg_b.png",
+  "j": ["mg_j.png", 68, 68, 9]
+ },
+ "anims": {
+  "idle": ["a", 0, [1, 2, 3, 4]],
+  "run": ["b", 1, [5, 6, 7, 8, 9, 10]],
+  "jump": {"hoja": "j", "cuadros": [6, 7, 8, 9], "alinear": "torso"},
+  "fall": {"hoja": "j", "cuadros": [10, 11, 12, 13], "alinear": "torso"},
+  "land": ["j", 0, [16, 16]],
+  "attack": ["a", 2, [1, 2, 3, 3, 3, 1]],
+  "charge": ["a", 3, [1, 2, 3, 4]],
+  "charge_hold": ["b", 2, [4, 5, 6, 7, 8]],
+  "charge_walk": ["b", 3, [4, 5, 6, 7, 8, 9, 10]],
+  "big": ["a", 5, [2, 3, 4, 5, 6, 7, 8]],
+  "cast": ["a", 4, [3, 4, 7, 5, 6, 8]],
+  "hurt": ["a", 6, [1, 2, 3, 4]],
+  "death": ["a", 7, [1, 2, 3, 4, 5, 6]],
+  "flourish": ["b", 4, [1, 2, 3, 5, 6, 7, 8]]
+ },
+ "nota": "PixelLab \"Pip mago brujo A\", estado \"Baston\" bf5d2746-b956-419a-b2aa-1f27e2be20fc (lienzo de 68x68). a = join idle run staff-hit charge cast slam hurt death --as rows; b = join staff-jab run-b charge-hold charge-walk flourish --as rows; j = join jump --as sheet --columns 9. La corrida sale de run-b (los primeros cuadros son la transición desde el quieto); charge_hold y charge_walk, de los últimos cuadros de sus animaciones. attack es la estocada de staff-hit (los cuadros en que no se da vuelta). El floreo saltea el cuadro con el aro celeste."
+}
