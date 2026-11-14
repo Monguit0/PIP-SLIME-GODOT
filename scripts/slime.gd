@@ -24,6 +24,10 @@ const VSPEED := {"green": 40.0, "red": 62.0}     # cuando lo maneja el juego
 const PSPEED := {"green": 58.0, "red": 78.0}     # cuando lo manejás vos
 const VJUMP := {"green": 235.0, "red": 255.0}
 const VNAME := {"green": "SLIME", "red": "SLIME ROJO"}
+# mini dash de baba del que manejás: un empujón corto resbalando sobre su propia baba
+const DASH_T := 0.17
+const DASH_SPEED := 185.0
+const DASH_CD := 1.5
 
 var kind := "green"
 var zone := 0
@@ -70,6 +74,11 @@ var mouth := 0.0       # boca abierta un instante al escupir
 var pdir := 1.0        # para dónde patrulla
 var drop_t := 0.0
 var show_hp := 0.0     # barrita de vida a la vista un rato después de un golpe
+var dash_t := 0.0
+var dash_cd := 0.0
+var dash_dir := 1.0
+var guide: Node2D      # la guía del tiro de baba (se dibuja por encima de todo)
+var aim_x := 0.0       # dónde va a caer la baba que está cargando (para que la cámara lo muestre)
 
 
 func _ready() -> void:
@@ -177,6 +186,8 @@ func _physics_process(dt: float) -> void:
 			drop_t -= dt
 			if drop_t <= 0.0:
 				set_collision_mask_value(2, true)
+		if guide != null:
+			guide.queue_redraw()
 		if ctrl:
 			_update_ctrl(dt)
 		else:
@@ -405,6 +416,8 @@ func _update_ctrl(dt: float) -> void:
 	if playing and stun <= 0.0 and Input.is_action_pressed("atacar") and cool <= 0.0:
 		if not charging:
 			Snd.play("menu", {"rate": 0.7, "vol": 0.4})
+		if not charging:
+			aim_x = global_position.x
 		charging = true
 		var was := charge
 		charge = minf(1.0, charge + dt / 0.7)
@@ -419,13 +432,117 @@ func _update_ctrl(dt: float) -> void:
 			cool = 0.4
 		charging = false
 		charge = 0.0
+	# mini dash de baba (especial): un empujón corto para donde vas (o para donde mirás), con espera
+	var was_cd := dash_cd
+	dash_cd -= dt
+	if was_cd > 0.0 and dash_cd <= 0.0:  # listo de nuevo
+		Fx.twinkle(get_parent(), global_position + Vector2(0, -5), Pal.W, 2.5, 0.16)
+		Snd.play("menu", {"rate": 1.8, "vol": 0.25, "vary": false})
+	if playing and stun <= 0.0 and Input.is_action_just_pressed("especial") and dash_cd <= 0.0:
+		dash_dir = d if d != 0.0 else face
+		face = dash_dir
+		dash_t = DASH_T
+		dash_cd = DASH_CD
+		if is_on_floor():
+			velocity.y = -55.0
+		squash = Vector2(1.6, 0.55)
+		Snd.play("dash", {"rate": 1.3, "vol": 0.55})
+		Snd.play("baba", {"rate": 0.9, "vol": 0.6})
+		Fx.kick(Vector2(dash_dir, 0), 0.7)
+		var col: Color = COL.get(kind, Pal.G)
+		Fx.ring(get_parent(), global_position + Vector2(-dash_dir * 3.0, -4), col, 0.0, 9.0, 0.6, 0.2)
+		Fx.goo(get_parent(), global_position + Vector2(0, -3), 6, col, 70.0, global_position.y)
+		Fx.dust(get_parent(), global_position, 3, 26.0, 3.0, 1.4, col, -int(dash_dir))
+	if dash_t > 0.0:
+		dash_t -= dt
+		if stun > 0.0:
+			dash_t = 0.0
+		else:
+			velocity.x = dash_dir * DASH_SPEED
+			var col2: Color = COL.get(kind, Pal.G)
+			# resbala sobre su baba: gotas que quedan atrás y manchitas en el piso
+			Fx.part(get_parent(), global_position + Vector2(-dash_dir * 5.0, -randf_range(1, 6)), Vector2(-dash_dir * randf_range(20, 60), -randf_range(0, 30)), 200.0, 0.3, col2 if randf() < 0.7 else Pal.W, 2 if randf() < 0.4 else 1)
+			if is_on_floor() and Engine.get_physics_frames() % 3 == 0:
+				Fx.splat(get_parent(), global_position + Vector2(-dash_dir * 4.0, 0), col2, 5.0)
+			if dash_t <= 0.0:
+				velocity.x = dash_dir * float(PSPEED.get(kind, 58.0))
+				squash = Vector2(0.85, 1.15)
 	_mob_physics(dt, d, float(PSPEED.get(kind, 58.0)) * (0.5 if charging else 1.0))
+
+
+## La guía del tiro: mientras cargás, puntitos por donde va a ir la baba con lo que lleva cargado y una marca
+## donde va a caer (piso, plataforma o el borde de la zona). Usa las mismas cuentas que la baba (spit.gd).
+func _draw_guide() -> void:
+	if not ctrl or not charging or dead:
+		return
+	var power := 0.15 + 0.85 * charge
+	var p := Vector2(face * 2.0, -6.0)
+	var v := Vector2(face * (50.0 + 150.0 * power), -(140.0 + 110.0 * power))
+	var org := global_position
+	var lo := -1e9
+	var hi := 1e9
+	if game != null:
+		lo = game.ZONES[game.z].start + 2.0
+		hi = game.ZONES[game.z].end - 2.0
+	var full := charge >= 1.0
+	var col: Color = Pal.Y if full else COL.get(kind, Pal.G)
+	var dt := 1.0 / 60.0
+	var hit := false
+	var on_floor := false
+	for i in 240:
+		var py := org.y + p.y
+		v.y += 420.0 * dt
+		p += v * dt
+		var w := org + p
+		if v.y > 0.0:
+			if w.y >= 128.0:
+				p.y = 127.0 - org.y
+				hit = true
+				on_floor = true
+			elif game != null:
+				for pl in game.PLATS:
+					if py <= pl[1] + 1.0 and w.y >= pl[1] and w.x >= pl[0] and w.x <= pl[0] + pl[2]:
+						p.y = pl[1] - 1.0 - org.y
+						hit = true
+						on_floor = true
+						break
+		if not hit and (w.x < lo or w.x > hi):
+			hit = true
+		if hit:
+			break
+		if i % 2 == 1:  # un punto cada dos pasos, con borde para que se vea sobre cualquier fondo; "caminan" hacia donde cae
+			var q := Vector2(roundf(p.x * 2.0) / 2.0, roundf(p.y * 2.0) / 2.0)
+			var lit := (i / 2 + Engine.get_physics_frames() / 4) % 3 == 0
+			guide.draw_rect(Rect2(q - Vector2(1.5, 1.5), Vector2(3, 3)), Pal.K)
+			guide.draw_rect(Rect2(q - Vector2(1, 1), Vector2(2, 2)), Pal.W if lit else col)
+	aim_x = org.x + p.x
+	if hit:
+		var q2 := Vector2(roundf(p.x), roundf(p.y))
+		var blink := Engine.get_physics_frames() % 10 < 5
+		var mc: Color = Pal.W if blink else COL.get(kind, Pal.G)
+		if on_floor:  # donde cae: una raya en el piso y una flecha que la señala
+			guide.draw_rect(Rect2(q2 + Vector2(-6.5, -0.5), Vector2(13, 3)), Pal.K)
+			guide.draw_rect(Rect2(q2 + Vector2(-6, 0), Vector2(12, 2)), mc)
+			var bob := 1.0 if blink else 0.0
+			for k in 3:
+				guide.draw_rect(Rect2(q2 + Vector2(-3.5 + k, -7.5 + k + bob), Vector2(7 - 2 * k, 2)), Pal.K)
+			for k in 3:
+				guide.draw_rect(Rect2(q2 + Vector2(-2.5 + k, -7.0 + k + bob), Vector2(5 - 2 * k, 1)), mc)
+		else:
+			guide.draw_rect(Rect2(q2 - Vector2(1.5, 1.5), Vector2(3, 3)), Pal.K)
+			guide.draw_rect(Rect2(q2 - Vector2(1, 1), Vector2(2, 2)), mc)
 
 
 ## Le entra el alma del villano: destello, aro y un saltito.
 func possess() -> void:
 	ctrl = true
 	cool = 0.0
+	dash_cd = 0.0
+	if guide == null:
+		guide = Node2D.new()
+		guide.z_index = 6
+		guide.draw.connect(_draw_guide)
+		add_child(guide)
 	charge = 0.0
 	charging = false
 	stun = 0.0
@@ -450,6 +567,9 @@ func _draw() -> void:
 		if charging:
 			draw_rect(Rect2(-6.5, -21.5, 13.0, 3.0), Pal.K)
 			draw_rect(Rect2(-6.0, -21.0, 12.0 * charge, 2.0), Pal.W if charge >= 1.0 and Engine.get_physics_frames() % 6 < 3 else COL.get(kind, Pal.G))
+	if ctrl and dash_cd > 0.0:  # el dash recargando: una rayita celeste abajo
+		draw_rect(Rect2(-5.5, 1.5, 11.0, 2.0), Pal.K)
+		draw_rect(Rect2(-5.0, 2.0, 10.0 * (1.0 - dash_cd / DASH_CD), 1.0), Pal.C)
 	if hp < max_hp and (show_hp > 0.0 or ctrl):
 		draw_rect(Rect2(-5.5, -13.5, 11.0, 3.0), Pal.K)
 		draw_rect(Rect2(-5.0, -13.0, 10.0 * hp / max_hp, 2.0), Pal.R)

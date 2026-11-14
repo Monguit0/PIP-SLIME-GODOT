@@ -117,6 +117,9 @@ slimes, de a uno, contra los **cuatro héroes** (arquero, caballero, bárbaro y 
   para escupir baba en arco: cuanto más la cargás (hasta 0,7 s; se ve la barrita y el slime se aplasta), más
   lejos llega. Mientras carga camina a la mitad. La baba le saca 1 al héroe que toca; el espadazo de un héroe la
   rompe y el escudo del caballero la frena. Tocar a un héroe también lo lastima, pero si te pisa, te revienta.
+  Mientras cargás se ve la **guía del tiro**: puntitos por donde va a ir la baba y una marca donde va a caer.
+  Con `Shift`, un **mini dash de baba**: un empujón corto para donde vas, resbalando sobre tu propia baba, que se
+  recarga en 1,5 s (la rayita celeste debajo del slime).
 - **Posesión**: una flechita amarilla marca al que manejás. Cuando lo matan, tu alma queda suelta un segundo
   (*BUSCANDO OTRO CUERPO...*), viaja en un arco de chispas celestes y entra en el slime que esté más cerca de los
   héroes (*AHORA SOS...*). La cámara te sigue a vos.

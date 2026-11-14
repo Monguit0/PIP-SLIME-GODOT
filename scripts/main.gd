@@ -804,6 +804,10 @@ func _update_camera(dt: float) -> void:
 		# la cámara sigue al bicho que manejás (o al alma, mientras busca otro cuerpo)
 		focus = last_ctrl_x
 		look = ctrl.face * 26.0 if ctrl != null and is_instance_valid(ctrl) else 0.0
+		if ctrl != null and is_instance_valid(ctrl) and ctrl.charging:
+			# cargando la baba: la cámara se corre para que entren el slime y el lugar donde va a caer
+			focus = clampf((ctrl.global_position.x + ctrl.aim_x) / 2.0, ctrl.global_position.x - 104.0, ctrl.global_position.x + 104.0)
+			look = 0.0
 	var target := clampf(focus - W / 2.0 + look, min_x, max_x)
 	var before := cam_x
 	cam_x += (target - cam_x) * minf(1.0, dt * (3.0 if z == 3 else 5.0))
