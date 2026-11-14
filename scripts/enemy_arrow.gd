@@ -18,6 +18,7 @@ var stuck_on: Object = null
 var stuck_pos := Vector2.ZERO
 
 
+var aim := Vector2.ZERO  # si viene, la dirección del tiro (las tres flechas del arquero: arriba, medio y abajo)
 var hero := false  # la devolvió el parry: ahora le pega a los bichos y al jefe
 var hero_dmg := 2  # lo que pega devuelta (1 la de los esqueletos del Nigromante)
 var hit_list: Array = []
@@ -26,7 +27,7 @@ var hit_list: Array = []
 func _ready() -> void:
 	z_index = 3
 	add_to_group("flechas_malas")
-	vel = Vector2(face * 205.0, -10.0)
+	vel = aim * 205.0 if aim != Vector2.ZERO else Vector2(face * 205.0, -10.0)
 	rotation = vel.angle()
 	prev_tip = global_position - vel.normalized() * 6.0
 

@@ -126,6 +126,14 @@ Son tres zonas (Pradera, Ruinas y Murallas) y al final el Salón del Trono, dond
   el **arquero** tira una flecha (recarga 0,45 s) y el **hachero** pega el hachazo al toque, sin levantar antes
   el hacha (recarga 0,55 s); el hachazo saca 2 y le pega a todos los héroes que agarre. En cada zona empezás en
   un bicho distinto: slime en la Pradera, arquero en las Ruinas, hachero en las Murallas.
+- **Ataques nuevos de los esqueletos** (también en la campaña, cuando los maneja el juego): el **hachero lanza
+  el hacha** (`C`, o `Y` en joystick): sale girando, se frena a unos 90 px y vuelve sola a su mano; saca 1 a la
+  ida y 1 a la vuelta y atraviesa plataformas. Mientras vuela queda con las manos vacías (cuadros `idle_bare` y
+  `walk_bare`, hechos con PixelLab) y no puede pegar. El juego la tira a media distancia, avisando 0,45 s. El
+  **arquero carga un tiro triple** manteniendo `X` 0,7 s (barrita arriba; camina a la mitad): al soltar salen
+  tres flechas, arriba, medio y abajo. El juego lo usa en uno de cada tres tiros, tensando más y con chispas.
+  Y al morir **revientan en huesos**: calavera, huesos largos, costillas y astillas que giran y rebotan
+  (`scripts/bone.gd`, `scripts/axe.gd`).
 - **El Mega Caballero** (Salón del Trono): ← → caminar, `X` **tajo** (saca 2, recarga 0,8 s), `Z`/espacio
   **salto** con ondas (1,6 s; mientras junta fuerza lo apuntás con ← →), `Shift` **carga** (3,2 s; no queda
   mareado contra la pared) y `C` **lluvia** de espadas apuntada: una sobre cada héroe y cuatro al azar (6,5 s).

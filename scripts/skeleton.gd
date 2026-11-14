@@ -17,6 +17,10 @@ const SPEED := {"skarch": 34.0, "skaxe": 42.0}
 const EnemyArrow := preload("res://scripts/enemy_arrow.gd")
 const BONE := [Color("e0d7b9"), Color("b5a98d"), Pal.S]  # huesitos que saltan
 const Turbo := preload("res://scripts/turbo.gd")
+const AxeScript := preload("res://scripts/axe.gd")
+const BoneScript := preload("res://scripts/bone.gd")
+const TRIPLE := 0.7                 # lo que hay que mantener el ataque para el tiro triple
+const VOLLEY := [-17.0, 0.0, 13.0]  # las tres flechas: arriba, medio y abajo (grados)
 # modo Villano (MOB del original): cuando lo manejás vos corre más y salta
 const PSPEED := {"skarch": 62.0, "skaxe": 66.0}
 const VJUMP := 245.0
@@ -64,7 +68,12 @@ var max_hp := 3
 var show_hp := 0.0
 var drop_t := 0.0
 var turbo = Turbo.new()
-var charging := false  # (los esqueletos no cargan nada; lo mira la cámara)
+var charging := false  # (lo mira la cámara; los esqueletos no apuntan lejos)
+var axe_out := false   # el hachero tiró el hacha y todavía no le volvió
+var throwing := false  # está levantando el hacha para tirarla (no para pegar)
+var chg := 0.0         # el arquero que manejás: cuánto lleva cargando el tiro triple
+var shots := 0
+var triple := false    # el próximo tiro del arquero es el triple
 var aim_x := 0.0
 
 
@@ -130,7 +139,7 @@ func _ready() -> void:
 static func asset_paths() -> Array:
 	var out: Array = []
 	for folder in ["arch", "axe"]:
-		for anim in ["idle", "walk", "atk", "hurt", "death"]:
+		for anim in ["idle", "walk", "atk", "hurt", "death", "idle_bare", "walk_bare"]:
 			var i := 0
 			while ResourceLoader.exists("%s%s/%s/frame_%03d.png" % [DIR, folder, anim, i]):
 				out.append("%s%s/%s/frame_%03d.png" % [DIR, folder, anim, i])
@@ -140,7 +149,8 @@ static func asset_paths() -> Array:
 
 func _load_frames() -> void:
 	var folder := DIR + ("arch" if kind == "skarch" else "axe") + "/"
-	for anim in ["idle", "walk", "atk", "hurt", "death"]:
+	# idle_bare y walk_bare: el hachero con las manos vacías, mientras el hacha que tiró está en el aire
+	for anim in ["idle", "walk", "atk", "hurt", "death", "idle_bare", "walk_bare"]:
 		var list: Array = []
 		var i := 0
 		while ResourceLoader.exists("%s%s/frame_%03d.png" % [folder, anim, i]):
@@ -175,6 +185,8 @@ func _physics_process(dt: float) -> void:
 		var hold := maxf(0.6, n / 12.0 + 0.35)
 		sprite.material = Fx.silhouette(Color.WHITE) if flash > 0.0 else null
 		sprite.modulate = Color.WHITE if flash > 0.0 else Color(1, 1, 1, 1.0 - clampf((dead_t - hold) / 0.35, 0.0, 1.0))
+		# revienta: un destello blanco y desaparece; lo que queda son los huesos volando
+		sprite.visible = dead_t < 0.09
 		if dead_t > hold + 0.35:
 			queue_free()
 		return
@@ -221,7 +233,7 @@ func _physics_process(dt: float) -> void:
 			stun -= dt
 			dir = 0.0
 		var on: bool = turbo.step(self, dt, stun <= 0.0 and Ctl.down(game.vdev, "especial") and _playing(), face, Color("e0d7b9"), 9.0)
-		var top: float = float(PSPEED.get(kind, 62.0)) * (Turbo.MUL if on else 1.0)
+		var top: float = float(PSPEED.get(kind, 62.0)) * (Turbo.MUL if on else 1.0) * (0.5 if chg > 0.15 else 1.0)
 		var acc := (900.0 if on else (700.0 if is_on_floor() else 450.0)) * dt
 		velocity.x += clampf(dir * top - velocity.x, -acc, acc)
 	elif stun > 0.0:
@@ -279,7 +291,7 @@ func mob_name() -> String:
 
 
 func mob_hint() -> String:
-	return ("X: FLECHA" if kind == "skarch" else "X: HACHAZO") + " · SHIFT: TURBO"
+	return ("X: FLECHA · MANTENÉ X: TRIPLE" if kind == "skarch" else "X: HACHAZO · C: LANZAR") + " · SHIFT: TURBO"
 
 
 ## Le entra el alma del villano: destello, aro, y ya no se queda en su plataforma.
@@ -319,7 +331,25 @@ func _ctrl_input(_dt: float) -> float:
 			squash = Vector2(0.7, 1.35)
 			Snd.play("salto", {"rate": 1.15})
 			Fx.dust(get_parent(), global_position, 2, 18.0, 3.0, 1.3)
-	if Ctl.tap(game.vdev, "atacar") and cool <= 0.0:
+	if kind == "skarch":
+		# mantener el ataque carga el tiro triple; al soltarlo salen las tres flechas
+		if Ctl.down(game.vdev, "atacar"):
+			var was := chg
+			chg += _dt
+			if was < TRIPLE and chg >= TRIPLE:
+				flash = 0.08
+				squash = Vector2(1.2, 0.85)
+				Snd.play("cargado", {"vol": 0.6})
+				Fx.twinkle(get_parent(), global_position + Vector2(face * 7.0, -11.0), Pal.L, 4.0, 0.2)
+		else:
+			if chg >= TRIPLE:
+				_volley()
+				cool = 0.6
+			chg = 0.0
+	elif Ctl.tap(game.vdev, "poder") and cool <= 0.0 and not axe_out:
+		_throw()
+		cool = 0.5
+	if Ctl.tap(game.vdev, "atacar") and cool <= 0.0 and not axe_out:
 		if kind == "skarch":
 			shoot_t = 0.16   # la flecha sale a los 0,26: una décima de tensar el arco
 			shot = false
@@ -342,6 +372,11 @@ func _draw() -> void:
 	if ctrl:
 		Turbo.draw_marker(self, -29.0)
 		turbo.draw_bar(self)
+		if chg > 0.15:
+			# la carga del tiro triple: una barrita que se llena y titila cuando está lista
+			var k := clampf(chg / TRIPLE, 0.0, 1.0)
+			draw_rect(Rect2(-6.5, -34.5, 13, 3), Pal.K)
+			draw_rect(Rect2(-6, -34, 12.0 * k, 2), (Pal.W if int(chg * 16.0) % 2 == 0 else Pal.L) if k >= 1.0 else Pal.Y)
 	if hp < max_hp and (show_hp > 0.0 or ctrl):
 		Turbo.draw_hp(self, -25.0, hp, max_hp)
 
@@ -363,13 +398,22 @@ func _think(dt: float) -> float:
 			if cool <= 0.0 and dist < 170.0 and is_on_floor():
 				shoot_t = 0.0
 				shot = false
-				cool = 1.6 + randf() * 0.7
-				Snd.play("alerta", {"rate": 1.5, "vol": 0.3})
+				shots += 1
+				triple = shots % 3 == 0   # uno de cada tres tiros es el triple: tensa el arco más tiempo
+				cool = 1.6 + randf() * 0.7 + (0.5 if triple else 0.0)
+				Snd.play("alerta", {"rate": 1.1 if triple else 1.5, "vol": 0.45 if triple else 0.3})
 			return _keep_on(-face if dist < 56.0 else (face if dist > 120.0 else 0.0))
 	else:
 		if absf(dy) < 26.0 and dist < 200.0:
 			face = signf(dx) if dx != 0.0 else face
-			if dist < 24.0 and absf(dy) < 14.0 and cool <= 0.0 and is_on_floor():
+			if not axe_out and cool <= 0.0 and dist > 40.0 and dist < 105.0 and absf(dy) < 14.0 and is_on_floor():
+				# de lejos: levanta el hacha y la tira
+				windup = 0.45
+				throwing = true
+				cool = 2.8 + randf() * 0.8
+				Snd.play("alerta", {"rate": 0.7, "vol": 0.4})
+				return 0.0
+			if not axe_out and dist < 24.0 and absf(dy) < 14.0 and cool <= 0.0 and is_on_floor():
 				windup = 0.38
 				cool = 1.4
 				Snd.play("alerta", {"rate": 0.9, "vol": 0.35})
@@ -397,10 +441,15 @@ func _attacks(dt: float) -> void:
 	if stun > 0.0:
 		windup = 0.0
 		shoot_t = -1.0
+		throwing = false
+		triple = false
 		return
 	if windup > 0.0:
 		windup -= dt
-		if windup <= 0.0:
+		if windup <= 0.0 and throwing:
+			throwing = false
+			_throw()
+		elif windup <= 0.0:
 			swing_t = 0.0
 			swing_hit = false
 			Snd.play("tajo", {"rate": 0.75, "vol": 0.7})
@@ -429,7 +478,16 @@ func _attacks(dt: float) -> void:
 			Fx.shake(1.5, 0.1)
 	if shoot_t >= 0.0:
 		shoot_t += dt
-		if shoot_t >= 0.26 and not shot:
+		var fire_at := 0.62 if triple else 0.26
+		if triple and not shot and Engine.get_physics_frames() % 5 == 0:
+			# tensando el triple: chispas en el arco, cada vez más
+			Fx.part(get_parent(), global_position + Vector2(face * 7.0 + randf_range(-3, 3), -11.0 + randf_range(-4, 4)), Vector2(0, -12), 0.0, 0.2, Pal.L if randf() < 0.6 else Pal.W)
+		if triple and shoot_t >= fire_at and not shot:
+			shot = true
+			triple = false
+			_volley()
+			shoot_t = 0.26
+		elif shoot_t >= fire_at and not shot:
 			shot = true
 			var a := EnemyArrow.new()
 			a.face = face
@@ -442,6 +500,79 @@ func _attacks(dt: float) -> void:
 			squash = Vector2(0.85, 1.1)
 		if shoot_t >= 0.5:
 			shoot_t = -1.0
+
+
+## Las tres flechas del arquero: arriba, medio y abajo.
+func _volley() -> void:
+	for i in VOLLEY.size():
+		var ang := deg_to_rad(VOLLEY[i])
+		var a := EnemyArrow.new()
+		a.face = face
+		a.game = game
+		a.aim = Vector2(face * cos(ang), sin(ang))
+		a.global_position = global_position + Vector2(face * 7.0, -11.0)
+		get_parent().add_child(a)
+		Snd.play("disparo", {"rate": 0.75 + i * 0.12, "vol": 0.55, "delay": i * 0.03})
+	var at := global_position + Vector2(face * 9.0, -11.0)
+	Fx.twinkle(get_parent(), at, Pal.L, 4.5, 0.16)
+	Fx.ring(get_parent(), at, Pal.L, 0.0, 9.0, 1.0, 0.2)
+	Fx.burst(get_parent(), at, 6, [Pal.L, Pal.W], 70.0, 20.0, 0.25, 0.0)
+	Fx.shake(1.5, 0.1)
+	velocity.x -= face * 55.0
+	squash = Vector2(0.75, 1.2)
+	flash = 0.05
+
+
+## Tira el hacha: sale girando y vuelve sola. Hasta que vuelve no puede pegar ni tirar otra.
+func _throw() -> void:
+	axe_out = true
+	swing_t = 0.0
+	swing_hit = true   # el gesto del hachazo, pero el que pega es el hacha que vuela
+	var a := AxeScript.new()
+	a.game = game
+	a.thrower = self
+	a.dir = face
+	a.global_position = global_position + Vector2(face * 8.0, -12.0)
+	get_parent().add_child(a)
+	Snd.play("tajo", {"rate": 1.1, "vol": 0.7})
+	Snd.play("huesos", {"vol": 0.35})
+	Fx.slash(get_parent(), global_position + Vector2(face * 2.0, -12), 12.0, -100.0, 50.0, face, Pal.W, 3.0, 0.12)
+	velocity.x += face * 30.0
+	squash = Vector2(1.25, 0.82)
+
+
+## La atajó.
+func axe_back() -> void:
+	axe_out = false
+	cool = maxf(cool, 0.2)
+	squash = Vector2(0.85, 1.15)
+	Snd.play("metal", {"rate": 1.6, "vol": 0.4})
+	Fx.twinkle(get_parent(), global_position + Vector2(face * 6.0, -12.0), Pal.W, 3.0, 0.14)
+
+
+## Revienta en huesos: la calavera, huesos largos, costillas y astillas que saltan girando y rebotan.
+func _bones(from_dir: int, crit: bool) -> void:
+	var fy: float = game.landing_y(global_position.x) if game != null and global_position.y < 126.0 else 128.0
+	if fy < global_position.y - 2.0:
+		fy = 128.0
+	var kinds := ["skull", "long", "long", "long", "rib", "rib", "rib", "bit", "bit", "bit"]
+	if crit:
+		kinds += ["long", "rib", "bit", "bit"]
+	for k in kinds:
+		var b := BoneScript.new()
+		b.kind = k
+		b.floor_y = fy
+		b.position = global_position + Vector2(randf_range(-3, 3), -randf_range(4, 18))
+		var ang := randf_range(-PI * 0.9, -PI * 0.1)
+		var sp := randf_range(55.0, 130.0) * (1.3 if crit else 1.0)
+		b.vel = Vector2(cos(ang) * sp + from_dir * 45.0, sin(ang) * sp - 40.0)
+		if k == "skull":
+			b.vel = Vector2(from_dir * 60.0 + randf_range(-20, 20), -190.0)
+			b.life = 2.4
+		else:
+			b.life = randf_range(1.2, 2.0)
+		b.spin = randf_range(-22.0, 22.0)
+		get_parent().add_child(b)
 
 
 func _touch_hero() -> void:
@@ -569,10 +700,17 @@ func _die(how: String, from_dir: int, crit: bool) -> void:
 	target.set_deferred("monitorable", false)
 	squash = Vector2(1.3, 0.75)
 	position.x += from_dir * 3
-	Fx.hitstop(0.05 if how == "stomp" else 0.04)
-	Fx.shake(2.0, 0.14)
-	Snd.play("huesos", {"rate": 1.1, "vol": 0.7})
-	Snd.play("explotar", {"delay": 0.05, "vol": 0.6, "rate": 1.3})
+	Fx.hitstop(0.09 if crit else 0.07)
+	Fx.shake(3.5 if crit else 2.8, 0.2)
+	Snd.play("huesos", {"rate": 1.1, "vol": 0.8})
+	Snd.play("huesos", {"rate": 0.7, "vol": 0.6, "delay": 0.06})
+	Snd.play("explotar", {"delay": 0.05, "vol": 0.7, "rate": 1.3})
+	_bones(from_dir, crit)
+	var mid := global_position + Vector2(0, -11)
+	Fx.ring(get_parent(), mid, Pal.W, 0.0, 16.0, 1.0, 0.25)
+	Fx.ring(get_parent(), mid, Pal.L, 0.06, 24.0, 1.0, 0.35)
+	Fx.shock(get_parent(), global_position, Color("e0d7b9"), 14.0, 0.3)
+	Fx.burst(get_parent(), mid, 10, [Color("e0d7b9"), Pal.W, Pal.L], 110.0, 40.0, 0.4, 260.0)
 	# se desarma: estrella, huesitos que rebotan, polvo de tumba y el brillo verde que se escapa
 	var at := global_position + Vector2(0, -10)
 	Fx.hit(get_parent(), at, Vector2(0, 1) if how == "stomp" else Vector2(from_dir if from_dir != 0 else 1, -0.2), Pal.W, crit)
@@ -593,6 +731,10 @@ func _animate(dt: float) -> void:
 		sprite.texture = _frame("hurt", int((1.0 - stun / 0.35) * hn)) if hn > 0 else _frame("walk", 0)
 	elif windup > 0.0:  # levanta el hacha
 		sprite.texture = _frame("atk", 1 if windup > 0.19 else 2)
+	elif axe_out and absf(velocity.x) > 6.0 and not frames.get("walk_bare", []).is_empty():
+		sprite.texture = _frame("walk_bare", int(anim_t * (10.0 if absf(velocity.x) > 25.0 else 7.0)) % frames["walk_bare"].size())
+	elif axe_out and not frames.get("idle_bare", []).is_empty():
+		sprite.texture = _frame("idle_bare", int(anim_t * 5.0) % frames["idle_bare"].size())
 	elif swing_t < 0.3:  # hachazo al piso y la vuelve a subir
 		sprite.texture = _frame("atk", 3 + int(swing_t / 0.3 * 3.0))
 	elif shoot_t >= 0.0:
