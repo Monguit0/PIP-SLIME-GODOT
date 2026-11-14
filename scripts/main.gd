@@ -18,6 +18,9 @@ const BEST_FILE := "user://record.txt"
 const PlayerScript := preload("res://scripts/player.gd")
 const SlimeScript := preload("res://scripts/slime.gd")
 const SkelScript := preload("res://scripts/skeleton.gd")
+const SpiderScript := preload("res://scripts/spider.gd")
+const ShroomScript := preload("res://scripts/shroom.gd")
+const PlantScript := preload("res://scripts/plant.gd")
 const HudScript := preload("res://scripts/hud.gd")
 const BgScript := preload("res://scripts/background.gd")
 const CoinScript := preload("res://scripts/coin.gd")
@@ -431,6 +434,12 @@ func _villain_mob(n: int, k: String, at: Vector2, surf: Array = []) -> Node2D:
 	var s: Node2D
 	if k.begins_with("sk"):
 		s = SkelScript.new()
+	elif k == "spider":
+		s = SpiderScript.new()
+	elif k == "shroom":
+		s = ShroomScript.new()
+	elif k == "plant":
+		s = PlantScript.new()
 	else:
 		s = SlimeScript.new()
 	s.kind = k
@@ -980,7 +989,8 @@ func alive_in_zone(n: int) -> int:
 func _alive_in_zone(n: int) -> int:
 	var c := 0
 	for s in get_tree().get_nodes_in_group("enemigos"):
-		if not s.dead and s.zone == n:
+		# los mini hongos invocados no cuentan: se van solos
+		if not s.dead and s.zone == n and s.get("minion") != true:
 			c += 1
 	return c
 

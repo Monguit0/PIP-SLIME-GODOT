@@ -168,6 +168,8 @@ var twirl_t := 0.0           # girando en el aire (doble salto y al rebotar en u
 var apex_fx := false         # ya salió el destello de arriba de todo del salto
 # modo Villano: a este héroe lo maneja un bot (hero_bot.gd), que "aprieta" las acciones por él
 var bot := false
+var web_t := 0.0   # enredado en la telaraña de la araña: se mueve muy lento
+var web_k := 1.0
 var pad = null   # multijugador: con qué juega esta persona (Ctl.KB o el número del joystick); null = cualquiera
 var brain
 var inp := {}
@@ -199,6 +201,14 @@ func _down(a: String) -> bool:
 
 func _tap(a: String) -> bool:
 	return (bool(inp.get(a, false)) and not bool(inp_prev.get(a, false))) if bot else Ctl.tap(pad, a)
+
+
+## La telaraña de la araña: lo deja lento un rato (k: a cuánto queda su velocidad).
+func apply_slow(t: float, k: float) -> void:
+	web_t = maxf(web_t, t)
+	web_k = k
+	Fx.popup(get_parent(), global_position + Vector2(0, -26), "¡ENREDADO!", Pal.W)
+	Fx.ring(get_parent(), global_position + Vector2(0, -10), Pal.W, 0.0, 12.0, 1.0, 0.3)
 
 
 func special_cost() -> float:
@@ -408,6 +418,11 @@ func _physics_process(dt: float) -> void:
 		slow = 0.5
 	elif charge >= CHG_ON:
 		slow = 0.6 if melee() else 0.0
+	if web_t > 0.0:
+		web_t -= dt
+		slow *= web_k
+		if Engine.get_physics_frames() % 5 == 0:
+			Fx.part(get_parent(), global_position + Vector2(randf_range(-5, 5), -randf_range(2, 18)), Vector2(0, 10), 0.0, 0.3, Pal.W if randf() < 0.6 else Pal.S)
 	var top := speed * slow * (1.15 if has_card("veloz") else 1.0) * (BOT_SPEED if bot else 1.0)
 
 	# horizontal

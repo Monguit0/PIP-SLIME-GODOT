@@ -214,6 +214,27 @@ Código: `scripts/ctl.gd` (los controles por dispositivo: cada uno tiene sus acc
 en `scripts/main.gd` la parte "multijugador local" (`lobby_step`, los lugares en `seats`, la cámara que se aleja
 en `_update_camera`) y en `scripts/hud.gd`, `_draw_lobby`.
 
+## Nivel 2: el Bosque Oscuro (en construcción)
+
+Todavía no hay nivel 2 jugable; van entrando sus piezas. Por ahora, tres enemigos nuevos que no están en la web,
+ya programados (los maneja el juego o, en el modo Villano, una persona) pero que **aún no aparecen en ninguna
+zona**. Sus dibujos salieron de PixelLab (`assets/sprites/bosque/`).
+
+- **Araña** (`scripts/spider.gd`, `web.gd`): `X` escupe una telaraña que saca 1 y deja al héroe *enredado* (al
+  40% de su velocidad, 2,5 s). `Shift` lanza su hilo en diagonal y queda colgada: ← → se hamaca (es un péndulo),
+  ↑ trepa, ↓ suelta hilo, y `Shift` o el salto lo cortan y sale despedida. Colgada escupe en diagonal hacia
+  abajo y lastima a quien toque. El hilo aguanta 7 s; si no cruza una plataforma, sube hasta salir de la pantalla.
+- **Hongo esporero** (`shroom.gd`, `mini_shroom.gd`, `spore_cloud.gd`): lento y aguantador (5 de vida). `X`
+  puñetazo, `C` invoca dos mini hongos que corren por el piso y lastiman al tocar (mueren de un golpe, duran 6 s,
+  recarga 6 s), `Shift` el turbo de siempre. Al morir deja una nube de esporas 3 s.
+- **Planta carnívora** (`plant.gd`, `vine_wave.gd`): camina muy lento. `X` mordisco, `C` enredaderas que avanzan
+  120 px por el piso en onda y lastiman a varios (recarga 5 s), `Shift` se hunde bajo tierra: inmune y rápida
+  hasta 2 s; sale sola o con `X`, con un mordisco hacia arriba que saca 2. Solo con la barra llena (8 s).
+
+`scripts/forest_mob.gd` es la base que comparten el hongo y la planta (vida, golpes, muerte, posesión, marcas).
+Elegido para el nivel: el fondo "bosque encantado" (azul y violeta, con hongos que brillan). Pendiente: el nivel
+en sí, los enemigos de la web (slime tóxico, murciélago, cachorro), tres mini jefes hongo y el lobo Campeón.
+
 ## Cómo está armado
 - `scenes/main.tscn`: la escena principal; el nivel se arma por código en `scripts/main.gd` (zonas, plataformas,
   portones y antorchas están en constantes arriba de todo, copiadas del original).
