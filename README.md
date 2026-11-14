@@ -108,10 +108,11 @@ héroe y R reintenta con el mismo.
   de daño) y **lluvia de espadas** con un hueco para esquivar. Al 50% se enfurece (repite y encadena ataques) y al 25%
   **pierde el casco**. Se le pega con flechas o pisándole la cabeza. Al caer explota y su espada queda clavada en el piso.
 
-## Modo Villano (primera parte: la Pradera)
+## Modo Villano
 
 En el título, **arriba y abajo** cambian de modo: *Campaña* o *Villano*. En Villano sos el malo: manejás a los
-slimes, de a uno, contra los **cuatro héroes** (arquero, caballero, bárbaro y mago), que maneja el juego.
+bichos, de a uno, contra los **cuatro héroes** (arquero, caballero, bárbaro y mago), que maneja el juego.
+Son tres zonas (Pradera, Ruinas y Murallas) y al final el Salón del Trono, donde manejás al Mega Caballero.
 
 - **Controles del slime**: ← → mover, `Z` salto, abajo + `Z` bajar de la plataforma, y **mantener `X` y soltar**
   para escupir baba en arco: cuanto más la cargás (hasta 0,7 s; se ve la barrita y el slime se aplasta), más
@@ -121,6 +122,18 @@ slimes, de a uno, contra los **cuatro héroes** (arquero, caballero, bárbaro y 
   Manteniendo `Shift`, el **turbo de baba**: resbala sobre su propia baba 2,6 veces más rápido mientras le quede
   barra (1,8 s llena; se ve debajo del slime). Al soltarlo se recarga sola en unos 2,6 s; si la vaciás del todo
   (*¡SIN TURBO!*) queda bloqueada hasta que junte un cuarto.
+- **Controles de los esqueletos** (Ruinas y Murallas): mover, salto, bajar y turbo igual que el slime. Con `X`
+  el **arquero** tira una flecha (recarga 0,45 s) y el **hachero** pega el hachazo al toque, sin levantar antes
+  el hacha (recarga 0,55 s); el hachazo saca 2 y le pega a todos los héroes que agarre. En cada zona empezás en
+  un bicho distinto: slime en la Pradera, arquero en las Ruinas, hachero en las Murallas.
+- **El Mega Caballero** (Salón del Trono): ← → caminar, `X` **tajo** (saca 2, recarga 0,8 s), `Z`/espacio
+  **salto** con ondas (1,6 s; mientras junta fuerza lo apuntás con ← →), `Shift` **carga** (3,2 s; no queda
+  mareado contra la pared) y `C` **lluvia** de espadas apuntada: una sobre cada héroe y cuatro al azar (6,5 s).
+  Abajo se ven los cuatro ataques: en amarillo el que está listo. Con media vida o menos (furia) las recargas
+  bajan y podés **encadenar**: pedir otro ataque mientras se recupera del anterior lo saca sin pausa, con el
+  aviso a la mitad y un punto más de daño (*COMBO x2, x3...*). Entre golpe y golpe que recibe tiene 0,2 s de
+  respiro. Los héroes le pegan de cerca o de lejos según quién sea, se corren del tajo, saltan las ondas y se
+  apartan de donde va a caer una espada, pero no siempre.
 - **Posesión**: una flechita amarilla marca al que manejás. Cuando lo matan, tu alma queda suelta un segundo
   (*BUSCANDO OTRO CUERPO...*), viaja en un arco de chispas celestes y entra en el slime que esté más cerca de los
   héroes (*AHORA SOS...*). La cámara te sigue a vos.
@@ -130,21 +143,25 @@ slimes, de a uno, contra los **cuatro héroes** (arquero, caballero, bárbaro y 
   (el mago tira bolas de fuego), el caballero y el bárbaro van al cuerpo a cuerpo, suben a las plataformas por la
   que les sirve de escalón, se dejan caer si el enemigo está abajo y esquivan la baba que les viene cayendo, pero
   no siempre.
-- **Cómo termina**: si caen los cuatro héroes, ganaste (*¡DETUVISTE A LOS HÉROES!*). Si te quedás sin slimes, la
-  zona está perdida y los héroes siguen a las Ruinas, que todavía no están. Al final te dice cuántos héroes
+- **Cómo sigue y cómo termina**: si caen los cuatro héroes, ganaste (*¡DETUVISTE A LOS HÉROES!*, o *¡DEFENDISTE
+  EL TRONO!* si fue con el jefe). Si te quedás sin bichos, la zona está perdida: se abre el portón, los héroes
+  cruzan, los que llegaron recuperan 2 corazones y los esperan los bichos de la zona que sigue. Al trono llegan
+  curados del todo. Si tumban al Mega Caballero, ganaron ellos (*CAYÓ EL TRONO*). Al final te dice cuántos héroes
   tumbaste y cuántos corazones les sacaste. El récord de la campaña no se toca.
 - **HUD**: arriba a la izquierda la vida de cada héroe (y una flecha de su color al borde si quedó fuera de la
   pantalla), arriba al medio los enemigos que te quedan y los refuerzos por llegar, abajo qué sos y cómo atacás.
 
-Diferencias con el original, a propósito, porque acá la partida es por ahora una sola zona y con los números de
-la web se terminaba en diez segundos: los slimes tienen **1 de vida más** (3 el verde, 4 el rojo), los héroes del
-bot **avanzan al 62%** de su velocidad y pegan un poco más espaciado, y hay **seis refuerzos** que van llegando de
-a uno (donde más lejos queden de los héroes) cuando cae alguno. Cuando estén las otras zonas y el jefe se pueden
-volver a los números de la web. Todavía no hay cartas del villano, ni experiencia y evolución de los héroes.
+Diferencias con el original, a propósito, porque acá los héroes limpian una zona mucho más rápido que en la web:
+los slimes tienen **1 de vida más** (3 el verde, 4 el rojo), los héroes del bot **avanzan al 62%** de su velocidad
+y pegan un poco más espaciado, hay **refuerzos** que van llegando de a uno cuando cae alguno (seis en la Pradera,
+cuatro en las Ruinas y en las Murallas) y el Mega Caballero que manejás tiene **60 de vida** (42 en la web). Son
+números para ajustar jugando. Todavía no hay cartas del villano, ni experiencia y evolución de los héroes.
 
 Código: `scripts/hero_bot.gd` (el bot: `botThink`, `botClimb` y `botDodge`), `scripts/spit.gd` (la baba: `lob` y
 `updateShots`), en `scripts/slime.gd` la parte "modo Villano" (`playerMob`, `aiMob`, `aiLob`), en `scripts/main.gd`
-la parte "modo Villano" (`possessNext`, los refuerzos y el final) y en `scripts/player.gd`, `_down` y `_tap`: las
+la parte "modo Villano" (`possessNext`, `enterInvadeZone`, los refuerzos y el final), en `scripts/skeleton.gd` y
+`scripts/boss.gd` lo que va con `ctrl` (`mobShoot`, `mobSwing`, `updatePlayerBoss`), `scripts/turbo.gd` (el turbo
+y las marcas del bicho que manejás) y en `scripts/player.gd`, `_down` y `_tap`: las
 acciones del héroe salen del teclado o de lo que decide el bot.
 
 ## Cómo está armado
@@ -198,6 +215,6 @@ acciones del héroe salen del teclado o de lo que decide el bot.
 ## Plan
 1. **Base**: proyecto, Pip arquero, slimes y el Reino. ✔
 2. **Nivel 1 completo con el arquero**: música, sonidos, juice, monedas, cartas, evolución y Mega Caballero. ✔
-   Caballero, bárbaro y mago con sus evoluciones ✔. Modo Villano: la Pradera ✔ (faltan Ruinas, Murallas y el jefe).
+   Caballero, bárbaro y mago con sus evoluciones ✔. Modo Villano completo ✔ (Pradera, Ruinas, Murallas y el Mega Caballero).
 3. **Niveles 2 a 4** con sus bichos y jefes (Campeón, Yeti, Kraken), experiencia y evoluciones.
 4. **Sillón** (varios joysticks en la misma pantalla) y después el **online**.

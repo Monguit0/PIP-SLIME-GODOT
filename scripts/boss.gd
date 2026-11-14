@@ -34,6 +34,14 @@ const DIR := "res://assets/sprites/boss/"
 const COMBO := {"charge": "rain", "slam": "sweep", "sweep": "slam", "rain": "charge"}
 const TELE := {"sweep": 0.68, "slam": 0.55, "charge": 0.75, "rain": 0.85}
 const WaveScript := preload("res://scripts/wave.gd")
+## modo Villano, cuando lo manejás vos (PB del original): tecla, recarga y aviso de cada ataque
+const PB := {
+	"sweep": {"key": "atacar", "cd": 0.8, "tele": 0.26},
+	"slam": {"key": "saltar", "cd": 1.6, "tele": 0.24},
+	"charge": {"key": "especial", "cd": 3.2, "tele": 0.32},
+	"rain": {"key": "poder", "cd": 6.5, "tele": 0.45},
+}
+const PB_HP := 60   # 42 en el original; acá los héroes pegan más seguido y con 42 dura un suspiro
 
 ## Puño de la espada en cada cuadro del Mega Caballero (detectado en los cuadros de PixelLab):
 ## en píxeles del mundo desde los pies, mirando a la derecha. Los genera la herramienta de cuadros.
@@ -135,6 +143,13 @@ var tmul := 1.0
 var kick := 0.0      # retroceso al recibir un golpe (solo visual)
 var kick_dir := 1.0
 var last_face := -1
+# modo Villano
+var ctrl := false   # lo maneja el jugador, contra los cuatro héroes
+var cd := {"sweep": 0.0, "slam": 0.0, "charge": 0.0, "rain": 0.0}
+var combo := 0      # con media vida o menos, los ataques encadenados salen más rápido y pegan uno más
+var chain_t := 0.0
+var step_t := 0.0
+var hurt_inv := 0.0
 
 
 ## Todos los cuadros del jefe, para que main.gd los vaya cargando en segundo plano desde el título
@@ -210,6 +225,142 @@ func body() -> Rect2:
 
 func head() -> Rect2:
 	return Rect2(x + 4, y - 1, BW - 8, 10)
+
+
+## Lo va a manejar el jugador (modo Villano).
+func make_ctrl() -> void:
+	ctrl = true
+	hp = PB_HP
+	max_hp = PB_HP
+	shown_hp = float(PB_HP)
+
+
+## a quiénes les pega: el héroe de la campaña, o los cuatro del modo Villano
+func _heroes() -> Array:
+	var out: Array = []
+	for h in get_tree().get_nodes_in_group("heroe"):
+		if not h.dead:
+			out.append(h)
+	return out
+
+
+func _nearest_hero() -> void:
+	var bd := 1e9
+	for h in _heroes():
+		var d := absf(h.global_position.x - cx())
+		if d < bd:
+			bd = d
+			player = h
+
+
+func _cdm() -> float:
+	return 0.45 if phase >= 3 else (0.6 if phase >= 2 else 1.0)
+
+
+func _can_combo() -> bool:
+	return hp <= max_hp / 2.0
+
+
+func _bonus() -> int:
+	return 1 if ctrl and combo >= 2 else 0
+
+
+func _input_dir() -> int:
+	if game.state != "play":
+		return 0
+	return int(Input.is_action_pressed("derecha")) - int(Input.is_action_pressed("izquierda"))
+
+
+## el ataque que pidió el jugador, si ya recargó
+func _pick() -> String:
+	if game.state != "play":
+		return ""
+	if state == "rec" and not _can_combo():
+		return ""  # sin furia hay que esperar a que se recupere
+	for k in PB:
+		if Input.is_action_just_pressed(PB[k].key) and cd[k] <= 0.0 and not (state == "rec" and k == atk):
+			return k
+	return ""
+
+
+func _start(pick: String, dir: int, chain: bool) -> void:
+	chain = chain and _can_combo()
+	combo = (maxi(combo, 1) + 1) if chain else 1
+	chain_t = 0.0
+	atk = pick
+	last = pick
+	next_atk = ""
+	quick = false
+	rep = 2 if phase >= 2 and pick == "rain" else 1
+	cd[pick] = PB[pick].cd * _cdm()
+	if dir != 0:
+		face = dir
+	target_x = clampf(cx() + face * 64.0, ARENA_MIN + 12.0, ARENA_MAX - 12.0)
+	stomp_t = 0.0
+	_to("tele")
+	Snd.play("alerta", {"rate": 0.7, "vol": 0.45, "vary": false})
+	if combo >= 2:
+		Fx.popup(get_parent(), Vector2(cx(), y - 10), "COMBO x%d" % combo, Pal.R if combo >= 4 else (Pal.O if combo >= 3 else Pal.Y), true)
+		Snd.play("critico", {"rate": 1.1 + minf(4.0, combo) * 0.12, "vol": 0.45, "vary": false})
+		flash = 0.05
+		Fx.ring(get_parent(), Vector2(cx(), y + 14), Pal.Y, 0.12, 30.0)
+		Fx.hitstop(0.03)
+
+
+## Parado: camina a donde lo lleves y espera la orden.
+func _ctrl_idle(dt: float) -> void:
+	var dir := _input_dir()
+	if dir != 0:
+		if dir != face:
+			sx = 0.86
+			sy = 1.06
+		face = dir
+		var spd := 48.0 if phase >= 2 else 40.0
+		x += dir * spd * dt
+		var was := int(walk_dist / WALK_CYCLE * 2.0)
+		walk_dist += spd * dt
+		walking = true
+		if int(walk_dist / WALK_CYCLE * 2.0) != was:
+			_step()
+	angle = _lerp(angle, REST, dt * 8.0)
+	crouch = 0.0
+	if chain_t > 0.0:
+		chain_t -= dt
+		if chain_t <= 0.0:
+			combo = 0
+	var pick := _pick()
+	if pick != "":
+		_start(pick, dir, chain_t > 0.0)
+
+
+func _ctrl_rec(dt: float) -> void:
+	angle = _lerp(angle, REST, dt * 6.0)
+	crouch = _lerp(crouch, 0.0, dt * 10.0)
+	# combo: otro ataque mientras se recupera sale sin pausa
+	var pick := _pick()
+	if pick != "":
+		_start(pick, _input_dir(), true)
+	elif t > rec_dur:
+		if rep > 1 and atk == "rain":
+			rep = 1
+		_to("idle")
+		chain_t = 0.35 if _can_combo() else 0.0
+		if chain_t <= 0.0:
+			combo = 0
+
+
+## Lluvia apuntada (rainTargeted): una espada sobre cada héroe y cuatro más al azar.
+func _rain_targeted() -> void:
+	var xs: Array = []
+	for h in _heroes():
+		xs.append(h.global_position.x + randf_range(-5.0, 5.0))
+	for i in 4:
+		xs.append(randf_range(ARENA_MIN + 10.0, ARENA_MAX - 10.0))
+	for i in xs.size():
+		game.spawn_hazard(clampf(roundf(xs[i]), ARENA_MIN + 6.0, ARENA_MAX - 6.0), i * 0.05, true, 0.7)
+	Snd.play("alerta", {"vary": false})
+	Snd.play("alerta", {"vary": false, "delay": 0.14, "rate": 1.12})
+	Fx.burst(get_parent(), sword_tip(), 10, [Pal.C, Pal.W], 80.0, 80.0, 0.4, 0.0)
 
 
 func _to(s: String) -> void:
@@ -319,6 +470,10 @@ func apply_venom() -> void:
 func damage(dmg: int, hx: float, hy: float, force: bool = false, no_crit: bool = false) -> bool:
 	if not active():
 		return false
+	if ctrl and hurt_inv > 0.0 and not no_crit:
+		return false  # manejado por vos: entre golpe y golpe hay un respiro, o los cuatro juntos lo derriten
+	if ctrl and not no_crit:
+		hurt_inv = 0.2
 	var crit := not no_crit and (force or Fx.rand_crit())
 	var total := dmg * 3 if crit else dmg
 	if state == "stun":
@@ -413,6 +568,11 @@ func _die() -> void:
 
 func _physics_process(dt: float) -> void:
 	clock += dt
+	if ctrl:
+		hurt_inv -= dt
+		for k in cd:
+			cd[k] = maxf(0.0, cd[k] - dt)
+		_nearest_hero()
 	var ph2 := phase >= 2
 	var tm := 0.6 if phase >= 3 else (0.72 if ph2 else 1.0)
 	tmul = tm
@@ -471,7 +631,10 @@ func _physics_process(dt: float) -> void:
 				_slam_fx(cx(), 7.0, false)
 				_to("roar")
 				Snd.play("rugido", {"vary": false})
-				game.show_banner("MEGA CABALLERO", "GUARDIÁN DEL TRONO", true, true)
+				if ctrl:
+					game.show_banner("¡LLEGARON AL TRONO!", "AHORA SOS EL MEGA CABALLERO", true, true)
+				else:
+					game.show_banner("MEGA CABALLERO", "GUARDIÁN DEL TRONO", true, true)
 		"roar":
 			fill = minf(1.0, t / 1.1)
 			angle = _lerp(40.0, -90.0, t / 0.4)
@@ -481,6 +644,10 @@ func _physics_process(dt: float) -> void:
 			if t > 1.6:
 				_to("idle")
 				idle_dur = 0.6
+		"idle" when ctrl:
+			_ctrl_idle(dt)
+		"rec" when ctrl:
+			_ctrl_rec(dt)
 		"idle":
 			_face_player()
 			var dist := player.global_position.x - cx()
@@ -554,15 +721,19 @@ func _physics_process(dt: float) -> void:
 
 ## Pisotón en el yelmo (le saca 1) o daño por tocarlo.
 func _contact() -> void:
-	if not active() or game.state != "play" or player.dead:
+	if not active() or game.state != "play":
 		return
-	var pb := player.box()
+	# cuando lo manejás vos el cuerpo solo lastima embistiendo o cayendo del salto: si no, los héroes
+	# que pelean cuerpo a cuerpo se lastimarían solos al acercarse
+	var hot: bool = not ctrl or (state == "act" and (atk == "charge" or (atk == "slam" and vy > 0.0)))
 	var hd := head()
-	if player.velocity.y > 20.0 and player.prev_bottom <= hd.position.y + 4.0 and pb.intersects(hd):
-		player.boss_bounce()
-		damage(1, player.global_position.x, y)
-	elif state != "stun" and pb.intersects(body()) and player.invuln <= 0.0 and player.stomp_inv <= 0.0:
-		player.hurt(cx(), 1, self)
+	for p in _heroes():
+		var pb: Rect2 = p.box()
+		if p.velocity.y > 20.0 and p.prev_bottom <= hd.position.y + 4.0 and pb.intersects(hd):
+			p.boss_bounce()
+			damage(1, p.global_position.x, y)
+		elif hot and state != "stun" and pb.intersects(body()) and p.invuln <= 0.0 and p.stomp_inv <= 0.0:
+			p.hurt(cx(), 1 + _bonus(), self)
 
 
 func _choose_attack() -> void:
@@ -609,6 +780,8 @@ func _combo_next() -> void:
 ## Aviso: la espada brilla, junta chispas y toma la pose del ataque.
 func _tele(dt: float, tm: float) -> void:
 	var dur: float = TELE[atk] * tm * (0.55 if quick else 1.0)
+	if ctrl:
+		dur = PB[atk].tele * (0.8 if phase >= 2 else 1.0) * (0.5 if combo >= 2 else 1.0)
 	var k := t / dur
 	glow = true
 	if randf() < 0.6:
@@ -620,7 +793,10 @@ func _tele(dt: float, tm: float) -> void:
 		"slam":
 			angle = _lerp(angle, -90.0, dt * 10.0)
 			crouch = roundf(_lerp(0.0, 3.0, k))
-			target_x = _lerp(target_x, player.global_position.x, dt * 3.0)
+			if ctrl:  # el salto lo apuntás vos mientras junta fuerza
+				target_x = clampf(target_x + _input_dir() * 110.0 * dt, ARENA_MIN + 12.0, ARENA_MAX - 12.0)
+			else:
+				target_x = _lerp(target_x, player.global_position.x, dt * 3.0)
 		"charge":
 			angle = _lerp(angle, 0.0, dt * 10.0)
 			crouch = 1.0
@@ -652,9 +828,14 @@ func _tele(dt: float, tm: float) -> void:
 				Fx.shock(get_parent(), Vector2(cx(), GROUND), Pal.S, 20.0, 0.3)
 			"charge":
 				vx = face * (285.0 if phase >= 2 else 240.0)
+				if ctrl:
+					vx = face * (300.0 if phase >= 2 else 260.0)
 				Snd.play("tajo", {"rate": 0.5, "vary": false})
 			"rain":
-				_rain_swords()
+				if ctrl:
+					_rain_targeted()
+				else:
+					_rain_swords()
 				_order()
 			"sweep":
 				swing_t = 0.0
@@ -680,8 +861,11 @@ func _act(dt: float) -> void:
 				_slash_arc()
 			if t > 0.04 and t < 0.17 and game.state == "play":
 				var hb := Rect2(x + BW - 8, GROUND - 26, 48, 26) if face > 0 else Rect2(x + 8 - 48, GROUND - 26, 48, 26)
-				if not player.dead and player.box().intersects(hb):
-					player.hurt(cx(), 1, self)
+				if ctrl:  # manejado por vos el tajo llega más arriba (a los que saltan) y saca 2
+					hb = Rect2(x + 12, GROUND - 44, 50, 44) if face > 0 else Rect2(x + 10 - 50, GROUND - 44, 50, 44)
+				for p in _heroes():
+					if p.box().intersects(hb):
+						p.hurt(cx(), (2 + _bonus()) if ctrl else 1, self)
 			if t > 0.3:
 				_to("rec")
 				rec_dur = 0.4 if phase >= 2 else 0.6
@@ -712,7 +896,22 @@ func _act(dt: float) -> void:
 				Fx.streak(get_parent(), Vector2(cx() - face * randf_range(6.0, 14.0), y + randf_range(4.0, BH - 4.0)),
 					Vector2(-face * 260.0, 0.0), 0.14, Pal.W if randf() < 0.4 else Pal.C, 10.0)
 			var wall := (face < 0 and x <= ARENA_MIN + 0.5) or (face > 0 and x >= ARENA_MAX - BW - 0.5)
-			if wall:
+			if ctrl and (wall or t > 1.2):
+				# manejado por vos no queda mareado contra la pared
+				vx = 0.0
+				if wall:
+					Snd.play("metal", {"rate": 0.4, "vary": false})
+					Snd.play("clavar", {"rate": 0.5, "vary": false})
+					Snd.boom(0.7)
+					Fx.shake(4.0, 0.25)
+					var wq := Vector2(ARENA_MAX if face > 0 else ARENA_MIN, GROUND - 16)
+					Fx.hit(get_parent(), wq, Vector2(-face, 0), Pal.W, true)
+					Fx.burst(get_parent(), wq, 12, [Pal.SS, Pal.S, Pal.D, Pal.W], 90.0, 40.0, 0.6, 260.0)
+					sx = 0.7
+					sy = 1.1
+				_to("rec")
+				rec_dur = 0.35
+			elif wall:
 				vx = 0.0
 				Snd.play("metal", {"rate": 0.4, "vary": false})
 				Snd.play("clavar", {"rate": 0.5, "vary": false})
@@ -744,7 +943,10 @@ func _act(dt: float) -> void:
 			if t > 0.9:
 				if rep > 1:
 					rep -= 1
-					_rain_swords()
+					if ctrl:
+						_rain_targeted()
+					else:
+						_rain_swords()
 					_order()
 					_to("act")
 				else:

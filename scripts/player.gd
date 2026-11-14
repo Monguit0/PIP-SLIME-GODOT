@@ -356,6 +356,7 @@ func _placeholder() -> Texture2D:
 
 func _physics_process(dt: float) -> void:
 	if dead:
+		flash_t -= dt  # si no, el héroe que cae en pleno destello queda blanco para siempre
 		velocity.y = minf(velocity.y + GRAV * dt, MAX_FALL)
 		if is_on_floor():
 			velocity.x = move_toward(velocity.x, 0.0, 400.0 * dt)
@@ -1468,7 +1469,7 @@ func hurt(from_x: float, amount: int = 1, src: Object = null) -> bool:
 			_block(dir, src)
 		return false
 	hearts = maxi(0, hearts - amount)
-	invuln = 1.4
+	invuln = 0.75 if bot else 1.4  # los héroes del bot, como en el modo villano del original
 	hurt_t = 0.3
 	charge = -1.0
 	dash_t = 0.0

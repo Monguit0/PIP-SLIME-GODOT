@@ -33,9 +33,11 @@ func _physics_process(dt: float) -> void:
 			queue_free()
 		queue_redraw()
 		return
-	var p: Player = game.player if game != null else null
-	if p != null and not p.dead and p.box().intersects(r) and p.hurt(position.x - dir * 10.0, 1, self):
-		queue_free()
+	for h in get_tree().get_nodes_in_group("heroe"):
+		var p := h as Player
+		if p != null and not p.dead and p.box().intersects(r) and p.hurt(position.x - dir * 10.0, 1, self):
+			queue_free()
+			break
 	queue_redraw()
 
 

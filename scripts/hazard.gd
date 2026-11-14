@@ -63,10 +63,11 @@ func _physics_process(dt: float) -> void:
 			y += vy * dt
 			Fx.part(get_parent(), Vector2(position.x, y), Vector2.ZERO, 0.0, 0.12, Pal.C if big else Pal.SS)
 			var b := box()
-			var p: Player = game.player if game != null else null
-			if p != null and not p.dead and p.box().intersects(b) and p.hurt(position.x, 1, self):
-				queue_free()
-				return
+			for h in get_tree().get_nodes_in_group("heroe"):
+				var p := h as Player
+				if p != null and not p.dead and p.box().intersects(b) and p.hurt(position.x, 1, self):
+					queue_free()
+					return
 			if phase != "fall":  # la paró el escudo
 				return
 			for s in get_tree().get_nodes_in_group("enemigos"):

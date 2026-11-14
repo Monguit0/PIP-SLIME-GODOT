@@ -23,10 +23,12 @@ var atk_cd := 0.0
 var spc_hold := 0.0
 var spc_cd := 0.0
 var seen := {}
+var wait_x := 0.0           # cada uno espera un poco más o menos lejos del portón, para no amontonarse
 
 
 func _init() -> void:
 	react = 0.14 + randf() * 0.14
+	wait_x = randf() * 30.0
 	atk_cd = 1.2 + randf() * 0.8
 	spc_cd = 2.5 + randf() * 2.0
 	think_t = 1.0 + randf() * 0.8   # arrancan con un instante de duda, mientras pasa el cartel
@@ -92,14 +94,37 @@ func _decide(p: Player) -> void:
 			bd = d
 			target = m
 	step = null
-	if target == null:
-		move = 0
+	var tpos := Vector2.ZERO
+	if target != null:
+		tpos = target.global_position
+	elif z >= 3:
+		# el Salón del Trono: el Mega Caballero (se le pega desde el piso, aunque esté saltando)
+		var b = game.boss
+		if b == null or not is_instance_valid(b) or not b.active():
+			move = 0
+			return
+		target = b
+		tpos = Vector2(b.cx(), b.GROUND)
+		_boss(p, b)
 		return
-	var tx: float = target.global_position.x
+	if target == null:
+		# no queda nadie: cuando el portón se abre, cruza y espera del otro lado
+		var gx: float = game.gates[z].x
+		if game.gates[z].open < 0.85:
+			move = 0
+		elif cx > gx + 26.0 + wait_x:
+			move = 0
+		else:
+			move = 1
+			if _on_platform(p) and gx - cx < 60.0:
+				drop = true
+				jump_hold = 0.06
+		return
+	var tx: float = tpos.x
 	var dx := tx - cx
 	var dist := absf(dx)
 	var toward := 1 if dx >= 0.0 else -1
-	var dy: float = target.global_position.y - foot
+	var dy: float = tpos.y - foot
 	var zd: Dictionary = game.ZONES[z]
 	var wall_behind: bool = (toward > 0 and cx < zd.start + 16) or (toward < 0 and cx > game.gates[z].x - 24)
 	move = toward
@@ -149,6 +174,66 @@ func _decide(p: Player) -> void:
 			jump_gap = 0.0
 
 
+## Contra el Mega Caballero: los de espada se le pegan y se apartan cuando levanta la espada o embiste;
+## el arquero y el mago le tiran de lejos. Todos bajan al piso.
+func _boss(p: Player, b) -> void:
+	var cx := p.global_position.x
+	var dx: float = b.cx() - cx
+	var dist := absf(dx)
+	var toward := 1 if dx >= 0.0 else -1
+	var lo: float = b.ARENA_MIN + 6.0
+	var hi: float = b.ARENA_MAX - 6.0
+	var cornered: bool = (toward > 0 and cx < lo + 14.0) or (toward < 0 and cx > hi - 14.0)
+	if _on_platform(p):
+		drop = true
+		jump_hold = 0.06
+	# ve venir el golpe: el tajo (de frente y cerca), la embestida (salta) y el salto (se corre de donde cae)
+	var danger := false
+	if b.state == "tele" or b.state == "act":
+		var front: bool = signf(cx - b.cx()) == float(b.face)
+		if b.atk == "sweep" and front and dist < 66.0:
+			danger = true
+		elif b.atk == "slam" and absf(b.target_x - cx) < 40.0:
+			danger = true
+		elif b.atk == "charge" and front:
+			danger = true
+	if danger:
+		var k: int = b.get_instance_id() + int(b.clock * 2.0) * 13
+		if not seen.has(k):
+			seen[k] = randf() < skill
+		if seen[k]:
+			if b.atk == "slam":
+				move = 1 if cx >= b.target_x else -1
+				if (move > 0 and cx > hi - 10.0) or (move < 0 and cx < lo + 10.0):
+					move = -move
+			elif b.atk == "charge":
+				move = -toward if not cornered else 0
+				if b.state == "act" and dist < 70.0:
+					_jump()
+			else:
+				move = -toward if not cornered else toward
+				if cornered:
+					_jump()
+			return
+	if p.kind == "archer":
+		move = -toward if dist < 60.0 and not cornered else (toward if dist > 120.0 else 0)
+		if p.face == toward:
+			_attack(p)
+	elif p.kind == "mage":
+		move = -toward if dist < 44.0 and not cornered else (toward if dist > 100.0 else 0)
+		if spc_cd <= 0.0 and p.energy >= Player.FIRE_COST and dist > 24.0 and p.face == toward:
+			spc_hold = 0.05
+			spc_cd = 2.2 + randf() * 1.6
+		elif dist < 26.0:
+			_attack(p)
+	else:
+		move = toward if dist > 20.0 else 0
+		if dist < 30.0:
+			_attack(p)
+	if move == 0 and p.face != toward:
+		move = toward
+
+
 func _climb(p: Player) -> void:
 	if step == null:
 		return
@@ -160,7 +245,16 @@ func _climb(p: Player) -> void:
 		return
 	var near := clampf(cx, step[0] + 6.0, step[0] + step[2] - 6.0)
 	var under: bool = cx > step[0] - 16.0 and cx < step[0] + step[2] + 16.0
-	if under or (_on_platform(p) and absf(near - cx) > 3.0 and p.is_on_wall()):
+	# parado en otra plataforma: salta al llegar al borde que da hacia el escalón
+	var edge := false
+	if _on_platform(p) and absf(near - cx) > 3.0:
+		var foot := p.global_position.y
+		for pl in game.PLATS:
+			if absf(pl[1] - foot) < 2.0 and cx >= pl[0] - 2.0 and cx <= pl[0] + pl[2] + 2.0:
+				var edge_x: float = pl[0] + pl[2] if near > cx else pl[0]
+				edge = absf(edge_x - cx) < 9.0
+				break
+	if under or edge:
 		_jump()
 
 
@@ -175,5 +269,43 @@ func _dodge(p: Player) -> void:
 			seen[key] = randf() < skill
 		if seen[key]:
 			move = 1 if s.global_position.x < cx else -1
-	if seen.size() > 64:
+	# flechas de los esqueletos: salta la que le viene de frente a su altura
+	for a in p.get_tree().get_nodes_in_group("flechas_malas"):
+		if a.stuck or a.hero:
+			continue
+		var d: float = (cx - a.global_position.x) * a.face
+		if d > 0.0 and d < 50.0 and absf(a.global_position.y - (p.global_position.y - 11.0)) < 8.0 and p.is_on_floor():
+			var k2: int = a.get_instance_id()
+			if not seen.has(k2):
+				seen[k2] = randf() < skill
+			if seen[k2]:
+				_jump()
+	# el hachero que levantó el hacha: se aparta
+	for m in p.get_tree().get_nodes_in_group("enemigos"):
+		if m.get("kind") == "skaxe" and not m.dead and m.windup > 0.0 and absf(m.global_position.x - cx) < 28.0:
+			var k3: int = m.get_instance_id() * 7 + int(m.cool * 10.0)
+			if not seen.has(k3):
+				seen[k3] = randf() < skill
+			if seen[k3]:
+				move = 1 if cx >= m.global_position.x else -1
+	# ondas del salto del jefe: las salta; espadas que van a caer: se corre de abajo
+	for w in p.get_tree().get_nodes_in_group("ondas"):
+		if w.hero:
+			continue
+		var d2: float = (cx - w.global_position.x) * w.dir
+		if d2 > 0.0 and d2 < 30.0 and p.is_on_floor():
+			var k4: int = w.get_instance_id()
+			if not seen.has(k4):
+				seen[k4] = randf() < skill
+			if seen[k4]:
+				_jump()
+	for hz in p.get_tree().get_nodes_in_group("peligros"):
+		if hz.phase == "stuck" or absf(hz.global_position.x - cx) > 9.0:
+			continue
+		var k5: int = hz.get_instance_id()
+		if not seen.has(k5):
+			seen[k5] = randf() < skill
+		if seen[k5]:
+			move = 1 if cx >= hz.global_position.x else -1
+	if seen.size() > 96:
 		seen.clear()

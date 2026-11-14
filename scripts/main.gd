@@ -24,11 +24,20 @@ const CoinScript := preload("res://scripts/coin.gd")
 const HazardScript := preload("res://scripts/hazard.gd")
 const BossScript := preload("res://scripts/boss.gd")
 const BotScript := preload("res://scripts/hero_bot.gd")
-## modo Villano: los bichos que defienden cada zona (INVADE_MOBS del original). Por ahora, solo la Pradera.
-const VILLAIN_MOBS := [["green", "green", "red", "green", "green"]]
-## Refuerzos: bichos que van llegando de a uno desde el portón cuando cae alguno. No están en el original;
-## acá la partida de villano es por ahora una sola zona y con cinco slimes se terminaba en diez segundos.
-const VILLAIN_RESERVE := [["green", "red", "green", "green", "red", "green"]]
+## modo Villano: los bichos que defienden cada zona (INVADE_MOBS del original) y en cuál entrás primero.
+const VILLAIN_MOBS := [
+	["green", "green", "red", "green", "green"],
+	["green", "skarch", "skaxe", "red", "skarch"],
+	["skaxe", "skarch", "red", "skaxe", "skarch", "green"],
+]
+const VILLAIN_FIRST := ["green", "skarch", "skaxe"]
+## Refuerzos: bichos que van llegando de a uno cuando cae alguno. No están en el original: acá los héroes
+## limpian una zona muy rápido y sin ellos la defensa dura un suspiro.
+const VILLAIN_RESERVE := [
+	["green", "red", "green", "green", "red", "green"],
+	["skarch", "green", "skaxe", "red"],
+	["skaxe", "skarch", "red", "skarch"],
+]
 const MODES := ["campaign", "villano"]
 
 const ZONES := [
@@ -109,6 +118,7 @@ var fallen := 0             # héroes que tumbaste
 var dealt := 0              # corazones que les sacaste
 var reserve: Array = []     # refuerzos que faltan llegar
 var reinforce_t := 0.0
+var zone_lost := false      # se quedó sin bichos: el portón se abre y los héroes avanzan
 var fade := 0.0
 var _warm_paths: Array = []  # cuadros del jefe y los esqueletos que se están cargando en segundo plano
 var _warm: Array = []        # los ya cargados: quedan vivos para que load() los saque de la caché
@@ -209,11 +219,59 @@ func _start_villano() -> void:
 		Fx.dust(self, h.position, 3, 24.0, 4.0, 1.4)
 	player.died.disconnect(_on_player_died)
 	player.died.connect(_on_hero_died.bind(player))
-	_spawn_villain_mobs(0)
-	reserve = VILLAIN_RESERVE[0].duplicate()
+	_villano_zone(0)
+
+
+## Empieza la defensa de una zona: aparecen sus bichos y entrás en el primero.
+func _villano_zone(n: int) -> void:
+	z = n
+	zone_lost = false
+	cleared = false
+	_spawn_villain_mobs(n)
+	reserve = VILLAIN_RESERVE[n].duplicate()
 	reinforce_t = 3.0
+	possess_t = 0.0
 	_possess_next(true)
-	_show_banner("ZONA 1", ZONES[0].name + " · SOS " + (ctrl.mob_name() if ctrl != null else "SLIME"))
+	_show_banner("ZONA %d" % (n + 1), ZONES[n].name + " · SOS " + (ctrl.mob_name() if ctrl != null else "SLIME"))
+
+
+## Los héroes cruzaron el portón (enterInvadeZone): se cierra atrás, los que llegaron recuperan 2 de vida y
+## los esperan los bichos de la zona nueva. Después de las Murallas viene el Salón del Trono.
+func _villano_next() -> void:
+	var n := z + 1
+	gates[z].want = 0.0
+	for g in ["babas", "flechas_malas", "hechizos"]:
+		for o in get_tree().get_nodes_in_group(g):
+			o.queue_free()
+	if n >= VILLAIN_MOBS.size():
+		_villano_throne()
+		return
+	for h in heroes:
+		if not h.dead and h.hearts < h.max_hearts:
+			h.hearts = mini(h.max_hearts, h.hearts + 2)
+			h.hearts_changed.emit()
+			Fx.popup(self, h.global_position + Vector2(0, -24), "+2", Pal.L)
+	_villano_zone(n)
+
+
+## Llegaron al trono: los héroes se curan del todo y ahora manejás al Mega Caballero.
+func _villano_throne() -> void:
+	z = 3
+	zone_lost = false
+	ctrl = null
+	reserve = []
+	for h in heroes:
+		if not h.dead:
+			if h.hearts < h.max_hearts:
+				Fx.popup(self, h.global_position + Vector2(0, -24), "+%d" % (h.max_hearts - h.hearts), Pal.L)
+			h.hearts = h.max_hearts
+			h.hearts_changed.emit()
+	boss = BossScript.new()
+	boss.game = self
+	boss.player = heroes[0]
+	add_child(boss)
+	boss.make_ctrl()
+	banner = {"text": "", "sub": "", "t": 99.0, "long": false, "card": false}
 
 
 func _spawn_villain_mobs(n: int) -> void:
@@ -224,21 +282,31 @@ func _spawn_villain_mobs(n: int) -> void:
 	for i in list.size():
 		var k: String = list[i]
 		var surf: Array = ground
-		if not plats.is_empty() and randf() < (0.7 if k == "green" else 0.25):
+		# en plataformas: casi siempre los slimes verdes, seguido los arqueros, cada tanto el resto
+		var odds := 0.7 if k == "green" else (0.6 if k == "skarch" else 0.25)
+		if not plats.is_empty() and randf() < odds:
 			surf = plats[randi() % plats.size()]
-		var s := _villain_mob(n, k, Vector2(surf[0] + 6 + randf() * maxf(1.0, surf[2] - 12), surf[1]))
+		var s := _villain_mob(n, k, Vector2(surf[0] + 6 + randf() * maxf(1.0, surf[2] - 12), surf[1]), surf)
 		s.spawn = 0.3 + i * 0.12
 
 
-func _villain_mob(n: int, k: String, at: Vector2) -> Slime:
+func _villain_mob(n: int, k: String, at: Vector2, surf: Array = []) -> Node2D:
 	var zd: Dictionary = ZONES[n]
-	var s := SlimeScript.new()
+	var s: Node2D
+	if k.begins_with("sk"):
+		s = SkelScript.new()
+	else:
+		s = SlimeScript.new()
 	s.kind = k
 	s.zone = n
 	s.villain = true
 	s.position = at
 	s.min_x = float(zd.start + 6)
 	s.max_x = float(gates[n].x - 6)
+	# el esqueleto que apareció en una plataforma la patrulla sin caerse (hasta que entres en él)
+	if k.begins_with("sk") and not surf.is_empty() and surf[1] < GROUND:
+		s.min_x = float(surf[0] + 6)
+		s.max_x = float(surf[0] + surf[2] - 6)
 	add_child(s)
 	return s
 
@@ -286,7 +354,7 @@ func _possess_next(first: bool) -> void:
 	var host = alive[0]
 	if first:
 		for m in alive:
-			if m.kind == "green":
+			if m.kind == VILLAIN_FIRST[mini(z, VILLAIN_FIRST.size() - 1)]:
 				host = m
 				break
 	else:
@@ -321,6 +389,13 @@ func _villano_step(dt: float) -> void:
 			soul = null
 	if state != "play":
 		return
+	if z >= 3:
+		# el Salón del Trono: ganás si caen los cuatro (si cae el jefe, avisa él: boss_defeated)
+		for h in heroes:
+			if not h.dead:
+				return
+		_villano_end(true)
+		return
 	var field := _alive_in_zone(z)
 	if not reserve.is_empty() and field < VILLAIN_MOBS[z].size():
 		reinforce_t -= dt * (3.0 if field == 0 else 1.0)
@@ -334,29 +409,33 @@ func _villano_step(dt: float) -> void:
 		if possess_t <= 0.0 and field > 0:
 			_possess_next(false)
 	var up := 0
+	var crossed := true
 	for h in heroes:
 		if not h.dead:
 			up += 1
+			if h.global_position.x < gates[z].x + 20.0:
+				crossed = false
 	if up == 0:
 		_villano_end(true)
 	elif field == 0 and reserve.is_empty():
-		_villano_end(false)
+		if not zone_lost:
+			# te quedaste sin bichos en esta zona: se abre el portón y los héroes siguen
+			zone_lost = true
+			gates[z].want = 1.0
+			_show_banner("ZONA PERDIDA", "LOS HÉROES AVANZAN")
+			Snd.play("porton", {"vary": false})
+			Fx.shake(1.0, 0.9)
+		elif gates[z].open > 0.85 and crossed:
+			_villano_next()
 
 
-func _villano_end(won: bool) -> void:
+func _villano_end(_won: bool) -> void:
 	end_t = 0.0
-	if won:
-		state = "win"
-		add_score(500)
-		_show_banner("¡DETUVISTE A LOS HÉROES!", "+500", true)
-		Snd.play("oleada", {"vary": false})
-		Snd.play("oleada", {"delay": 0.5, "rate": 1.26, "vary": false})
-	else:
-		state = "over"
-		gates[z].want = 1.0
-		_show_banner("ZONA PERDIDA", "LOS HÉROES AVANZAN", true)
-		Snd.play("porton", {"vary": false})
-		Snd.play("derrota", {"delay": 0.3, "vary": false})
+	state = "win"
+	add_score(500)
+	_show_banner("¡DEFENDISTE EL TRONO!" if z >= 3 else "¡DETUVISTE A LOS HÉROES!", "+500", true)
+	Snd.play("oleada", {"vary": false})
+	Snd.play("oleada", {"delay": 0.5, "rate": 1.26, "vary": false})
 
 
 func _on_hero_hurt(_src) -> void:
@@ -492,6 +571,13 @@ func gain_xp(n: int, at = null) -> void:
 
 
 func boss_defeated(at: Vector2) -> void:
+	if mode == "villano":
+		# eras vos: los héroes se quedan con el trono
+		state = "over"
+		end_t = 0.0
+		_show_banner("CAYÓ EL TRONO", "LOS HÉROES GANARON", true)
+		Snd.play("derrota", {"delay": 0.6, "vary": false})
+		return
 	add_score(1000)
 	Fx.popup(self, at, "+1000", Pal.Y, true)
 	Snd.play("oleada", {"delay": 0.6, "vary": false})
@@ -804,6 +890,15 @@ func _update_camera(dt: float) -> void:
 		# la cámara sigue al bicho que manejás (o al alma, mientras busca otro cuerpo)
 		focus = last_ctrl_x
 		look = ctrl.face * 26.0 if ctrl != null and is_instance_valid(ctrl) else 0.0
+		if zone_lost or z >= 3:
+			# sin bichos: la cámara acompaña a los héroes (al que va adelante) hasta la zona que sigue
+			var lead := -1e9
+			for h in heroes:
+				if not h.dead:
+					lead = maxf(lead, h.global_position.x)
+			if lead > -1e8:
+				focus = lead
+				look = 20.0
 		if ctrl != null and is_instance_valid(ctrl) and ctrl.charging:
 			# cargando la baba: la cámara se corre para que entren el slime y el lugar donde va a caer
 			focus = clampf((ctrl.global_position.x + ctrl.aim_x) / 2.0, ctrl.global_position.x - 104.0, ctrl.global_position.x + 104.0)

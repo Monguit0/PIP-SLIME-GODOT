@@ -207,26 +207,7 @@ func _draw_status() -> void:
 		_text("ZONA %d" % (main.z + 1) + ("" if main.cleared else " · ENEMIGOS %d" % left), W / 2.0, 4, Pal.S)
 		if main.cleared and main.gates[main.z].open > 0.5 and int(t * 4.0) % 2 == 1:
 			_text("SEGUÍ >", W - 6, 96, Pal.Y, 1, 2)
-	# barra del jefe: marco de hierro y oro con el yelmo en el medallón
-	var b = main.boss
-	if b != null and is_instance_valid(b) and not b.state in ["wait", "drop", "gone"]:
-		var shx := roundf(randf_range(-2, 2)) if b.bar_shake > 0.0 else 0.0
-		var r := Rect2(BOSS.position + Vector2(shx, 0), BOSS.size)
-		var name_col := (Pal.R if int(t * 8.0) % 2 == 1 else Pal.Y) if b.phase >= 3 else (Pal.O if b.phase >= 2 else Pal.S)
-		_text("MEGA CABALLERO", W / 2.0, 3, name_col)
-		_frame(BAR_BOSS, r, Vector2(22, 8))
-		var fill: float = b.fill
-		var x := r.position.x
-		var y := r.position.y
-		var bw := r.size.x
-		_fill(x, y, bw * b.shown_hp / b.max_hp * fill, 4, Pal.RAMP_W, false)
-		var hw: float = bw * b.hp / b.max_hp * fill
-		var ramp: Array = Pal.RAMP_O if b.phase >= 2 else Pal.RAMP_R
-		_fill(x, y, hw, 4, ramp)
-		_shine(x, y, hw, 4, ramp, 0.8)
-		for q in [0.25, 0.5, 0.75]:
-			_rect(x + roundf(bw * q), y, 0.5, 4, Pal.K)
-		_icon(ICON_BOSS, r.position - Vector2(11, 4) + Vector2(6, 6))
+	_boss_bar()
 
 
 ## Marco HD de una barra, corrido para que su hueco (que empieza en inner, en px de la textura) caiga en r.
@@ -482,7 +463,7 @@ func _draw_title() -> void:
 
 ## El título en modo Villano: quién sos y cómo se maneja el slime.
 func _title_villano() -> void:
-	_text("MANEJÁS A LOS SLIMES, DE A UNO,", W / 2.0, 90, Pal.S)
+	_text("MANEJÁS A LOS BICHOS, DE A UNO,", W / 2.0, 90, Pal.S)
 	_text("CONTRA LOS CUATRO HÉROES", W / 2.0, 98, Pal.S)
 	var lines := ["< > MOVER · Z SALTO", "MANTENÉ X Y SOLTÁ: BABA", "MANTENÉ SHIFT: TURBO · ABAJO + Z: BAJAR"]
 	for i in lines.size():
@@ -497,6 +478,29 @@ func _title_villano() -> void:
 
 ## HUD del modo Villano: la vida de cada héroe, cuántos bichos te quedan, qué sos y cómo atacás, y una
 ## flecha al borde por cada héroe que quedó fuera de la pantalla.
+## Barra del jefe: marco de hierro y oro con el yelmo en el medallón.
+func _boss_bar() -> void:
+	var b = main.boss
+	if b != null and is_instance_valid(b) and not b.state in ["wait", "drop", "gone"]:
+		var shx := roundf(randf_range(-2, 2)) if b.bar_shake > 0.0 else 0.0
+		var r := Rect2(BOSS.position + Vector2(shx, 0), BOSS.size)
+		var name_col := (Pal.R if int(t * 8.0) % 2 == 1 else Pal.Y) if b.phase >= 3 else (Pal.O if b.phase >= 2 else Pal.S)
+		_text("MEGA CABALLERO", W / 2.0, 3, name_col)
+		_frame(BAR_BOSS, r, Vector2(22, 8))
+		var fill: float = b.fill
+		var x := r.position.x
+		var y := r.position.y
+		var bw := r.size.x
+		_fill(x, y, bw * b.shown_hp / b.max_hp * fill, 4, Pal.RAMP_W, false)
+		var hw: float = bw * b.hp / b.max_hp * fill
+		var ramp: Array = Pal.RAMP_O if b.phase >= 2 else Pal.RAMP_R
+		_fill(x, y, hw, 4, ramp)
+		_shine(x, y, hw, 4, ramp, 0.8)
+		for q in [0.25, 0.5, 0.75]:
+			_rect(x + roundf(bw * q), y, 0.5, 4, Pal.K)
+		_icon(ICON_BOSS, r.position - Vector2(11, 4) + Vector2(6, 6))
+
+
 func _draw_villano() -> void:
 	var cols := {"archer": Pal.L, "knight": Pal.C, "barb": Pal.O, "mage": Pal.RAMP_R[3]}
 	var y := 4.0
@@ -520,11 +524,26 @@ func _draw_villano() -> void:
 	_text("%05d" % roundi(main.shown_score), W - 4, 4 + bump, Pal.W if main.score_bump > 0.5 else Pal.Y, 1, 2)
 	if main.state != "play":
 		return
+	if main.z >= 3:
+		_boss_bar()
+		var b = main.boss
+		if b != null and is_instance_valid(b) and b.active():
+			# tus cuatro ataques: en amarillo el que está listo, apagado el que recarga
+			var labels := [["sweep", "X TAJO"], ["slam", "ESPACIO SALTO"], ["charge", "SHIFT CARGA"], ["rain", "C LLUVIA"]]
+			var lx := 4.0
+			for l in labels:
+				var ready: bool = b.cd[l[0]] <= 0.0
+				_text(l[1], lx, 136, Pal.Y if ready else Pal.D, 1, 0, Pal.K)
+				lx += l[1].length() * 4.0 + 8.0
+		return
 	var more: int = main.reserve.size()
 	_text("ZONA %d · ENEMIGOS %d" % [main.z + 1, main.alive_in_zone(main.z)] + (" +%d" % more if more > 0 else ""), W / 2.0, 4, Pal.S)
 	var m = main.ctrl
 	if m != null and is_instance_valid(m) and not m.dead:
-		_text("SOS " + m.mob_name() + " · MANTENÉ X Y SOLTÁ: BABA · SHIFT: TURBO", 4, 136, Pal.Y, 1, 0, Pal.K)
+		_text("SOS " + m.mob_name() + " · " + m.mob_hint(), 4, 136, Pal.Y, 1, 0, Pal.K)
+	elif main.zone_lost:
+		if int(t * 4.0) % 2 == 0:
+			_text("LOS HÉROES AVANZAN...", 4, 136, Pal.O, 1, 0, Pal.K)
 	elif int(t * 4.0) % 2 == 0:
 		_text("BUSCANDO OTRO CUERPO...", 4, 136, Pal.C, 1, 0, Pal.K)
 
@@ -536,8 +555,8 @@ func _draw_villano_end() -> void:
 		_text("¡DETUVISTE", W / 2.0, 14, Pal.Y, 3, 1, Pal.R, Pal.RAMP_Y)
 		_text("A LOS HÉROES!", W / 2.0, 34, Pal.Y, 2, 1, Pal.R, Pal.RAMP_Y)
 	else:
-		_text("ZONA PERDIDA", W / 2.0, 18, Pal.R, 3, 1, Pal.K, Pal.RAMP_R)
-		_text("LOS HÉROES SIGUEN A LAS RUINAS (PRÓXIMAMENTE)", W / 2.0, 42, Pal.S)
+		_text("CAYÓ EL TRONO", W / 2.0, 18, Pal.R, 3, 1, Pal.K, Pal.RAMP_R)
+		_text("LOS HÉROES VENCIERON AL MEGA CABALLERO", W / 2.0, 42, Pal.S)
 	_text("HÉROES TUMBADOS %d DE %d" % [main.fallen, main.heroes.size()], W / 2.0, 56, Pal.W)
 	_text("CORAZONES QUE LES SACASTE %d" % main.dealt, W / 2.0, 65, Pal.W)
 	_text("PUNTOS %d" % main.score, W / 2.0, 77, Pal.Y)

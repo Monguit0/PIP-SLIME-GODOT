@@ -74,12 +74,14 @@ func _physics_process(dt: float) -> void:
 	if hero:
 		_hit_foes()
 		return
-	var p: Player = game.player if game != null else null
-	if p != null and not p.dead and p.box().has_point(global_position + Vector2(face * 2.0, 0)):
-		if p.hurt(global_position.x - face * 10.0, 1, self):
-			Fx.burst(get_parent(), global_position, 4, [Pal.L, Pal.W], 60.0, 20.0, 0.25, 200.0)
-			queue_free()
-			return
+	# en la campaña hay un solo héroe; en el modo Villano son cuatro
+	for h in get_tree().get_nodes_in_group("heroe"):
+		var p := h as Player
+		if p != null and not p.dead and p.box().has_point(global_position + Vector2(face * 2.0, 0)):
+			if p.hurt(global_position.x - face * 10.0, 1, self):
+				Fx.burst(get_parent(), global_position, 4, [Pal.L, Pal.W], 60.0, 20.0, 0.25, 200.0)
+				queue_free()
+				return
 
 
 ## devuelta por el parry: le pega a lo que encuentre (2 de daño)

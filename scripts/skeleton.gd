@@ -16,6 +16,11 @@ const HP := {"skarch": 3, "skaxe": 4}
 const SPEED := {"skarch": 34.0, "skaxe": 42.0}
 const EnemyArrow := preload("res://scripts/enemy_arrow.gd")
 const BONE := [Color("e0d7b9"), Color("b5a98d"), Pal.S]  # huesitos que saltan
+const Turbo := preload("res://scripts/turbo.gd")
+# modo Villano (MOB del original): cuando lo manejás vos corre más y salta
+const PSPEED := {"skarch": 62.0, "skaxe": 66.0}
+const VJUMP := 245.0
+const VNAME := {"skarch": "ESQUELETO ARQUERO", "skaxe": "ESQUELETO HACHERO"}
 
 var kind := "skarch"
 var zone := 0
@@ -52,6 +57,15 @@ var target: Area2D
 var hero: Player
 var game  # main.gd
 var frames := {}  # anim -> [Texture2D]
+# modo Villano
+var villain := false   # es del villano: va contra el héroe más cercano (cualquiera de los cuatro)
+var ctrl := false      # lo maneja el jugador
+var max_hp := 3
+var show_hp := 0.0
+var drop_t := 0.0
+var turbo = Turbo.new()
+var charging := false  # (los esqueletos no cargan nada; lo mira la cámara)
+var aim_x := 0.0
 
 
 func _ready() -> void:
@@ -62,6 +76,7 @@ func _ready() -> void:
 	set_collision_mask_value(2, true)
 	floor_snap_length = 2.0
 	hp = HP.get(kind, 3)
+	max_hp = hp
 	cool = 0.8 + randf() * 1.2
 	pdir = -1.0 if randf() < 0.5 else 1.0
 	spawn = 0.55
@@ -190,9 +205,26 @@ func _physics_process(dt: float) -> void:
 		if Engine.get_physics_frames() % 6 == 0:
 			var a := Time.get_ticks_msec() / 1000.0 * 9.0
 			Fx.part(get_parent(), global_position + Vector2(cos(a) * 5.0, -22.0 + sin(a) * 1.5), Vector2.ZERO, 0.0, 0.16, Pal.Y if int(a) % 2 == 0 else Pal.W)
-	var dir := _think(dt)
+	if villain:
+		queue_redraw()
+		show_hp -= dt
+		hero = _nearest_hero()
+		if drop_t > 0.0:
+			drop_t -= dt
+			if drop_t <= 0.0:
+				set_collision_mask_value(2, true)
+	var dir := _ctrl_input(dt) if ctrl else _think(dt)
 	var spd: float = SPEED.get(kind, 36.0)
-	if stun > 0.0:
+	if ctrl:
+		# lo manejás vos (playerMob): acelera como los bichos del villano y se mueve aunque esté atacando
+		if stun > 0.0:
+			stun -= dt
+			dir = 0.0
+		var on: bool = turbo.step(self, dt, stun <= 0.0 and Input.is_action_pressed("especial") and _playing(), face, Color("e0d7b9"), 9.0)
+		var top: float = float(PSPEED.get(kind, 62.0)) * (Turbo.MUL if on else 1.0)
+		var acc := (900.0 if on else (700.0 if is_on_floor() else 450.0)) * dt
+		velocity.x += clampf(dir * top - velocity.x, -acc, acc)
+	elif stun > 0.0:
 		stun -= dt
 		if is_on_floor():
 			velocity.x *= maxf(0.0, 1.0 - 8.0 * dt)
@@ -221,6 +253,97 @@ func _physics_process(dt: float) -> void:
 	_attacks(dt)
 	_touch_hero()
 	_animate(dt)
+
+
+func _playing() -> bool:
+	return game == null or game.state == "play"
+
+
+## el héroe más cercano (nearestBot del original: la altura pesa un poco más que la distancia)
+func _nearest_hero() -> Player:
+	var best: Player = null
+	var bd := 1e9
+	for h in get_tree().get_nodes_in_group("heroe"):
+		var p := h as Player
+		if p == null or p.dead:
+			continue
+		var d := absf(p.global_position.x - global_position.x) + absf(p.global_position.y - global_position.y) * 1.5
+		if d < bd:
+			bd = d
+			best = p
+	return best
+
+
+func mob_name() -> String:
+	return VNAME.get(kind, "ESQUELETO")
+
+
+func mob_hint() -> String:
+	return ("X: FLECHA" if kind == "skarch" else "X: HACHAZO") + " · SHIFT: TURBO"
+
+
+## Le entra el alma del villano: destello, aro, y ya no se queda en su plataforma.
+func possess() -> void:
+	ctrl = true
+	cool = 0.0
+	windup = 0.0
+	shoot_t = -1.0
+	stun = 0.0
+	flash = 0.12
+	turbo.reset()
+	squash = Vector2(0.75, 1.35)
+	if game != null:
+		min_x = float(game.ZONES[zone].start + 6)
+		max_x = float(game.gates[zone].x - 6) if zone < game.gates.size() else float(game.ZONES[zone].end - 6)
+	var at := global_position + Vector2(0, -10)
+	Fx.burst(get_parent(), at, 12, [Pal.Y, Pal.C, Pal.W], 60.0, 30.0, 0.5, 0.0)
+	Fx.ring(get_parent(), at, Pal.C, 0.0, 14.0, 1.0, 0.3)
+	Fx.ring(get_parent(), at, Pal.W, -0.06, 20.0, 1.0, 0.3)
+
+
+## Lo manejás vos (playerMob): izquierda y derecha, salto, abajo + salto para bajar de la plataforma y ataque:
+## el arquero tira la flecha (casi sin espera) y el hachero pega el hachazo sin levantar antes el hacha.
+func _ctrl_input(_dt: float) -> float:
+	cool -= _dt
+	if not _playing() or stun > 0.0:
+		return 0.0
+	var d := float(int(Input.is_action_pressed("derecha")) - int(Input.is_action_pressed("izquierda")))
+	if d != 0.0 and shoot_t < 0.0:
+		face = d
+	if Input.is_action_just_pressed("saltar") and is_on_floor():
+		if Input.is_action_pressed("abajo") and global_position.y < 126.0:
+			set_collision_mask_value(2, false)
+			drop_t = 0.25
+		else:
+			velocity.y = -VJUMP
+			squash = Vector2(0.7, 1.35)
+			Snd.play("salto", {"rate": 1.15})
+			Fx.dust(get_parent(), global_position, 2, 18.0, 3.0, 1.3)
+	if Input.is_action_just_pressed("atacar") and cool <= 0.0:
+		if kind == "skarch":
+			shoot_t = 0.16   # la flecha sale a los 0,26: una décima de tensar el arco
+			shot = false
+			cool = 0.45
+		else:
+			cool = 0.55
+			swing_t = 0.0
+			swing_hit = false
+			Snd.play("tajo", {"rate": 0.75, "vol": 0.7})
+			Snd.play("huesos", {"vol": 0.4})
+			velocity.x += face * 40.0
+			squash = Vector2(1.2, 0.86)
+	return d
+
+
+## Marcas del modo Villano: la flecha sobre el que manejás, su turbo y la vida del que está lastimado.
+func _draw() -> void:
+	if not villain or dead or spawn > 0.0:
+		return
+	if ctrl:
+		Turbo.draw_marker(self, -29.0)
+		turbo.draw_bar(self)
+	if hp < max_hp and (show_hp > 0.0 or ctrl):
+		Turbo.draw_hp(self, -25.0, hp, max_hp)
 
 
 ## Decide hacia dónde caminar (-1, 0, 1) como aiMob del original.
@@ -286,11 +409,16 @@ func _attacks(dt: float) -> void:
 			squash = Vector2(1.2, 0.86)
 	if swing_t < 0.3:
 		swing_t += dt
-		if swing_t < 0.14 and not swing_hit and hero != null and not hero.dead:
+		if swing_t < 0.14 and not swing_hit:
 			var hb := Rect2(global_position.x + (1.0 if face > 0.0 else -19.0), global_position.y - 24, 18, 24)
-			if hero.box().intersects(hb):
-				swing_hit = true
-				hero.hurt(global_position.x, 1, self)
+			# en la campaña hay un solo héroe; en el modo Villano el hachazo le pega a todos los que agarre, de a 2
+			for h in get_tree().get_nodes_in_group("heroe"):
+				var p := h as Player
+				if p != null and not p.dead and p.box().intersects(hb):
+					if p.hurt(global_position.x, 2 if villain else 1, self):
+						swing_hit = true
+				if swing_hit and not villain:
+					break
 		if swing_t >= 0.04 and swing_t - dt < 0.04:
 			var at := global_position + Vector2(face * 14.0, 0)
 			Fx.slash(get_parent(), global_position + Vector2(face * 2.0, -12), 13.0, -110.0, 60.0, face, Pal.S, 4.0, 0.13)
@@ -366,6 +494,10 @@ func take_hit(dmg: int, from_dir: int, how: String = "arrow") -> void:
 	stun = 0.35
 	windup = 0.0
 	shoot_t = -1.0
+	show_hp = 2.0
+	if ctrl:  # te pegaron a vos
+		Fx.flash_red = 0.14
+		Fx.shake(3.0, 0.18)
 	var kd := from_dir if from_dir != 0 else (-1 if randf() < 0.5 else 1)
 	knock = kd * 100.0
 	velocity.y = -90.0
