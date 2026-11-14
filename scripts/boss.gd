@@ -145,6 +145,7 @@ var kick_dir := 1.0
 var last_face := -1
 # modo Villano
 var ctrl := false   # lo maneja el jugador, contra los cuatro héroes
+var vs_many := false  # pelea contra los cuatro héroes (lo maneje una persona o no)
 var cd := {"sweep": 0.0, "slam": 0.0, "charge": 0.0, "rain": 0.0}
 var combo := 0      # con media vida o menos, los ataques encadenados salen más rápido y pegan uno más
 var chain_t := 0.0
@@ -231,6 +232,12 @@ func head() -> Rect2:
 ## Lo va a manejar el jugador (modo Villano).
 func make_ctrl() -> void:
 	ctrl = true
+	make_villain()
+
+
+## Jefe del modo Villano manejado por el juego (multijugador sin nadie de villano).
+func make_villain() -> void:
+	vs_many = true
 	hp = PB_HP
 	max_hp = PB_HP
 	shown_hp = float(PB_HP)
@@ -284,7 +291,7 @@ func _bonus() -> int:
 func _input_dir() -> int:
 	if game.state != "play":
 		return 0
-	return int(Input.is_action_pressed("derecha")) - int(Input.is_action_pressed("izquierda"))
+	return int(Ctl.down(game.vdev, "derecha")) - int(Ctl.down(game.vdev, "izquierda"))
 
 
 ## el ataque que pidió el jugador, si ya recargó
@@ -294,7 +301,7 @@ func _pick() -> String:
 	if state == "rec" and not _can_combo():
 		return ""  # sin furia hay que esperar a que se recupere
 	for k in PB:
-		if Input.is_action_just_pressed(PB[k].key) and cd[k] <= 0.0 and not (state == "rec" and k == atk):
+		if Ctl.tap(game.vdev, PB[k].key) and cd[k] <= 0.0 and not (state == "rec" and k == atk):
 			return k
 	return ""
 
@@ -487,9 +494,9 @@ func apply_venom() -> void:
 func damage(dmg: int, hx: float, hy: float, force: bool = false, no_crit: bool = false) -> bool:
 	if not active():
 		return false
-	if ctrl and hurt_inv > 0.0 and not no_crit:
-		return false  # manejado por vos: entre golpe y golpe hay un respiro, o los cuatro juntos lo derriten
-	if ctrl and not no_crit:
+	if vs_many and hurt_inv > 0.0 and not no_crit:
+		return false  # contra cuatro: entre golpe y golpe hay un respiro, o entre todos lo derriten
+	if vs_many and not no_crit:
 		hurt_inv = 0.2
 	var crit := not no_crit and (force or Fx.rand_crit())
 	var total := dmg * 3 if crit else dmg
@@ -585,7 +592,7 @@ func _die() -> void:
 
 func _physics_process(dt: float) -> void:
 	clock += dt
-	if ctrl:
+	if vs_many:
 		hurt_inv -= dt
 		for k in cd:
 			cd[k] = maxf(0.0, cd[k] - dt)

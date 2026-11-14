@@ -165,6 +165,31 @@ la parte "modo Villano" (`possessNext`, `enterInvadeZone`, los refuerzos y el fi
 y las marcas del bicho que manejás) y en `scripts/player.gd`, `_down` y `_tap`: las
 acciones del héroe salen del teclado o de lo que decide el bot.
 
+## Multijugador local
+
+Tercer modo del título (**arriba y abajo**): es el modo Villano, pero cada lugar lo puede manejar una persona, en
+la misma compu, con el teclado y hasta ocho joysticks. Los lugares que nadie elige los maneja el juego.
+
+- **La sala**: cinco lugares (Villano, Arquero, Caballero, Bárbaro, Mago). Cada control se suma con `A` (o
+  espacio / `X` en el teclado) y cae en el primer lugar libre; con ← → se cambia a otro libre; `B` (o Esc) lo
+  deja, y sin lugar cierra la sala. `START` (o Enter) arranca. Debajo de cada lugar dice quién lo tiene o *BOT*.
+- **El villano también puede ser bot**: si nadie lo elige, los bichos y el Mega Caballero se manejan solos y
+  todas las personas juegan de héroes, en cooperativo.
+- **Joystick**: cruz o palanca mover · `A` saltar · `X` o `RB` atacar · `B` o `LB` especial (turbo del bicho,
+  carga del jefe) · `Y` poder (lluvia del jefe) · `START` empezar. El teclado, igual que siempre.
+- **La cámara**: si las personas se separan, se aleja apoyada en el piso hasta mostrar la zona entera (dos
+  pantallas) y se acerca despacio cuando se juntan. Con la cámara ya lo más lejos posible, el que se sigue
+  alejando espera a los demás. En el Salón del Trono vuelve a la normal.
+- **En pantalla**: sobre cada héroe manejado por una persona, una flechita con su control (*TEC*, *J1*...) y en
+  la lista de arriba, su barra de energía. Los héroes de las personas corren a velocidad completa (los del bot
+  siguen al 62%). El héroe que cae no vuelve en esa partida.
+- **Final**: *¡GANARON LOS HÉROES!* si cae el Mega Caballero, *GANÓ EL VILLANO* si caen los cuatro. `R` es la
+  revancha con los mismos lugares; volviendo al título se pasa otra vez por la sala.
+
+Código: `scripts/ctl.gd` (los controles por dispositivo: cada uno tiene sus acciones, `kb_saltar`, `j0_saltar`...),
+en `scripts/main.gd` la parte "multijugador local" (`lobby_step`, los lugares en `seats`, la cámara que se aleja
+en `_update_camera`) y en `scripts/hud.gd`, `_draw_lobby`.
+
 ## Cómo está armado
 - `scenes/main.tscn`: la escena principal; el nivel se arma por código en `scripts/main.gd` (zonas, plataformas,
   portones y antorchas están en constantes arriba de todo, copiadas del original).
@@ -216,6 +241,6 @@ acciones del héroe salen del teclado o de lo que decide el bot.
 ## Plan
 1. **Base**: proyecto, Pip arquero, slimes y el Reino. ✔
 2. **Nivel 1 completo con el arquero**: música, sonidos, juice, monedas, cartas, evolución y Mega Caballero. ✔
-   Caballero, bárbaro y mago con sus evoluciones ✔. Modo Villano completo ✔ (Pradera, Ruinas, Murallas y el Mega Caballero).
+   Caballero, bárbaro y mago con sus evoluciones ✔. Modo Villano completo ✔ (Pradera, Ruinas, Murallas y el Mega Caballero). Multijugador local ✔ (falta el online).
 3. **Niveles 2 a 4** con sus bichos y jefes (Campeón, Yeti, Kraken), experiencia y evoluciones.
 4. **Sillón** (varios joysticks en la misma pantalla) y después el **online**.

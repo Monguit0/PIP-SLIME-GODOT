@@ -402,17 +402,17 @@ func _update_ctrl(dt: float) -> void:
 	var playing: bool = game == null or game.state == "play"
 	var d := 0.0
 	if playing and stun <= 0.0:
-		d = float(int(Input.is_action_pressed("derecha")) - int(Input.is_action_pressed("izquierda")))
+		d = float(int(Ctl.down(game.vdev, "derecha")) - int(Ctl.down(game.vdev, "izquierda")))
 	if d != 0.0:
 		face = d
-	if playing and stun <= 0.0 and Input.is_action_just_pressed("saltar") and is_on_floor():
-		if Input.is_action_pressed("abajo") and global_position.y < 126.0:
+	if playing and stun <= 0.0 and Ctl.tap(game.vdev, "saltar") and is_on_floor():
+		if Ctl.down(game.vdev, "abajo") and global_position.y < 126.0:
 			set_collision_mask_value(2, false)
 			drop_t = 0.25
 		else:
 			_hop(float(VJUMP.get(kind, 235.0)))
 			Snd.play("salto", {"rate": 0.8})
-	if playing and stun <= 0.0 and Input.is_action_pressed("atacar") and cool <= 0.0:
+	if playing and stun <= 0.0 and Ctl.down(game.vdev, "atacar") and cool <= 0.0:
 		if not charging:
 			Snd.play("menu", {"rate": 0.7, "vol": 0.4})
 		if not charging:
@@ -432,7 +432,7 @@ func _update_ctrl(dt: float) -> void:
 		charging = false
 		charge = 0.0
 	# turbo de baba: con el especial apretado va mucho más rápido mientras le quede barra
-	var turbo_on: bool = turbo.step(self, dt, playing and stun <= 0.0 and Input.is_action_pressed("especial"), face, COL.get(kind, Pal.G), 4.0)
+	var turbo_on: bool = turbo.step(self, dt, playing and stun <= 0.0 and Ctl.down(game.vdev, "especial"), face, COL.get(kind, Pal.G), 4.0)
 	var sp: float = float(PSPEED.get(kind, 58.0)) * (0.5 if charging else 1.0) * (Turbo.MUL if turbo_on else 1.0)
 	_mob_physics(dt, d, sp)
 	if turbo_on and stun <= 0.0 and d != 0.0:  # con turbo responde más rápido que la aceleración normal

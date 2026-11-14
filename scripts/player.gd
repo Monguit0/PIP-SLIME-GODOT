@@ -168,6 +168,7 @@ var twirl_t := 0.0           # girando en el aire (doble salto y al rebotar en u
 var apex_fx := false         # ya salió el destello de arriba de todo del salto
 # modo Villano: a este héroe lo maneja un bot (hero_bot.gd), que "aprieta" las acciones por él
 var bot := false
+var pad = null   # multijugador: con qué juega esta persona (Ctl.KB o el número del joystick); null = cualquiera
 var brain
 var inp := {}
 var inp_prev := {}
@@ -193,11 +194,11 @@ func melee() -> bool:
 ## lo que cuesta el especial de cada uno (las marcas de la barra de energía)
 ## Las acciones del héroe: del teclado o el joystick, o las que decide el bot.
 func _down(a: String) -> bool:
-	return bool(inp.get(a, false)) if bot else Input.is_action_pressed(a)
+	return bool(inp.get(a, false)) if bot else Ctl.down(pad, a)
 
 
 func _tap(a: String) -> bool:
-	return (bool(inp.get(a, false)) and not bool(inp_prev.get(a, false))) if bot else Input.is_action_just_pressed(a)
+	return (bool(inp.get(a, false)) and not bool(inp_prev.get(a, false))) if bot else Ctl.tap(pad, a)
 
 
 func special_cost() -> float:
@@ -1480,11 +1481,13 @@ func hurt(from_x: float, amount: int = 1, src: Object = null) -> bool:
 	velocity = Vector2(dir * 140.0, -170.0)
 	squash = Vector2(1.3, 0.75)
 	Snd.play("dano")
-	Fx.hitstop(0.09 if not bot else 0.05)
-	Fx.shake(5.0 if not bot else 2.5, 0.28 if not bot else 0.16)
-	if not bot:
+	# con varios héroes en pantalla (modo Villano y multijugador) el golpe a uno no sacude todo ni tiñe de rojo
+	var soft: bool = bot or (game != null and game.mode == "villano")
+	Fx.hitstop(0.09 if not soft else 0.05)
+	Fx.shake(5.0 if not soft else 2.5, 0.28 if not soft else 0.16)
+	if not soft:
 		Fx.flash_red = 0.18
-	Fx.kick(Vector2(dir, 0), 2.5 if not bot else 1.2)
+	Fx.kick(Vector2(dir, 0), 2.5 if not soft else 1.2)
 	hurt_by.emit(src)
 	Fx.hit(get_parent(), global_position + Vector2(-dir * 3.0, -10), Vector2(dir, -0.3), Pal.R, true)
 	Fx.burst(get_parent(), global_position + Vector2(0, -9), 8, [Pal.R, Pal.O, Pal.W], 80.0, 40.0, 0.45, 220.0)

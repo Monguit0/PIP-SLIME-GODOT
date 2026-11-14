@@ -220,7 +220,7 @@ func _physics_process(dt: float) -> void:
 		if stun > 0.0:
 			stun -= dt
 			dir = 0.0
-		var on: bool = turbo.step(self, dt, stun <= 0.0 and Input.is_action_pressed("especial") and _playing(), face, Color("e0d7b9"), 9.0)
+		var on: bool = turbo.step(self, dt, stun <= 0.0 and Ctl.down(game.vdev, "especial") and _playing(), face, Color("e0d7b9"), 9.0)
 		var top: float = float(PSPEED.get(kind, 62.0)) * (Turbo.MUL if on else 1.0)
 		var acc := (900.0 if on else (700.0 if is_on_floor() else 450.0)) * dt
 		velocity.x += clampf(dir * top - velocity.x, -acc, acc)
@@ -307,11 +307,11 @@ func _ctrl_input(_dt: float) -> float:
 	cool -= _dt
 	if not _playing() or stun > 0.0:
 		return 0.0
-	var d := float(int(Input.is_action_pressed("derecha")) - int(Input.is_action_pressed("izquierda")))
+	var d := float(int(Ctl.down(game.vdev, "derecha")) - int(Ctl.down(game.vdev, "izquierda")))
 	if d != 0.0 and shoot_t < 0.0:
 		face = d
-	if Input.is_action_just_pressed("saltar") and is_on_floor():
-		if Input.is_action_pressed("abajo") and global_position.y < 126.0:
+	if Ctl.tap(game.vdev, "saltar") and is_on_floor():
+		if Ctl.down(game.vdev, "abajo") and global_position.y < 126.0:
 			set_collision_mask_value(2, false)
 			drop_t = 0.25
 		else:
@@ -319,7 +319,7 @@ func _ctrl_input(_dt: float) -> float:
 			squash = Vector2(0.7, 1.35)
 			Snd.play("salto", {"rate": 1.15})
 			Fx.dust(get_parent(), global_position, 2, 18.0, 3.0, 1.3)
-	if Input.is_action_just_pressed("atacar") and cool <= 0.0:
+	if Ctl.tap(game.vdev, "atacar") and cool <= 0.0:
 		if kind == "skarch":
 			shoot_t = 0.16   # la flecha sale a los 0,26: una décima de tensar el arco
 			shot = false

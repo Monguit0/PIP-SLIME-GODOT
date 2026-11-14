@@ -38,7 +38,11 @@ const VILLAIN_RESERVE := [
 	["skarch", "green", "skaxe", "red"],
 	["skaxe", "skarch", "red", "skarch"],
 ]
-const MODES := ["campaign", "villano"]
+const MODES := ["campaign", "villano", "multi"]
+## Multijugador local: los lugares de la sala. El que nadie elige lo maneja un bot.
+const SEATS := ["v", "archer", "knight", "barb", "mage"]
+const CAM_Z_MIN := 0.5   # lo más lejos que se va la cámara: la zona entera (dos pantallas)
+const CAM_PAD := 30.0
 
 const ZONES := [
 	{"start": 0, "end": 512, "name": "PRADERA", "green": 4, "red": 1, "arch": 0, "axe": 1, "haz": 0.55},
@@ -82,6 +86,10 @@ static var fade_in := false
 static var kind := "archer"
 ## "campaign": sos el héroe. "villano": manejás a los bichos, de a uno, contra los cuatro héroes (bots).
 static var mode := "campaign"
+## multijugador local: es el modo Villano, pero cada lugar lo puede manejar una persona (seats: lugar -> dispositivo)
+static var multi := false
+static var seats := {}
+static var lobby_done := false
 
 var player: Player
 var camera: Camera2D
@@ -118,6 +126,13 @@ var fallen := 0             # héroes que tumbaste
 var dealt := 0              # corazones que les sacaste
 var reserve: Array = []     # refuerzos que faltan llegar
 var reinforce_t := 0.0
+var vdev = null             # con qué se maneja al villano (null: cualquier control, un solo jugador)
+var vbot := false           # multijugador sin nadie de villano: los bichos y el jefe se manejan solos
+var lobby := false          # la sala del multijugador, sobre el título
+var lobby_t := 0.0
+var lobby_flash := {}
+var cam_z := 1.0            # 1 = normal; menos = más lejos (multijugador)
+var end_msg := ["", ""]
 var zone_lost := false      # se quedó sin bichos: el portón se abre y los héroes avanzan
 var fade := 0.0
 var _warm_paths: Array = []  # cuadros del jefe y los esqueletos que se están cargando en segundo plano
@@ -129,6 +144,7 @@ func _ready() -> void:
 	get_tree().paused = false
 	Fx.reset()
 	_setup_input()
+	Ctl.setup()
 	best = _load_best()
 	var bg := BgScript.new()
 	bg.main = self
@@ -158,8 +174,14 @@ func _ready() -> void:
 
 
 ## En el título: arriba y abajo cambian de modo.
+func mode_name() -> String:
+	return "multi" if multi else mode
+
+
 func pick_mode(step: int) -> void:
-	mode = MODES[(MODES.find(mode) + step + MODES.size()) % MODES.size()]
+	var m: String = MODES[(MODES.find(mode_name()) + step + MODES.size()) % MODES.size()]
+	multi = m == "multi"
+	mode = "campaign" if m == "campaign" else "villano"
 	Snd.play("menu", {"rate": 0.9 if mode == "villano" else 1.2, "vol": 0.6, "vary": false})
 	if mode == "villano":
 		Snd.play("posesion", {"rate": 1.5, "vol": 0.5, "vary": false})
@@ -180,7 +202,13 @@ func pick_hero(step: int) -> void:
 
 
 func start_game() -> void:
-	if state == "play":
+	if state == "play" or lobby:
+		return
+	if multi and not lobby_done:
+		# multijugador: primero la sala, para que cada uno elija lugar
+		lobby = true
+		lobby_t = 0.0
+		Snd.play("menu", {"rate": 1.4, "vol": 0.6, "vary": false})
 		return
 	state = "play"
 	Snd.play("oleada", {"rate": 1.2, "vol": 0.7, "vary": false})
@@ -190,6 +218,83 @@ func start_game() -> void:
 	_enter_zone(0, true)
 
 
+# ---------------------------------------------------------------- multijugador local
+
+func seat_of(dev) -> String:
+	for s in seats:
+		if seats[s] == dev:
+			return s
+	return ""
+
+
+## La sala: cada control se suma con salto, se cambia de lugar con izquierda y derecha, sale con atrás,
+## y START (o Enter) arranca. Los lugares vacíos quedan para los bots.
+func lobby_step(dt: float) -> void:
+	lobby_t += dt
+	for s in lobby_flash.keys():
+		lobby_flash[s] -= dt
+	if lobby_t < 0.25:
+		return
+	for s in seats.keys():  # se desenchufó
+		if not Ctl.devices().has(seats[s]):
+			seats.erase(s)
+	for d in Ctl.devices():
+		var seat := seat_of(d)
+		if seat == "":
+			if Ctl.tap(d, "saltar") or Ctl.tap(d, "atacar"):
+				for s in SEATS:
+					if not seats.has(s):
+						seats[s] = d
+						lobby_flash[s] = 0.25
+						Snd.play("moneda", {"rate": 1.0 + SEATS.find(s) * 0.08, "vary": false})
+						break
+			elif Ctl.tap(d, "back") or Ctl.tap(d, "especial"):
+				lobby = false
+				Snd.play("menu", {"rate": 0.8, "vol": 0.6, "vary": false})
+				return
+			continue
+		var step := int(Ctl.tap(d, "derecha")) - int(Ctl.tap(d, "izquierda"))
+		if step != 0:
+			var i := SEATS.find(seat)
+			for n in SEATS.size() - 1:
+				i = (i + step + SEATS.size()) % SEATS.size()
+				if not seats.has(SEATS[i]):
+					seats.erase(seat)
+					seats[SEATS[i]] = d
+					lobby_flash[SEATS[i]] = 0.2
+					Snd.play("menu", {"rate": 1.2, "vol": 0.5, "vary": false})
+					break
+		elif Ctl.tap(d, "back") or Ctl.tap(d, "especial"):
+			seats.erase(seat)
+			Snd.play("menu", {"rate": 0.8, "vol": 0.5, "vary": false})
+		elif Ctl.tap(d, "start"):
+			lobby = false
+			lobby_done = true
+			start_game()
+			return
+	if not seats.is_empty() and Ctl.tap(Ctl.KB, "start"):
+		lobby = false
+		lobby_done = true
+		start_game()
+
+
+## la flechita con el nombre del control sobre el héroe de cada persona
+class HeroTag extends Node2D:
+	var txt := ""
+	var col := Color.WHITE
+	var hero: Player
+
+	func _ready() -> void:
+		z_index = 20
+
+	func _process(_dt: float) -> void:
+		visible = hero != null and not hero.dead
+
+	func _draw() -> void:
+		PText.draw(self, txt, 0, -33, col, 1, 1)
+		draw_colored_polygon(PackedVector2Array([Vector2(-1.5, -27.5), Vector2(1.5, -27.5), Vector2(0, -25.5)]), col)
+
+
 # ---------------------------------------------------------------- modo Villano
 
 ## Arranca la partida de villano en la Pradera: los cuatro héroes entran por la izquierda manejados por bots,
@@ -197,6 +302,8 @@ func start_game() -> void:
 func _start_villano() -> void:
 	z = 0
 	cleared = false
+	vdev = seats.get("v") if multi else null
+	vbot = multi and not seats.has("v")
 	var kinds: Array = Player.KINDS
 	for i in kinds.size():
 		var h: Player = player
@@ -208,9 +315,18 @@ func _start_villano() -> void:
 			h.kind = kinds[i]
 			add_child(h)
 		h.position = Vector2(18 + i * 13, GROUND)
-		h.bot = true
-		h.brain = BotScript.new()
-		h.brain.game = self
+		if multi and seats.has(kinds[i]):
+			# lo maneja una persona, con su control
+			h.pad = seats[kinds[i]]
+			var tag := HeroTag.new()
+			tag.hero = h
+			tag.txt = Ctl.tag(h.pad)
+			tag.col = Ctl.color(h.pad)
+			h.add_child(tag)
+		else:
+			h.bot = true
+			h.brain = BotScript.new()
+			h.brain.game = self
 		h.invuln = 0.6
 		if i > 0:
 			h.died.connect(_on_hero_died.bind(h))
@@ -231,6 +347,9 @@ func _villano_zone(n: int) -> void:
 	reserve = VILLAIN_RESERVE[n].duplicate()
 	reinforce_t = 3.0
 	possess_t = 0.0
+	if vbot:
+		_show_banner("ZONA %d" % (n + 1), ZONES[n].name)
+		return
 	_possess_next(true)
 	_show_banner("ZONA %d" % (n + 1), ZONES[n].name + " · SOS " + (ctrl.mob_name() if ctrl != null else "SLIME"))
 
@@ -270,7 +389,10 @@ func _villano_throne() -> void:
 	boss.game = self
 	boss.player = heroes[0]
 	add_child(boss)
-	boss.make_ctrl()
+	if vbot:
+		boss.make_villain()
+	else:
+		boss.make_ctrl()
 	banner = {"text": "", "sub": "", "t": 99.0, "long": false, "card": false}
 
 
@@ -403,7 +525,9 @@ func _villano_step(dt: float) -> void:
 			reinforce_t = 2.6
 			_reinforce()
 			field += 1
-	if ctrl == null or not is_instance_valid(ctrl) or ctrl.dead:
+	if vbot:
+		ctrl = null
+	elif ctrl == null or not is_instance_valid(ctrl) or ctrl.dead:
 		ctrl = null
 		possess_t -= dt
 		if possess_t <= 0.0 and field > 0:
@@ -431,6 +555,13 @@ func _villano_step(dt: float) -> void:
 
 func _villano_end(_won: bool) -> void:
 	end_t = 0.0
+	if multi:
+		# cayeron los cuatro: ganó el villano (si era una persona, festeja; si no, perdieron todos)
+		state = "over" if vbot else "win"
+		end_msg = ["GANÓ EL VILLANO", "LOS HÉROES NO LLEGARON" if z < 3 else "EL TRONO SIGUE EN PIE"]
+		_show_banner("¡CAYERON LOS HÉROES!", "", true)
+		Snd.play("derrota" if vbot else "oleada", {"vary": false})
+		return
 	state = "win"
 	add_score(500)
 	_show_banner("¡DEFENDISTE EL TRONO!" if z >= 3 else "¡DETUVISTE A LOS HÉROES!", "+500", true)
@@ -510,6 +641,8 @@ func _physics_process(dt: float) -> void:
 ## con R arranca directo con el mismo.
 func restart(to_title: bool = false) -> void:
 	skip_title = not to_title
+	if to_title:
+		lobby_done = false  # la revancha (R) arranca con los mismos lugares; desde el título se vuelve a la sala
 	fade_in = true
 	Engine.time_scale = 1.0
 	get_tree().paused = false
@@ -571,6 +704,14 @@ func gain_xp(n: int, at = null) -> void:
 
 
 func boss_defeated(at: Vector2) -> void:
+	if multi:
+		var humans := seats.size() - (0 if vbot else 1)
+		state = "win" if humans > 0 else "over"
+		end_t = 0.0
+		end_msg = ["¡GANARON LOS HÉROES!", "CAYÓ EL MEGA CABALLERO"]
+		_show_banner("¡CAYÓ EL TRONO!", "GANARON LOS HÉROES", true)
+		Snd.play("oleada" if humans > 0 else "derrota", {"delay": 0.6, "vary": false})
+		return
 	if mode == "villano":
 		# eras vos: los héroes se quedan con el trono
 		state = "over"
@@ -874,16 +1015,54 @@ func _start_boss() -> void:
 # ---------------------------------------------------------------- cámara
 
 func _update_camera(dt: float) -> void:
+	# multijugador: si las personas se separan, la cámara se aleja (hasta ver la zona entera) apoyada en el
+	# piso, y se vuelve a acercar cuando se juntan. Se aleja rápido y se acerca despacio.
+	var xs: Array = []
+	var solo: Player = null
+	if multi and state == "play" and z < 3:
+		for h in heroes:
+			if not h.dead and not h.bot:
+				xs.append(h.global_position.x)
+				solo = h
+		# el villano cuenta mientras tenga bichos (también en el rato que su alma busca otro cuerpo)
+		if not vbot and not zone_lost and not xs.is_empty():
+			xs.append(last_ctrl_x)
+	# la correa: con la cámara ya lo más lejos posible, el que se sigue alejando espera a los demás
+	# (si no, la cámara arrastraría al que quedó atrás)
+	var hs: Array = heroes.filter(func(h): return not h.dead and not h.bot) if not xs.is_empty() else []
+	if hs.size() > 1:
+		var lo := 1e9
+		var hi := -1e9
+		for h in hs:
+			lo = minf(lo, h.global_position.x)
+			hi = maxf(hi, h.global_position.x)
+		var limit := W / CAM_Z_MIN - CAM_PAD * 2.0
+		if hi - lo > limit:
+			for h in hs:
+				if h.global_position.x == hi and h.velocity.x > 0.0:
+					h.global_position.x = lo + limit
+				elif h.global_position.x == lo and h.velocity.x < 0.0:
+					h.global_position.x = hi - limit
+			xs = xs.map(func(v): return clampf(v, lo, lo + limit))
+	var tz := 1.0
+	if xs.size() > 1:
+		tz = clampf(W / (float(xs.max()) - float(xs.min()) + CAM_PAD * 2.0), CAM_Z_MIN, 1.0)
+	if absf(tz - cam_z) > 0.004:
+		cam_z += (tz - cam_z) * minf(1.0, dt * (6.0 if tz < cam_z else 1.6))
+	if cam_z > 0.995 and tz == 1.0:
+		cam_z = 1.0
+	var vw := W / cam_z
 	var min_x: float = ZONES[z].start
-	var max_x: float = ZONES[z].end - W
+	var max_x: float = ZONES[z].end - vw
 	# recién pasado el portón la cámara sigue atrás: no la empujamos de golpe
 	if z < 3 and cam_x < min_x:
 		min_x = cam_x
 	if z < 3 and gates[z].open > 0.5:
-		max_x = ZONES[z + 1].end - W
+		max_x = ZONES[z + 1].end - vw
 	if z == 3:
-		min_x = ZONES[3].start
+		min_x = minf(ZONES[3].start, WW - vw)
 		max_x = min_x
+	max_x = maxf(min_x, max_x)
 	var look := player.face * 26.0
 	var focus := player.global_position.x
 	if mode == "villano" and state != "title":
@@ -903,17 +1082,40 @@ func _update_camera(dt: float) -> void:
 			# cargando la baba: la cámara se corre para que entren el slime y el lugar donde va a caer
 			focus = clampf((ctrl.global_position.x + ctrl.aim_x) / 2.0, ctrl.global_position.x - 104.0, ctrl.global_position.x + 104.0)
 			look = 0.0
-	var target := clampf(focus - W / 2.0 + look, min_x, max_x)
+	if xs.size() > 1:
+		focus = (float(xs.min()) + float(xs.max())) / 2.0
+		look = 0.0
+	elif xs.size() == 1:
+		focus = solo.global_position.x
+		look = solo.face * 26.0
+	elif multi and vbot and state != "title" and z < 3:
+		if true:
+			# no queda ninguna persona en pie: acompaña a los bots
+			var sum := 0.0
+			var n := 0
+			for h in heroes:
+				if not h.dead:
+					sum += h.global_position.x
+					n += 1
+			if n > 0:
+				focus = sum / n
+				look = 0.0
+	var target := clampf(focus - vw / 2.0 + look, min_x, max_x)
 	var before := cam_x
-	cam_x += (target - cam_x) * minf(1.0, dt * (3.0 if z == 3 else 5.0))
+	cam_x += (target - cam_x) * minf(1.0, dt * (3.0 if z == 3 else (9.0 if cam_z < 0.999 else 5.0)))
 	cam_x = minf(cam_x, maxf(max_x, before))
-	var base := Vector2(roundf(cam_x * 2.0) / 2.0, 0)
+	if multi and state == "play" and z < 3:
+		# nadie se va de la pantalla: con la cámara ya lo más lejos posible, el borde frena
+		for h in heroes:
+			if not h.dead and not h.bot:
+				h.global_position.x = clampf(h.global_position.x, cam_x + 5.0, cam_x + vw - 5.0)
+	var base := Vector2(roundf(cam_x * 2.0) / 2.0, H * (1.0 - 1.0 / cam_z))
 	# acercamiento del crítico: el punto del golpe queda quieto en la pantalla
 	var zc := 1.0
 	if Fx.zoom_t > 0.0:
 		var f := Fx.zoom_t / 0.55
 		zc = 1.0 + 0.24 * f * f
-	camera.zoom = Vector2(2.0 * zc, 2.0 * zc)
+	camera.zoom = Vector2(2.0 * zc * cam_z, 2.0 * zc * cam_z)
 	camera.position = Fx.zoom_at - (Fx.zoom_at - base) / zc if zc > 1.0 else base
 
 

@@ -43,14 +43,19 @@ func _process(dt: float) -> void:
 	t += dt
 	var cx: float = main.cam_x if main else 0.0
 	var q := func(v: float) -> float: return roundf(v * 2.0) / 2.0
-	sky.position = Vector2(cx, 0)
-	stars.position = Vector2(cx, 0)
+	# cámara alejada (multijugador): el cielo se estira para llenar la pantalla, apoyado en el piso
+	var cz: float = main.cam_z if main else 1.0
+	var top := 144.0 * (1.0 - 1.0 / cz)
+	sky.scale = Vector2(0.5, 0.5) / cz
+	sky.position = Vector2(cx, top)
+	stars.scale = Vector2.ONE / cz
+	stars.position = Vector2(cx, top)
 	stars.t = t
 	for i in CLOUDS.size():
 		var c: Array = CLOUDS[i]
 		var x := fposmod(c[0] + t * c[2] - cx * 0.2, W + 60.0) - 40.0
 		clouds[i].position = Vector2(cx + q.call(x) - 4, c[1] - 7)
-	far.position = Vector2(cx - q.call(cx * 0.25), 0)
+	far.position = Vector2(cx - minf(q.call(cx * 0.25), 640.0 - W / cz), 0)
 	mid.position = Vector2(cx - q.call(cx * 0.5), 0)
 
 
