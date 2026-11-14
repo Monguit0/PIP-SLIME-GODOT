@@ -1,0 +1,223 @@
+{
+ "out": "assets/sprites/paladin",
+ "hojas": {
+  "a": "pal_a.png",
+  "b": "pal_b.png",
+  "d": [
+   "pal_d.png",
+   68,
+   72
+  ],
+  "e": [
+   "runup.png",
+   80,
+   68
+  ],
+  "w": [
+   "pw.png",
+   128,
+   92,
+   7
+  ],
+  "w4": [
+   "pw4.png",
+   132,
+   88,
+   4
+  ],
+  "j": [
+   "jw1.png",
+   104,
+   104,
+   8
+  ]
+ },
+ "anims": {
+  "idle": [
+   "a",
+   0,
+   [
+    0,
+    1,
+    2,
+    3
+   ]
+  ],
+  "run": [
+   "e",
+   1,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   [
+    "a",
+    2,
+    1
+   ]
+  ],
+  "jump": {
+   "hoja": "j",
+   "cuadros": [
+    10,
+    11,
+    12
+   ],
+   "alinear": "torso"
+  },
+  "fall": {
+   "hoja": "j",
+   "cuadros": [
+    13,
+    14,
+    15
+   ],
+   "alinear": "torso"
+  },
+  "attack": {
+   "hoja": "w4",
+   "cuadros": [
+    11,
+    12,
+    13,
+    14,
+    15
+   ],
+   "alinear": 8,
+   "estelas": [
+    [
+     12,
+     [
+      11,
+      13
+     ],
+     "y",
+     120
+    ]
+   ]
+  },
+  "charge": [
+   "a",
+   2,
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "charge_hold": [
+   "d",
+   0,
+   [
+    0,
+    1,
+    2,
+    3
+   ],
+   [
+    "a",
+    2,
+    3
+   ]
+  ],
+  "charge_walk": [
+   "d",
+   1,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   [
+    "a",
+    2,
+    3
+   ]
+  ],
+  "big": {
+   "hoja": "w",
+   "cuadros": [
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "alinear": 0,
+   "estelas": [
+    [
+     4,
+     [
+      3,
+      5
+     ],
+     "y",
+     120
+    ]
+   ]
+  },
+  "shield": [
+   "a",
+   4,
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "hurt": [
+   "a",
+   5,
+   [
+    0,
+    1,
+    2,
+    3
+   ]
+  ],
+  "death": [
+   "b",
+   2,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  ],
+  "flourish": [
+   "b",
+   1,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
+  ],
+  "land": {
+   "hoja": "j",
+   "cuadros": [
+    8,
+    9
+   ],
+   "alinear": "torso"
+  }
+ },
+ "nota": "PixelLab \"Pip caballero C\", estado \"Paladin espada grande\" 6a6ad284-f223-4852-bbef-d257a27c4367. a = join idle slash charge big shield hurt; b = join run flourish death jump-air; d = join charge-hold charge-walk; e = join run-up (fila 1). w = join espadazo-ref-pmm-w tajo-ref-pmm-w --as sheet --columns 7 (espadazo 0-7); w4 = join tajo-ref-v3-w tajo-ref-pmm-w4 --as sheet --columns 4 (el tajo es 8-15). attack y big: el tajo y el espadazo de la referencia, en lienzo grande y con la estela teñida. j = join jump-full-pmm (caballero y Paladín) --as sheet --columns 8 (caballero 0-7, Paladín 8-15): jump, fall y land."
+}

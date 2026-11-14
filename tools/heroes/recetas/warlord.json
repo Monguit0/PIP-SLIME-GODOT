@@ -1,0 +1,244 @@
+{
+ "out": "assets/sprites/warlord",
+ "hojas": {
+  "a": "war_a.png",
+  "b": "war_b.png",
+  "c": "war_c.png",
+  "d": "war_d.png",
+  "e": "war_e.png",
+  "ch": [
+   "wchop.png",
+   116,
+   92,
+   8
+  ],
+  "sp": [
+   "wspin.png",
+   116,
+   92,
+   8
+  ],
+  "jc": [
+   "wjc.png",
+   116,
+   104,
+   8
+  ],
+  "rw": [
+   "wrw.png",
+   116,
+   92,
+   8
+  ],
+  "j2": [
+   "wj16.png",
+   104,
+   104,
+   8
+  ],
+  "j3": [
+   "wj3.png",
+   104,
+   104,
+   8
+  ]
+ },
+ "anims": {
+  "idle": [
+   "b",
+   1,
+   [
+    0,
+    1,
+    2,
+    3
+   ]
+  ],
+  "run": {
+   "hoja": "rw",
+   "cuadros": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "alinear": [
+    24,
+    16
+   ]
+  },
+  "jump": {
+   "hoja": "j3",
+   "cuadros": [
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "alinear": "torso"
+  },
+  "fall": {
+   "hoja": "j3",
+   "cuadros": [
+    7,
+    8,
+    9
+   ],
+   "alinear": "torso"
+  },
+  "attack": {
+   "hoja": "ch",
+   "cuadros": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    11,
+    14,
+    15
+   ],
+   "alinear": [
+    24,
+    16
+   ],
+   "estelas": [
+    [
+     6,
+     [
+      5,
+      7
+     ],
+     "r",
+     0,
+     "oscuro"
+    ]
+   ]
+  },
+  "charge": {
+   "hoja": "jc",
+   "cuadros": [
+    8,
+    9
+   ],
+   "alinear": [
+    24,
+    28
+   ]
+  },
+  "spin": {
+   "hoja": "sp",
+   "cuadros": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13
+   ],
+   "alinear": [
+    24,
+    16
+   ],
+   "barrido": [
+    "oscuro",
+    "r"
+   ]
+  },
+  "fury": [
+   "a",
+   2,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  ],
+  "hurt": [
+   "b",
+   2,
+   [
+    0,
+    1,
+    2,
+    3
+   ]
+  ],
+  "death": [
+   "d",
+   0,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  ],
+  "charge_hold": {
+   "hoja": "jc",
+   "cuadros": [
+    10,
+    11,
+    12,
+    13
+   ],
+   "alinear": [
+    24,
+    28
+   ]
+  },
+  "land": {
+   "hoja": "j3",
+   "cuadros": [
+    10,
+    11,
+    12
+   ],
+   "alinear": [
+    18,
+    28
+   ],
+   "barrido": [
+    "claro",
+    "r"
+   ]
+  },
+  "charge_walk": {
+   "hoja": "rw",
+   "cuadros": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+   ],
+   "alinear": [
+    24,
+    16
+   ]
+  }
+ },
+ "verde_a_fuego": [],
+ "nota": "PixelLab \"Pip bárbaro E\", estado Warlord bba9208a-4b9d-4fcc-87aa-cece02a0f49e. a = join jump-air spin fury; b = join (caballero death-v3) idle hurt; c = chop; d = death; e = run || ch = chop-16-b, sp = spin-16-b (join --as sheet --columns 8), jc = join jump-full-b charge-b --as rows: pixminimax desde el quieto en un lienzo de 116x92 (en 24,16) o 104x104 (salto) || rw = join run-8-c charge-walk-c --as rows (la caminata cargando sale del cuadro de charge_hold); j2 = jump-16-c (join --as sheet --columns 8) || j3 = salto furioso (grita y sube el arma, cae listo para aplastar; join --as sheet --columns 8)"
+}

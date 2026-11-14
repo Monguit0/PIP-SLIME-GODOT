@@ -1,0 +1,241 @@
+{
+ "out": "assets/sprites/barbaro",
+ "hojas": {
+  "b": "rows2.png",
+  "c": "rows3.png",
+  "d": "rows4.png",
+  "ch": [
+   "bchop.png",
+   116,
+   92,
+   8
+  ],
+  "sp": [
+   "bspin.png",
+   116,
+   92,
+   8
+  ],
+  "jc": [
+   "bjc.png",
+   116,
+   104,
+   8
+  ],
+  "rw": [
+   "brw.png",
+   116,
+   92,
+   8
+  ],
+  "j2": [
+   "bj16.png",
+   104,
+   104,
+   8
+  ],
+  "j3": [
+   "bj3.png",
+   104,
+   104,
+   8
+  ]
+ },
+ "anims": {
+  "idle": [
+   "b",
+   5,
+   [
+    0,
+    1,
+    2,
+    3
+   ]
+  ],
+  "run": {
+   "hoja": "rw",
+   "cuadros": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "alinear": [
+    24,
+    16
+   ]
+  },
+  "jump": {
+   "hoja": "j3",
+   "cuadros": [
+    3,
+    5,
+    6,
+    7,
+    8
+   ],
+   "alinear": "torso"
+  },
+  "fall": {
+   "hoja": "j3",
+   "cuadros": [
+    9,
+    10,
+    11
+   ],
+   "alinear": "torso"
+  },
+  "attack": {
+   "hoja": "ch",
+   "cuadros": [
+    1,
+    2,
+    6,
+    7,
+    8,
+    9,
+    10,
+    12,
+    13,
+    14,
+    15
+   ],
+   "alinear": [
+    24,
+    16
+   ],
+   "estelas": [
+    [
+     7,
+     [
+      6,
+      8
+     ],
+     "o",
+     120
+    ]
+   ]
+  },
+  "charge": {
+   "hoja": "jc",
+   "cuadros": [
+    8,
+    9
+   ],
+   "alinear": [
+    24,
+    28
+   ]
+  },
+  "spin": {
+   "hoja": "sp",
+   "cuadros": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13
+   ],
+   "alinear": [
+    24,
+    16
+   ],
+   "barrido": [
+    "claro",
+    "o"
+   ]
+  },
+  "fury": [
+   "c",
+   1,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  ],
+  "hurt": [
+   "d",
+   2,
+   [
+    0,
+    1,
+    2,
+    3
+   ]
+  ],
+  "death": [
+   "d",
+   3,
+   [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  ],
+  "charge_hold": {
+   "hoja": "jc",
+   "cuadros": [
+    10,
+    11,
+    12,
+    13
+   ],
+   "alinear": [
+    24,
+    28
+   ]
+  },
+  "land": {
+   "hoja": "j3",
+   "cuadros": [
+    12,
+    13,
+    14
+   ],
+   "alinear": [
+    18,
+    28
+   ],
+   "barrido": [
+    "claro",
+    "o"
+   ]
+  },
+  "charge_walk": {
+   "hoja": "rw",
+   "cuadros": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+   ],
+   "alinear": [
+    24,
+    16
+   ]
+  }
+ },
+ "verde_a_fuego": [],
+ "nota": "PixelLab \"Pip bárbaro E\" 4ed4c531-1e90-4756-b884-e7411752c788. b = join (caballero hurt death) jump-air chop spin idle; c = join run fury hurt death; d = join (caballero hurt-v2 run-tpl) hurt-v2 death-v2 run-tpl || ch = chop-16-b, sp = spin-16-b (join --as sheet --columns 8), jc = join jump-full-b charge-b --as rows: pixminimax desde el quieto en un lienzo de 116x92 (en 24,16) o 104x104 (salto) || rw = join run-8-c charge-walk-c --as rows (la caminata cargando sale del cuadro de charge_hold); j2 = jump-16-c (join --as sheet --columns 8) || j3 = salto furioso (grita y sube el arma, cae listo para aplastar; join --as sheet --columns 8)"
+}

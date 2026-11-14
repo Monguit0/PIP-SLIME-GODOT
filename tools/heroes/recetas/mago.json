@@ -1,0 +1,211 @@
+{
+ "out": "assets/sprites/mago",
+ "hojas": {
+  "a": "mg_a.png",
+  "b": "mg_b.png",
+  "jb": [
+   "mg_jb.png",
+   68,
+   68,
+   13
+  ],
+  "w": "mg_w.png"
+ },
+ "anims": {
+  "idle": [
+   "a",
+   0,
+   [
+    1,
+    2,
+    3,
+    4
+   ]
+  ],
+  "run": [
+   "w",
+   2,
+   [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+   ]
+  ],
+  "jump": {
+   "hoja": "jb",
+   "cuadros": [
+    21,
+    22,
+    23,
+    24
+   ],
+   "alinear": [
+    0,
+    0
+   ]
+  },
+  "fall": {
+   "hoja": "jb",
+   "cuadros": [
+    29,
+    30,
+    31,
+    32
+   ],
+   "alinear": [
+    0,
+    0
+   ]
+  },
+  "land": {
+   "hoja": "jb",
+   "cuadros": [
+    33,
+    33
+   ],
+   "alinear": [
+    0,
+    1
+   ]
+  },
+  "attack": [
+   "a",
+   2,
+   [
+    1,
+    2,
+    3,
+    3,
+    3,
+    1
+   ]
+  ],
+  "charge": [
+   "a",
+   3,
+   [
+    1,
+    2,
+    3,
+    4
+   ]
+  ],
+  "charge_hold": [
+   "b",
+   2,
+   [
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  ],
+  "charge_walk": [
+   "b",
+   3,
+   [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ]
+  ],
+  "big": [
+   "a",
+   5,
+   [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  ],
+  "cast": [
+   "a",
+   4,
+   [
+    3,
+    4,
+    7,
+    5,
+    6,
+    8
+   ]
+  ],
+  "hurt": [
+   "a",
+   6,
+   [
+    1,
+    2,
+    3,
+    4
+   ]
+  ],
+  "death": [
+   "a",
+   7,
+   [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ]
+  ],
+  "flourish": [
+   "b",
+   4,
+   [
+    1,
+    2,
+    3,
+    5,
+    6,
+    7,
+    8
+   ]
+  ],
+  "apex": {
+   "hoja": "jb",
+   "cuadros": [
+    26,
+    27,
+    28
+   ],
+   "alinear": [
+    0,
+    0
+   ]
+  },
+  "twirl": {
+   "hoja": "jb",
+   "cuadros": [
+    19,
+    20,
+    21,
+    22,
+    23
+   ],
+   "alinear": [
+    0,
+    0
+   ]
+  }
+ },
+ "nota": "PixelLab \"Pip mago brujo A\", estado \"Baston\" bf5d2746-b956-419a-b2aa-1f27e2be20fc (lienzo de 68x68). a = join idle run staff-hit charge cast slam hurt death --as rows; b = join staff-jab run-b charge-hold charge-walk flourish --as rows; w = join walk-D-levita walk-E-bolsillos walk-F-galan --as rows: run es la caminata \"galán\" (fila 2; los primeros cuadros son la transición desde el quieto); jb = join jump-A-pirueta jump-B-vampiro jump-C-mortal --as sheet --columns 13: el salto de murciélago son los cuadros 17 a 33: jump (sube envuelto en el abrigo), apex (lo abre), fall (planea con el abrigo abierto como alas de murciélago), land (se envuelve al caer) y twirl (el giro del doble salto); van con \"alinear\": [dx, dy] para que queden donde vinieron. charge_hold y charge_walk salen de los últimos cuadros de sus animaciones. attack es la estocada de staff-hit (los cuadros en que no se da vuelta). El floreo saltea el cuadro con el aro celeste."
+}
