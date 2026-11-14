@@ -82,6 +82,8 @@ func _process(dt: float) -> void:
 			main.pick_mode(-1)
 		elif Input.is_action_just_pressed("abajo"):
 			main.pick_mode(1)
+		elif Input.is_action_just_pressed("poder"):
+			main.pick_level(1)
 	if main.pick != null:
 		_pick_input(real)
 	canvas.queue_redraw()
@@ -418,6 +420,10 @@ func _draw_title() -> void:
 	_text("PIP Y LOS", W / 2.0, 22, Pal.W, 2, 1, Color(0, 0, 0, 1), Pal.RAMP_W)
 	_text("SLIMES", W / 2.0, 36, Pal.Y, 4, 1, Pal.R, Pal.RAMP_Y)
 	_text("· EDICIÓN GODOT ·", W / 2.0, 62, Pal.C)
+	if not main.lobby:
+		# el nivel: C (o Y en el joystick) lo cambia
+		_text("NIVEL %d · %s" % [main.level + 1, main.LEVEL_NAMES[main.level]], 4, 4, Pal.L if main.level == 1 else Pal.W, 1, 0, Pal.K)
+		_text("C: CAMBIAR DE NIVEL", 4, 12, Pal.S, 1, 0, Pal.K)
 	# el modo: arriba y abajo lo cambian
 	if main.lobby:
 		_draw_lobby()

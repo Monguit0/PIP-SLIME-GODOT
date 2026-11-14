@@ -20,14 +20,19 @@ var t := 0.0
 
 func _ready() -> void:
 	z_index = -10
-	sky = _layer(preload("res://assets/level1/sky.png"))
+	var dir: String = main.level_dir() if main else "res://assets/level1/"
+	sky = _layer(load(dir + "sky.png"))
 	stars = Stars.new()
 	add_child(stars)
-	var tex := [preload("res://assets/level1/cloud0.png"), preload("res://assets/level1/cloud1.png"), preload("res://assets/level1/cloud2.png")]
-	for i in CLOUDS.size():
-		clouds.append(_layer(tex[i]))
-	far = _layer(preload("res://assets/level1/far.png"))
-	mid = _layer(preload("res://assets/level1/mid.png"))
+	# la luna, las estrellas y las nubes son del Reino: en el bosque el cielo lo tapan los árboles
+	var open_sky: bool = main == null or main.level == 0
+	stars.visible = open_sky
+	if open_sky:
+		var tex := [preload("res://assets/level1/cloud0.png"), preload("res://assets/level1/cloud1.png"), preload("res://assets/level1/cloud2.png")]
+		for i in CLOUDS.size():
+			clouds.append(_layer(tex[i]))
+	far = _layer(load(dir + "far.png"))
+	mid = _layer(load(dir + "mid.png"))
 
 
 func _layer(tex: Texture2D) -> Sprite2D:
@@ -51,7 +56,7 @@ func _process(dt: float) -> void:
 	stars.scale = Vector2.ONE / cz
 	stars.position = Vector2(cx, top)
 	stars.t = t
-	for i in CLOUDS.size():
+	for i in clouds.size():
 		var c: Array = CLOUDS[i]
 		var x := fposmod(c[0] + t * c[2] - cx * 0.2, W + 60.0) - 40.0
 		clouds[i].position = Vector2(cx + q.call(x) - 4, c[1] - 7)

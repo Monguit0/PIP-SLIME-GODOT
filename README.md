@@ -216,9 +216,23 @@ en `_update_camera`) y en `scripts/hud.gd`, `_draw_lobby`.
 
 ## Nivel 2: el Bosque Oscuro (en construcción)
 
-Todavía no hay nivel 2 jugable; van entrando sus piezas. Por ahora, tres enemigos nuevos que no están en la web,
-ya programados (los maneja el juego o, en el modo Villano, una persona) pero que **aún no aparecen en ninguna
-zona**. Sus dibujos salieron de PixelLab (`assets/sprites/bosque/`).
+Ya se puede jugar. En el título, **`C` (o `Y` en el joystick) cambia de nivel** (arriba a la izquierda dice
+cuál está elegido) y vale para la campaña, el Villano y el multijugador. El nivel no sigue solo después del
+1: por ahora se entra por ese selector.
+
+- Zonas y plataformas del nivel 2 de la web: Linde del Bosque, Bosque Oscuro, Ciénaga de Raíces y la Guarida
+  del Campeón. Los datos están en `LEVEL_2` (`scripts/main.gd`) y pisan los del Reino al cargar la escena.
+- Arte en `assets/level2/`, armado por `tools/bosque/build.py` a partir de cuatro fondos de PixelLab
+  (`tools/bosque/piezas/`): el bosque (una pieza por zona, fundidas entre sí), la guarida, y el piso y los
+  troncos de las plataformas, que dibuja el script.
+- Enemigos: los tres nuevos de abajo, mezclados con slimes. Los bots héroes saltan la telaraña y las
+  enredaderas y salen de la nube de esporas.
+- **Falta**: el lobo Campeón (por ahora el jefe de la guarida es el Mega Caballero, de prestado), los
+  enemigos de la web (slime tóxico, murciélago, cachorro de lobo), las trampas de pinchos y los tres hongos
+  minijefes.
+
+Los tres enemigos nuevos, que no están en la web (los maneja el juego o, en el modo Villano, una persona).
+Sus dibujos salieron de PixelLab (`assets/sprites/bosque/`).
 
 - **Araña** (`scripts/spider.gd`, `web.gd`): `X` escupe una telaraña que saca 1 y deja al héroe *enredado* (al
   40% de su velocidad, 2,5 s). `Shift` lanza su hilo en diagonal y queda colgada: ← → se hamaca (es un péndulo),

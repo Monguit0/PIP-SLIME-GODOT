@@ -11,6 +11,7 @@ var hit := {}   # héroe -> cuándo puede volver a lastimarlo
 
 func _ready() -> void:
 	z_index = 3
+	add_to_group("esporas")
 	Snd.play("explotar", {"rate": 0.6, "vol": 0.5})
 
 

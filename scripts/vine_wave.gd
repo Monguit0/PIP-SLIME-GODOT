@@ -17,6 +17,7 @@ var src
 
 func _ready() -> void:
 	z_index = 3
+	add_to_group("enredaderas")
 	Snd.play("tajo", {"rate": 0.5, "vol": 0.6})
 
 

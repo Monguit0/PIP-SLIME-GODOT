@@ -493,5 +493,29 @@ func _dodge(p: Player) -> void:
 			seen[k5] = randf() < skill
 		if seen[k5]:
 			move = 1 if cx >= hz.global_position.x else -1
+	# --- el bosque ---
+	# la telaraña: la salta como a una flecha
+	for a in p.get_tree().get_nodes_in_group("telas"):
+		var dw: float = (cx - a.global_position.x) * a.face
+		if dw > 0.0 and dw < 50.0 and absf(a.global_position.y - (p.global_position.y - 9.0)) < 11.0 and p.is_on_floor():
+			var kw: int = a.get_instance_id()
+			if not seen.has(kw):
+				seen[kw] = randf() < skill
+			if seen[kw]:
+				_jump()
+	# las enredaderas que vienen por el piso: las salta cuando la punta está cerca
+	for v in p.get_tree().get_nodes_in_group("enredaderas"):
+		var head: float = v.global_position.x + v.dir * minf(v.gone, v.REACH)
+		var dv: float = (cx - head) * v.dir
+		if dv > -30.0 and dv < 26.0 and p.is_on_floor() and absf(p.global_position.y - v.floor_y) < 6.0:
+			var kv: int = v.get_instance_id()
+			if not seen.has(kv):
+				seen[kv] = randf() < skill
+			if seen[kv]:
+				_jump()
+	# la nube de esporas del hongo muerto: no se queda adentro (esto lo ven todos: es grande y dura)
+	for c in p.get_tree().get_nodes_in_group("esporas"):
+		if absf(c.global_position.x - cx) < c.RAD + 12.0 and absf(c.global_position.y - p.global_position.y) < 30.0:
+			move = 1 if cx >= c.global_position.x else -1
 	if seen.size() > 96:
 		seen.clear()

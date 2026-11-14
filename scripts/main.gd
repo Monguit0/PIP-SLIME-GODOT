@@ -28,15 +28,15 @@ const HazardScript := preload("res://scripts/hazard.gd")
 const BossScript := preload("res://scripts/boss.gd")
 const BotScript := preload("res://scripts/hero_bot.gd")
 ## modo Villano: los bichos que defienden cada zona (INVADE_MOBS del original) y en cuál entrás primero.
-const VILLAIN_MOBS := [
+var VILLAIN_MOBS: Array = [
 	["green", "green", "red", "green", "green"],
 	["green", "skarch", "skaxe", "red", "skarch"],
 	["skaxe", "skarch", "red", "skaxe", "skarch", "green"],
 ]
-const VILLAIN_FIRST := ["green", "skarch", "skaxe"]
+var VILLAIN_FIRST: Array = ["green", "skarch", "skaxe"]
 ## Refuerzos: bichos que van llegando de a uno cuando cae alguno. No están en el original: acá los héroes
 ## limpian una zona muy rápido y sin ellos la defensa dura un suspiro.
-const VILLAIN_RESERVE := [
+var VILLAIN_RESERVE: Array = [
 	["green", "red", "green", "green", "red", "green"],
 	["skarch", "green", "skaxe", "red"],
 	["skaxe", "skarch", "red", "skarch"],
@@ -50,22 +50,54 @@ const CROSS_TIME := 10.0  # segundos para cruzar el portón de una zona limpia, 
 const SIDE_TIME := 20.0   # y a los 20, además, espadas que cruzan de costado
 const SideSword := preload("res://scripts/side_sword.gd")
 
-const ZONES := [
+## Niveles. El 1 (el Reino) es el que está escrito acá abajo, en ZONES, PLATS y demás; los otros pisan esos
+## datos al arrancar (_init). "mix": los enemigos de la zona en la campaña; "mobs", "first" y "reserve": los
+## del modo Villano. El arte de cada uno está en assets/level<N>/.
+const LEVEL_NAMES := ["EL REINO", "EL BOSQUE OSCURO"]
+const LEVEL_2 := {
+	"zones": [
+		{"start": 0, "end": 512, "name": "LINDE DEL BOSQUE", "haz": 0.5, "mix": ["green", "shroom", "green", "spider", "plant"]},
+		{"start": 512, "end": 1024, "name": "BOSQUE OSCURO", "haz": 0.8, "mix": ["shroom", "spider", "plant", "red", "spider", "green"]},
+		{"start": 1024, "end": 1536, "name": "CIÉNAGA DE RAÍCES", "haz": 1.0, "mix": ["plant", "spider", "shroom", "plant", "red", "spider", "shroom"]},
+		{"start": 1536, "end": 1792, "name": "GUARIDA DEL CAMPEÓN", "boss": true},
+	],
+	# las plataformas del nivel 2 del original
+	"plats": [
+		[48, 92, 56], [128, 68, 40], [196, 96, 48], [268, 72, 56], [352, 52, 40], [420, 90, 56],
+		[548, 84, 48], [620, 60, 40], [684, 92, 56], [760, 66, 48], [836, 44, 40], [904, 80, 56], [968, 56, 32],
+		[1056, 90, 48], [1124, 64, 40], [1192, 96, 56], [1268, 70, 48], [1340, 48, 40], [1404, 84, 56], [1468, 62, 36],
+		[1556, 92, 32], [1640, 62, 48], [1744, 92, 32],
+	],
+	# en el Villano van menos bichos que en el Reino: los del bosque pegan más fuerte
+	"mobs": [
+		["green", "shroom", "spider", "green"],
+		["shroom", "spider", "plant", "green"],
+		["plant", "spider", "shroom", "red", "green"],
+	],
+	"first": ["shroom", "spider", "plant"],
+	"reserve": [
+		["green", "spider", "green"],
+		["spider", "green", "shroom"],
+		["plant", "green", "spider"],
+	],
+}
+
+var ZONES: Array = [
 	{"start": 0, "end": 512, "name": "PRADERA", "green": 4, "red": 1, "arch": 0, "axe": 1, "haz": 0.55},
 	{"start": 512, "end": 1024, "name": "RUINAS", "green": 3, "red": 2, "arch": 2, "axe": 1, "haz": 0.85},
 	{"start": 1024, "end": 1536, "name": "MURALLAS", "green": 2, "red": 2, "arch": 2, "axe": 2, "haz": 1.15},
 	{"start": 1536, "end": 1792, "name": "SALÓN DEL TRONO", "boss": true},
 ]
 # plataformas de un solo sentido, copiadas de PLATS del original (x, y, ancho; 8 de alto)
-const PLATS := [
+var PLATS: Array = [
 	[40, 96, 64], [136, 72, 48], [216, 96, 64], [300, 64, 48], [376, 88, 56], [448, 60, 40],
 	[560, 96, 48], [632, 72, 48], [704, 48, 64], [792, 72, 48], [864, 96, 48], [930, 64, 56],
 	[1064, 96, 64], [1150, 64, 48], [1220, 88, 40], [1280, 56, 56], [1360, 96, 48], [1430, 72, 56],
 	[1556, 96, 36], [1632, 66, 64], [1736, 96, 36],
 ]
-const TORCHES := [[1100, 104], [1250, 104], [1400, 104]]
+var TORCHES: Array = [[1100, 104], [1250, 104], [1400, 104]]
 # antorchas pintadas en el salón del trono (centro de la llama): ahí solo titila la punta y salen chispas
-const HALL_TORCHES := [[1556.5, 62.5], [1586.5, 70.5], [1741.5, 72.0], [1770.0, 63.0]]
+var HALL_TORCHES: Array = [[1556.5, 62.5], [1586.5, 70.5], [1741.5, 72.0], [1770.0, 63.0]]
 ## las cartas de los héroes (HERO_CARDS del original): "only" es el héroe que la puede sacar
 const CARDS := [
 	{"id": "vida", "name": "CORAZÓN EXTRA", "desc": "MÁS VIDA MÁXIMA", "col": "r"},
@@ -92,6 +124,8 @@ static var fade_in := false
 static var kind := "archer"
 ## "campaign": sos el héroe. "villano": manejás a los bichos, de a uno, contra los cuatro héroes (bots).
 static var mode := "campaign"
+## en qué nivel se juega (0: el Reino, 1: el Bosque Oscuro). Se elige en el título.
+static var level := 0
 ## multijugador local: es el modo Villano, pero cada lugar lo puede manejar una persona (seats: lugar -> dispositivo)
 static var multi := false
 static var seats := {}
@@ -151,7 +185,32 @@ var _warm_paths: Array = []  # cuadros del jefe y los esqueletos que se están c
 var _warm: Array = []        # los ya cargados: quedan vivos para que load() los saque de la caché
 
 
+func _load_level() -> void:
+	if level == 1:
+		ZONES = LEVEL_2.zones
+		PLATS = LEVEL_2.plats
+		TORCHES = []
+		HALL_TORCHES = []
+		VILLAIN_MOBS = LEVEL_2.mobs
+		VILLAIN_FIRST = LEVEL_2.first
+		VILLAIN_RESERVE = LEVEL_2.reserve
+
+
+## En el título: C (o Y) cambia de nivel. El nivel se arma al cargar, así que vuelve a cargar la escena.
+func pick_level(step: int) -> void:
+	level = (level + step + LEVEL_NAMES.size()) % LEVEL_NAMES.size()
+	Snd.play("menu", {"rate": 1.3, "vol": 0.6, "vary": false})
+	fade_in = true
+	skip_title = false
+	get_tree().reload_current_scene()
+
+
+func level_dir() -> String:
+	return "res://assets/level%d/" % (level + 1)
+
+
 func _ready() -> void:
+	_load_level()
 	add_to_group("juego")
 	get_tree().paused = false
 	Fx.reset()
@@ -1038,9 +1097,11 @@ func _spawn_coins(n: int) -> void:
 func _spawn_slimes(n: int) -> void:
 	var zd: Dictionary = ZONES[n]
 	var kinds: Array = []
-	for i in zd.green:
+	if zd.has("mix"):
+		kinds = zd.mix.duplicate()
+	for i in zd.get("green", 0):
 		kinds.append("green")
-	for i in zd.red:
+	for i in zd.get("red", 0):
 		kinds.append("red")
 	for i in zd.get("arch", 0):
 		kinds.append("skarch")
@@ -1060,12 +1121,18 @@ func _spawn_slimes(n: int) -> void:
 		var s: Node2D
 		if kind.begins_with("sk"):
 			s = SkelScript.new()
+		elif kind == "spider":
+			s = SpiderScript.new()
+		elif kind == "shroom":
+			s = ShroomScript.new()
+		elif kind == "plant":
+			s = PlantScript.new()
 		else:
 			s = SlimeScript.new()
 		s.set("kind", kind)
 		s.set("zone", n)
 		s.position = Vector2(x + 5, surf[1])
-		if kind == "red" or (kind.begins_with("sk") and surf == ground):
+		if kind == "red" or kind in ["spider", "shroom", "plant"] or (kind.begins_with("sk") and surf == ground):
 			s.set("min_x", float(zd.start + 11))
 			s.set("max_x", float(zd.end - 11))
 		else:
@@ -1240,14 +1307,14 @@ func show_banner(text: String, sub: String, long: bool = false, card: bool = fal
 func _build_level() -> void:
 	# el dibujo del nivel es la imagen original (suelo y plataformas)
 	var arena := Sprite2D.new()
-	arena.texture = preload("res://assets/level1/arena.png")
+	arena.texture = load(level_dir() + "arena.png")
 	arena.centered = false
 	arena.scale = Vector2(0.5, 0.5)
 	arena.position = Vector2(ZONES[3].start, 0)
 	arena.z_index = -5
 	add_child(arena)
 	var art := Sprite2D.new()
-	art.texture = preload("res://assets/level1/level.png")
+	art.texture = load(level_dir() + "level.png")
 	art.centered = false
 	art.scale = Vector2(0.5, 0.5)
 	art.z_index = -4
