@@ -76,6 +76,10 @@ func _process(dt: float) -> void:
 			main.pick_hero(-1)
 		elif Input.is_action_just_pressed("derecha"):
 			main.pick_hero(1)
+		elif Input.is_action_just_pressed("arriba"):
+			main.pick_mode(-1)
+		elif Input.is_action_just_pressed("abajo"):
+			main.pick_mode(1)
 	if main.pick != null:
 		_pick_input(real)
 	canvas.queue_redraw()
@@ -127,11 +131,17 @@ func _draw_hud() -> void:
 		_draw_title()
 		return
 	_draw_overlays()
-	_draw_status()
+	if main.mode == "villano":
+		_draw_villano()
+	else:
+		_draw_status()
 	_draw_banner()
 	if main.pick != null:
 		_draw_picker()
-	if main.state == "over":
+	if main.mode == "villano":
+		if main.state in ["over", "win"] and main.end_t > 2.6:
+			_draw_villano_end()
+	elif main.state == "over":
 		_draw_over()
 	elif main.state == "win" and main.end_t > 2.6:
 		_draw_win()
@@ -425,10 +435,21 @@ func _draw_title() -> void:
 	_text("PIP Y LOS", W / 2.0, 22, Pal.W, 2, 1, Color(0, 0, 0, 1), Pal.RAMP_W)
 	_text("SLIMES", W / 2.0, 36, Pal.Y, 4, 1, Pal.R, Pal.RAMP_Y)
 	_text("· EDICIÓN GODOT ·", W / 2.0, 62, Pal.C)
+	# el modo: arriba y abajo lo cambian
+	var vil: bool = main.mode == "villano"
+	var mname := "MODO VILLANO" if vil else "MODO CAMPAÑA"
+	var mb := int(t * 3.0) % 2 == 0
+	_text(mname, W / 2.0, 71, Pal.RAMP_R[3] if vil else Pal.L, 1, 1, Pal.K)
+	var mhalf := PText.width(mname) / 2.0
+	_text("^", W / 2.0 - mhalf - 7, 71 - (1 if mb else 0), Pal.W if mb else Pal.S, 1, 1, Pal.K)
+	_text("v", W / 2.0 + mhalf + 7, 71 + (1 if mb else 0), Pal.W if mb else Pal.S, 1, 1, Pal.K)
 	if int(t * 2.0) % 2 == 0:
-		_text("SALTO O ATAQUE PARA EMPEZAR", W / 2.0, 74, Pal.Y)
+		_text("SALTO O ATAQUE PARA EMPEZAR", W / 2.0, 80, Pal.Y)
+	if vil:
+		_title_villano()
+		return
 	if main.best > 0:
-		_text("RÉCORD %d" % main.best, W / 2.0, 83, Pal.S)
+		_text("RÉCORD %d" % main.best, W / 2.0, 88, Pal.S)
 	# el héroe elegido, parado en la pradera: izquierda y derecha lo cambian
 	var hx := _screen(player.global_position).x
 	var hname: String = Player.HEROES[player.kind].name
@@ -457,6 +478,71 @@ func _draw_title() -> void:
 	var cf := int(fmod(t * 3.2, PI) / PI * 8.0) % 8
 	canvas.draw_texture_rect_region(COIN_SPIN, Rect2(197, 108 + roundf(sin(t * 4.0) * 1.5), fw / 2.0, COIN_SPIN.get_height() / 2.0),
 		Rect2(cf * fw, 0, fw, COIN_SPIN.get_height()))
+
+
+## El título en modo Villano: quién sos y cómo se maneja el slime.
+func _title_villano() -> void:
+	_text("MANEJÁS A LOS SLIMES, DE A UNO,", W / 2.0, 90, Pal.S)
+	_text("CONTRA LOS CUATRO HÉROES", W / 2.0, 98, Pal.S)
+	var lines := ["< > MOVER · Z SALTO", "MANTENÉ X Y SOLTÁ: BABA", "ABAJO + Z: BAJAR"]
+	for i in lines.size():
+		_text(lines[i], 176, 106 + i * 7, Pal.Y if i == 1 else Pal.W, 1, 1, Pal.K)
+	var f := int(t * 8.0) % 8
+	var sq := sin(t * 6.0) * 0.08
+	_slime(Vector2(104, 128), 0, f, Vector2(1 + sq, 1 - sq))
+	var f2 := int(t * 12.0 + 3) % 8
+	var sq2 := sin(t * 9.0) * 0.1
+	_slime(Vector2(122, 128), 1, f2, Vector2(1 + sq2, 1 - sq2))
+
+
+## HUD del modo Villano: la vida de cada héroe, cuántos bichos te quedan, qué sos y cómo atacás, y una
+## flecha al borde por cada héroe que quedó fuera de la pantalla.
+func _draw_villano() -> void:
+	var cols := {"archer": Pal.L, "knight": Pal.C, "barb": Pal.O, "mage": Pal.RAMP_R[3]}
+	var y := 4.0
+	for h in main.heroes:
+		var col: Color = cols.get(h.kind, Pal.W)
+		var hname: String = Player.HEROES[h.kind].name
+		_text(hname.substr(0, 3), 4, y, Pal.SS if h.dead else col, 1, 0, Pal.K)
+		for i in h.max_hearts:
+			var ht: Texture2D = HEART if i < h.hearts else HEART0
+			canvas.draw_texture_rect(ht, Rect2(22 + i * 7, y - 1, 6, 6), false, Color(1, 1, 1, 0.45 if h.dead else 1.0))
+		if not h.dead and main.state == "play":
+			var sp := _screen(h.global_position + Vector2(0, -10))
+			var yy := clampf(sp.y, 30.0, 118.0)
+			if sp.x < 0.0:
+				_text("<", 3, yy, col, 1, 0, Pal.K)
+			elif sp.x > W:
+				_text(">", W - 3, yy, col, 1, 2, Pal.K)
+		y += 9.0
+	# puntos
+	var bump := -1.0 if main.score_bump > 0.5 else 0.0
+	_text("%05d" % roundi(main.shown_score), W - 4, 4 + bump, Pal.W if main.score_bump > 0.5 else Pal.Y, 1, 2)
+	if main.state != "play":
+		return
+	var more: int = main.reserve.size()
+	_text("ZONA %d · ENEMIGOS %d" % [main.z + 1, main.alive_in_zone(main.z)] + (" +%d" % more if more > 0 else ""), W / 2.0, 4, Pal.S)
+	var m = main.ctrl
+	if m != null and is_instance_valid(m) and not m.dead:
+		_text("SOS " + m.mob_name() + " · MANTENÉ ATAQUE Y SOLTÁ", 4, 136, Pal.Y, 1, 0, Pal.K)
+	elif int(t * 4.0) % 2 == 0:
+		_text("BUSCANDO OTRO CUERPO...", 4, 136, Pal.C, 1, 0, Pal.K)
+
+
+func _draw_villano_end() -> void:
+	var won: bool = main.state == "win"
+	_rect(0, 0, W, H, Color(0.1, 0.11, 0.17, 0.66))
+	if won:
+		_text("¡DETUVISTE", W / 2.0, 14, Pal.Y, 3, 1, Pal.R, Pal.RAMP_Y)
+		_text("A LOS HÉROES!", W / 2.0, 34, Pal.Y, 2, 1, Pal.R, Pal.RAMP_Y)
+	else:
+		_text("ZONA PERDIDA", W / 2.0, 18, Pal.R, 3, 1, Pal.K, Pal.RAMP_R)
+		_text("LOS HÉROES SIGUEN A LAS RUINAS (PRÓXIMAMENTE)", W / 2.0, 42, Pal.S)
+	_text("HÉROES TUMBADOS %d DE %d" % [main.fallen, main.heroes.size()], W / 2.0, 56, Pal.W)
+	_text("CORAZONES QUE LES SACASTE %d" % main.dealt, W / 2.0, 65, Pal.W)
+	_text("PUNTOS %d" % main.score, W / 2.0, 77, Pal.Y)
+	if main.end_t > 3.2 and int(t * 2.0) % 2 == 0:
+		_text("SALTO: VOLVER AL TÍTULO · R: REVANCHA", W / 2.0, 92, Pal.W)
 
 
 func _slime(feet: Vector2, row: int, frame: int, sq: Vector2) -> void:

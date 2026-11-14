@@ -23,6 +23,13 @@ const BgScript := preload("res://scripts/background.gd")
 const CoinScript := preload("res://scripts/coin.gd")
 const HazardScript := preload("res://scripts/hazard.gd")
 const BossScript := preload("res://scripts/boss.gd")
+const BotScript := preload("res://scripts/hero_bot.gd")
+## modo Villano: los bichos que defienden cada zona (INVADE_MOBS del original). Por ahora, solo la Pradera.
+const VILLAIN_MOBS := [["green", "green", "red", "green", "green"]]
+## Refuerzos: bichos que van llegando de a uno desde el portón cuando cae alguno. No están en el original;
+## acá la partida de villano es por ahora una sola zona y con cinco slimes se terminaba en diez segundos.
+const VILLAIN_RESERVE := [["green", "red", "green", "green", "red", "green"]]
+const MODES := ["campaign", "villano"]
 
 const ZONES := [
 	{"start": 0, "end": 512, "name": "PRADERA", "green": 4, "red": 1, "arch": 0, "axe": 1, "haz": 0.55},
@@ -64,6 +71,8 @@ static var skip_title := false
 static var fade_in := false
 ## el héroe elegido en el título (queda para la próxima partida)
 static var kind := "archer"
+## "campaign": sos el héroe. "villano": manejás a los bichos, de a uno, contra los cuatro héroes (bots).
+static var mode := "campaign"
 
 var player: Player
 var camera: Camera2D
@@ -89,6 +98,17 @@ var cards: Array = []
 var pick = null             # elección de cartas: {ids, sel, t, done, done_t}
 var haz_t := 4.0
 var boss = null             # boss.gd
+# modo Villano
+var heroes: Array = []      # los cuatro héroes que maneja el juego
+var ctrl = null             # el bicho que manejás ahora
+var possess_t := 0.0        # cuenta hasta entrar en otro cuerpo
+var soul = null             # el alma viajando: {from, to, t}
+var soul_from = null
+var last_ctrl_x := 60.0     # donde estaba tu último cuerpo (para la cámara mientras buscás otro)
+var fallen := 0             # héroes que tumbaste
+var dealt := 0              # corazones que les sacaste
+var reserve: Array = []     # refuerzos que faltan llegar
+var reinforce_t := 0.0
 var fade := 0.0
 var _warm_paths: Array = []  # cuadros del jefe y los esqueletos que se están cargando en segundo plano
 var _warm: Array = []        # los ya cargados: quedan vivos para que load() los saque de la caché
@@ -127,6 +147,14 @@ func _ready() -> void:
 		fade = 0.9
 
 
+## En el título: arriba y abajo cambian de modo.
+func pick_mode(step: int) -> void:
+	mode = MODES[(MODES.find(mode) + step + MODES.size()) % MODES.size()]
+	Snd.play("menu", {"rate": 0.9 if mode == "villano" else 1.2, "vol": 0.6, "vary": false})
+	if mode == "villano":
+		Snd.play("posesion", {"rate": 1.5, "vol": 0.5, "vary": false})
+
+
 ## En el título: izquierda y derecha cambian de héroe (el que está parado en la pradera).
 func pick_hero(step: int) -> void:
 	var ks: Array = Player.KINDS
@@ -146,7 +174,205 @@ func start_game() -> void:
 		return
 	state = "play"
 	Snd.play("oleada", {"rate": 1.2, "vol": 0.7, "vary": false})
+	if mode == "villano":
+		_start_villano()
+		return
 	_enter_zone(0, true)
+
+
+# ---------------------------------------------------------------- modo Villano
+
+## Arranca la partida de villano en la Pradera: los cuatro héroes entran por la izquierda manejados por bots,
+## los slimes defienden la zona y vos entrás en el primero.
+func _start_villano() -> void:
+	z = 0
+	cleared = false
+	var kinds: Array = Player.KINDS
+	for i in kinds.size():
+		var h: Player = player
+		if i == 0:
+			h.set_kind(kinds[0])
+		else:
+			h = PlayerScript.new()
+			h.game = self
+			h.kind = kinds[i]
+			add_child(h)
+		h.position = Vector2(18 + i * 13, GROUND)
+		h.bot = true
+		h.brain = BotScript.new()
+		h.brain.game = self
+		h.invuln = 0.6
+		if i > 0:
+			h.died.connect(_on_hero_died.bind(h))
+		h.hurt_by.connect(_on_hero_hurt)
+		heroes.append(h)
+		Fx.dust(self, h.position, 3, 24.0, 4.0, 1.4)
+	player.died.disconnect(_on_player_died)
+	player.died.connect(_on_hero_died.bind(player))
+	_spawn_villain_mobs(0)
+	reserve = VILLAIN_RESERVE[0].duplicate()
+	reinforce_t = 3.0
+	_possess_next(true)
+	_show_banner("ZONA 1", ZONES[0].name + " · SOS " + (ctrl.mob_name() if ctrl != null else "SLIME"))
+
+
+func _spawn_villain_mobs(n: int) -> void:
+	var zd: Dictionary = ZONES[n]
+	var plats := PLATS.filter(func(p): return p[0] >= zd.start + 90 and p[0] < zd.end)
+	var ground := [zd.start + 120, GROUND, zd.end - zd.start - 140]
+	var list: Array = VILLAIN_MOBS[n]
+	for i in list.size():
+		var k: String = list[i]
+		var surf: Array = ground
+		if not plats.is_empty() and randf() < (0.7 if k == "green" else 0.25):
+			surf = plats[randi() % plats.size()]
+		var s := _villain_mob(n, k, Vector2(surf[0] + 6 + randf() * maxf(1.0, surf[2] - 12), surf[1]))
+		s.spawn = 0.3 + i * 0.12
+
+
+func _villain_mob(n: int, k: String, at: Vector2) -> Slime:
+	var zd: Dictionary = ZONES[n]
+	var s := SlimeScript.new()
+	s.kind = k
+	s.zone = n
+	s.villain = true
+	s.position = at
+	s.min_x = float(zd.start + 6)
+	s.max_x = float(gates[n].x - 6)
+	add_child(s)
+	return s
+
+
+## Llega un refuerzo: cae desde arriba del muro del portón, con aviso.
+func _reinforce() -> void:
+	var k: String = reserve.pop_front()
+	# donde más lejos quede de los héroes, para que no lo reciban a los golpes
+	var zd: Dictionary = ZONES[z]
+	var at := Vector2(gates[z].x - 20.0, GROUND)
+	var best := -1.0
+	for i in 8:
+		var x: float = zd.start + 30.0 + (gates[z].x - 50.0 - zd.start) * i / 7.0
+		var near := 1e9
+		for h in heroes:
+			if not h.dead:
+				near = minf(near, absf(h.global_position.x - x))
+		if near > best:
+			best = near
+			at.x = x + randf_range(-8, 8)
+	var s := _villain_mob(z, k, at + Vector2(0, -60))
+	s.spawn = 0.25
+	s.pdir = -1.0
+	Snd.play("alerta", {"rate": 1.2, "vol": 0.5})
+	Fx.popup(self, at + Vector2(0, -22), "¡REFUERZO!", Pal.O if k == "red" else Pal.L)
+	Fx.ring(self, at + Vector2(0, -4), Pal.W, 0.0, 12.0, 0.4, 0.3)
+
+
+## Tu alma entra en otro bicho: al empezar, un slime común; después, el que esté más cerca de los héroes.
+func _possess_next(first: bool) -> void:
+	var alive: Array = []
+	for m in get_tree().get_nodes_in_group("enemigos"):
+		if not m.dead and m.zone == z and m.get("villain") == true:
+			alive.append(m)
+	if alive.is_empty():
+		ctrl = null
+		return
+	var bx := 0.0
+	var nb := 0
+	for h in heroes:
+		if not h.dead:
+			bx += h.global_position.x
+			nb += 1
+	bx = bx / nb if nb > 0 else 0.0
+	var host = alive[0]
+	if first:
+		for m in alive:
+			if m.kind == "green":
+				host = m
+				break
+	else:
+		alive.sort_custom(func(a, b): return absf(a.global_position.x - bx) < absf(b.global_position.x - bx))
+		host = alive[0]
+	for m in alive:
+		m.ctrl = false
+	ctrl = host
+	host.possess()
+	if soul_from != null:
+		soul = {"from": soul_from, "to": host, "t": 0.0}
+	soul_from = null
+	Snd.play("posesion", {"vary": false})
+	if not first:
+		_show_banner("AHORA SOS", host.mob_name())
+
+
+func _villano_step(dt: float) -> void:
+	if ctrl != null and is_instance_valid(ctrl) and not ctrl.dead:
+		last_ctrl_x = ctrl.global_position.x
+	if soul != null:
+		# el alma: chispas celestes que van en arco del cuerpo que perdiste al nuevo
+		soul.t += dt
+		var k := clampf(soul.t / 0.6, 0.0, 1.0)
+		if is_instance_valid(soul.to):
+			var to: Vector2 = soul.to.global_position + Vector2(0, -6)
+			var at: Vector2 = soul.from.lerp(to, k) + Vector2(0, -sin(k * PI) * 30.0)
+			for i in 2:
+				Fx.part(self, at + Vector2(randf_range(-1.5, 1.5), randf_range(-1.5, 1.5)), Vector2(0, -10), 0.0, 0.3, Pal.C if randf() < 0.5 else Pal.W)
+			last_ctrl_x = at.x
+		if soul.t > 0.6:
+			soul = null
+	if state != "play":
+		return
+	var field := _alive_in_zone(z)
+	if not reserve.is_empty() and field < VILLAIN_MOBS[z].size():
+		reinforce_t -= dt * (3.0 if field == 0 else 1.0)
+		if reinforce_t <= 0.0:
+			reinforce_t = 2.6
+			_reinforce()
+			field += 1
+	if ctrl == null or not is_instance_valid(ctrl) or ctrl.dead:
+		ctrl = null
+		possess_t -= dt
+		if possess_t <= 0.0 and field > 0:
+			_possess_next(false)
+	var up := 0
+	for h in heroes:
+		if not h.dead:
+			up += 1
+	if up == 0:
+		_villano_end(true)
+	elif field == 0 and reserve.is_empty():
+		_villano_end(false)
+
+
+func _villano_end(won: bool) -> void:
+	end_t = 0.0
+	if won:
+		state = "win"
+		add_score(500)
+		_show_banner("¡DETUVISTE A LOS HÉROES!", "+500", true)
+		Snd.play("oleada", {"vary": false})
+		Snd.play("oleada", {"delay": 0.5, "rate": 1.26, "vary": false})
+	else:
+		state = "over"
+		gates[z].want = 1.0
+		_show_banner("ZONA PERDIDA", "LOS HÉROES AVANZAN", true)
+		Snd.play("porton", {"vary": false})
+		Snd.play("derrota", {"delay": 0.3, "vary": false})
+
+
+func _on_hero_hurt(_src) -> void:
+	dealt += 1
+	add_score(20)
+
+
+func _on_hero_died(h: Player) -> void:
+	fallen += 1
+	add_score(150)
+	var hname: String = Player.HEROES[h.kind].name
+	Fx.popup(self, h.global_position + Vector2(0, -28), "¡CAYÓ EL " + hname + "!", Pal.Y, true)
+	Fx.hitstop(0.12)
+	Fx.shake(4.0, 0.3)
+	Snd.play("critico", {"rate": 0.8, "vary": false})
+	Snd.play("oleada", {"rate": 1.5, "vol": 0.6, "delay": 0.1, "vary": false})
 
 
 func _process(dt: float) -> void:
@@ -167,7 +393,10 @@ func _process(dt: float) -> void:
 		if Input.is_action_just_pressed("saltar") or Input.is_action_just_pressed("atacar"):
 			restart(true)
 			return
-	_check_zone()
+	if mode == "villano":
+		_villano_step(dt)
+	else:
+		_check_zone()
 	_update_gates(dt)
 	_update_camera(dt)
 	if not _warm_paths.is_empty():
@@ -194,7 +423,7 @@ func _physics_process(dt: float) -> void:
 	combo_t -= dt
 	if combo_t <= 0.0:
 		combo = 0
-	if state == "play" and z < 3:
+	if state == "play" and z < 3 and mode != "villano":
 		_hazards(dt)
 
 
@@ -231,6 +460,14 @@ func collect_coin(c: Node2D) -> void:
 
 ## Lo llaman los slimes y los esqueletos al morir.
 func slime_killed(s: Node2D, how: String, crit: bool) -> void:
+	if mode == "villano":
+		# era el tuyo: tu alma queda suelta un momento y entra en otro
+		if s == ctrl:
+			ctrl = null
+			possess_t = 1.1
+			soul_from = s.global_position + Vector2(0, -6)
+			Fx.flash_red = 0.2
+		return
 	var kind: String = s.get("kind")
 	var extra: int = {"red": 10, "skarch": 20, "skaxe": 25}.get(kind, 0)
 	var base := 10 if how == "trap" else (25 if how == "stomp" else 15) + extra
@@ -243,7 +480,7 @@ func slime_killed(s: Node2D, how: String, crit: bool) -> void:
 
 
 func gain_xp(n: int, at = null) -> void:
-	if state != "play" or n <= 0 or player.evo:
+	if state != "play" or n <= 0 or player.evo or mode == "villano":
 		return
 	xp = mini(XP_EVO, xp + n)
 	xp_bump = 1.0
@@ -343,6 +580,8 @@ func finish_pick() -> void:
 ## Qué ánimo de la canción va según lo que pasa (moodNow del original).
 func music_director() -> void:
 	var danger := player.max_hearts > 1 and player.hearts == 1 and not player.dead
+	if mode == "villano":  # en peligro cuando te queda un solo cuerpo
+		danger = state == "play" and _alive_in_zone(z) + reserve.size() == 1
 	var m := "z%d" % mini(2, z)
 	if state == "title":
 		m = "titulo"
@@ -560,7 +799,12 @@ func _update_camera(dt: float) -> void:
 		min_x = ZONES[3].start
 		max_x = min_x
 	var look := player.face * 26.0
-	var target := clampf(player.global_position.x - W / 2.0 + look, min_x, max_x)
+	var focus := player.global_position.x
+	if mode == "villano" and state != "title":
+		# la cámara sigue al bicho que manejás (o al alma, mientras busca otro cuerpo)
+		focus = last_ctrl_x
+		look = ctrl.face * 26.0 if ctrl != null and is_instance_valid(ctrl) else 0.0
+	var target := clampf(focus - W / 2.0 + look, min_x, max_x)
 	var before := cam_x
 	cam_x += (target - cam_x) * minf(1.0, dt * (3.0 if z == 3 else 5.0))
 	cam_x = minf(cam_x, maxf(max_x, before))

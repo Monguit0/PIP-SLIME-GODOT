@@ -5,6 +5,7 @@ extends CharacterBody2D
 
 signal hearts_changed
 signal died
+signal hurt_by(src)   # le pegaron de verdad (no frenó el escudo): quién fue
 
 ## main.gd: puntos, cartas, experiencia (sin tipo para no depender del orden de carga)
 var game
@@ -61,6 +62,8 @@ const SLAM_K := 0.45          # el bastonazo cargado toca el piso a esta altura 
 const BLINK_T := 0.3          # el destello del doble salto del mago
 const TWIRL_T := 0.34         # el giro en tirabuzón del doble salto del mago
 const HANG := 45.0            # arriba de todo del salto el mago queda un instante flotando (por debajo de esta velocidad)
+
+const BOT_SPEED := 0.62         # los héroes del bot avanzan más despacio que una persona: te dan tiempo de pelear
 
 const ArrowScript := preload("res://scripts/arrow.gd")
 const FireballScript := preload("res://scripts/fireball.gd")
@@ -163,6 +166,11 @@ var blink_t := 0.0           # destello del doble salto
 var gem_t := 0.0             # brasas que suelta la gema del bastón
 var twirl_t := 0.0           # girando en el aire (doble salto y al rebotar en un enemigo)
 var apex_fx := false         # ya salió el destello de arriba de todo del salto
+# modo Villano: a este héroe lo maneja un bot (hero_bot.gd), que "aprieta" las acciones por él
+var bot := false
+var brain
+var inp := {}
+var inp_prev := {}
 var base_oy := -23.0         # dónde va el lienzo para que los pies queden en el origen
 
 
@@ -183,6 +191,15 @@ func melee() -> bool:
 
 
 ## lo que cuesta el especial de cada uno (las marcas de la barra de energía)
+## Las acciones del héroe: del teclado o el joystick, o las que decide el bot.
+func _down(a: String) -> bool:
+	return bool(inp.get(a, false)) if bot else Input.is_action_pressed(a)
+
+
+func _tap(a: String) -> bool:
+	return (bool(inp.get(a, false)) and not bool(inp_prev.get(a, false))) if bot else Input.is_action_just_pressed(a)
+
+
 func special_cost() -> float:
 	match kind:
 		"knight":
@@ -346,10 +363,14 @@ func _physics_process(dt: float) -> void:
 		_animate(dt)
 		return
 
-	var dir := int(Input.is_action_pressed("derecha")) - int(Input.is_action_pressed("izquierda"))
-	var jump_pressed := Input.is_action_just_pressed("saltar")
-	var jump_held := Input.is_action_pressed("saltar")
-	var down := Input.is_action_pressed("abajo")
+	if bot:
+		inp_prev = inp.duplicate()
+		if brain != null:
+			brain.think(self, dt)
+	var dir := int(_down("derecha")) - int(_down("izquierda"))
+	var jump_pressed := _tap("saltar")
+	var jump_held := _down("saltar")
+	var down := _down("abajo")
 	if game != null and game.state != "play":  # ganó: queda quieto
 		dir = 0
 		jump_pressed = false
@@ -360,17 +381,17 @@ func _physics_process(dt: float) -> void:
 	var playing: bool = game == null or game.state == "play"
 	match kind:
 		"knight":
-			_shield_step(dt, Input.is_action_pressed("especial") and playing, Input.is_action_just_pressed("especial") and playing)
+			_shield_step(dt, _down("especial") and playing, _tap("especial") and playing)
 		"barb":
-			_fury_step(dt, Input.is_action_just_pressed("especial") and playing)
+			_fury_step(dt, _tap("especial") and playing)
 		"mage":
-			_cast_step(dt, Input.is_action_just_pressed("especial") and playing)
+			_cast_step(dt, _tap("especial") and playing)
 			if evo:
-				_necro_step(Input.is_action_just_pressed("poder") and playing)
+				_necro_step(_tap("poder") and playing)
 		_:
-			_special(dt, Input.is_action_just_pressed("especial") and playing)
+			_special(dt, _tap("especial") and playing)
 			if evo:
-				_venom_step(dt, Input.is_action_just_pressed("poder"))
+				_venom_step(dt, _tap("poder"))
 
 	# saltar corta la carga del arco y el dash (el caballero y el bárbaro siguen cargando en el aire)
 	if jump_pressed and coyote > 0.0:
@@ -385,7 +406,7 @@ func _physics_process(dt: float) -> void:
 		slow = 0.5
 	elif charge >= CHG_ON:
 		slow = 0.6 if melee() else 0.0
-	var top := speed * slow * (1.15 if has_card("veloz") else 1.0)
+	var top := speed * slow * (1.15 if has_card("veloz") else 1.0) * (BOT_SPEED if bot else 1.0)
 
 	# horizontal
 	var acc := ACC_GROUND if is_on_floor() else ACC_AIR
@@ -653,10 +674,10 @@ func _attack(dt: float) -> void:
 	if melee():
 		_attack_melee(dt)
 		return
-	if Input.is_action_just_pressed("atacar") and dash_t <= 0.0:
+	if _tap("atacar") and dash_t <= 0.0:
 		charge = 0.0
 	if charge >= 0.0:
-		if Input.is_action_pressed("atacar"):
+		if _down("atacar"):
 			var was := charge
 			charge += dt
 			if was < CHG_ON and charge >= CHG_ON:
@@ -763,8 +784,8 @@ func _fury_step(dt: float, pressed: bool) -> void:
 ## con la carga llena sale el espadazo grande (caballero) o el giro del hacha (bárbaro).
 func _attack_melee(dt: float) -> void:
 	var can := not shield and dash_t <= 0.0 and fury_t <= 0.0 and cast_wind < 0.0 and summon_t <= 0.0
-	var pressed := Input.is_action_just_pressed("atacar")
-	var held := Input.is_action_pressed("atacar")
+	var pressed := _tap("atacar")
+	var held := _down("atacar")
 	if pressed:
 		atk_buf = 0.15
 		if can:
@@ -1093,6 +1114,10 @@ func _slash_clear(hb: Rect2) -> void:
 		if not a.stuck and hb.has_point(a.global_position):
 			Fx.burst(get_parent(), a.global_position, 6, [Pal.Y, Pal.W, Pal.O], 70.0, 30.0, 0.3, 220.0)
 			a.queue_free()
+			n += 1
+	for sp in get_tree().get_nodes_in_group("babas"):
+		if hb.grow(2.0).has_point(sp.global_position):
+			sp.splat()
 			n += 1
 	for w in get_tree().get_nodes_in_group("ondas"):
 		if hb.intersects(Rect2(w.position.x - 4, w.GROUND - 7, 8, 7)):
@@ -1454,10 +1479,12 @@ func hurt(from_x: float, amount: int = 1, src: Object = null) -> bool:
 	velocity = Vector2(dir * 140.0, -170.0)
 	squash = Vector2(1.3, 0.75)
 	Snd.play("dano")
-	Fx.hitstop(0.09)
-	Fx.shake(5.0, 0.28)
-	Fx.flash_red = 0.18
-	Fx.kick(Vector2(dir, 0), 2.5)
+	Fx.hitstop(0.09 if not bot else 0.05)
+	Fx.shake(5.0 if not bot else 2.5, 0.28 if not bot else 0.16)
+	if not bot:
+		Fx.flash_red = 0.18
+	Fx.kick(Vector2(dir, 0), 2.5 if not bot else 1.2)
+	hurt_by.emit(src)
 	Fx.hit(get_parent(), global_position + Vector2(-dir * 3.0, -10), Vector2(dir, -0.3), Pal.R, true)
 	Fx.burst(get_parent(), global_position + Vector2(0, -9), 8, [Pal.R, Pal.O, Pal.W], 80.0, 40.0, 0.45, 220.0)
 	hearts_changed.emit()
@@ -1618,7 +1645,7 @@ func _air_frame(anim: String) -> int:
 
 ## Rebote al pisarle el yelmo al jefe.
 func boss_bounce() -> void:
-	var held := Input.is_action_pressed("saltar")
+	var held := _down("saltar")
 	velocity.y = -jump_v * 1.1 if held else -260.0
 	jump_cut = not held
 	stomp_inv = 0.35
@@ -1632,7 +1659,7 @@ func boss_bounce() -> void:
 
 ## Rebote al pisar un slime.
 func bounce() -> void:
-	var held := Input.is_action_pressed("saltar")
+	var held := _down("saltar")
 	velocity.y = -jump_v * 1.05 if held else -210.0
 	jump_cut = not held
 	stomp_inv = 0.22

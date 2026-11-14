@@ -108,6 +108,41 @@ héroe y R reintenta con el mismo.
   de daño) y **lluvia de espadas** con un hueco para esquivar. Al 50% se enfurece (repite y encadena ataques) y al 25%
   **pierde el casco**. Se le pega con flechas o pisándole la cabeza. Al caer explota y su espada queda clavada en el piso.
 
+## Modo Villano (primera parte: la Pradera)
+
+En el título, **arriba y abajo** cambian de modo: *Campaña* o *Villano*. En Villano sos el malo: manejás a los
+slimes, de a uno, contra los **cuatro héroes** (arquero, caballero, bárbaro y mago), que maneja el juego.
+
+- **Controles del slime**: ← → mover, `Z` salto, abajo + `Z` bajar de la plataforma, y **mantener `X` y soltar**
+  para escupir baba en arco: cuanto más la cargás (hasta 0,7 s; se ve la barrita y el slime se aplasta), más
+  lejos llega. Mientras carga camina a la mitad. La baba le saca 1 al héroe que toca; el espadazo de un héroe la
+  rompe y el escudo del caballero la frena. Tocar a un héroe también lo lastima, pero si te pisa, te revienta.
+- **Posesión**: una flechita amarilla marca al que manejás. Cuando lo matan, tu alma queda suelta un segundo
+  (*BUSCANDO OTRO CUERPO...*), viaja en un arco de chispas celestes y entra en el slime que esté más cerca de los
+  héroes (*AHORA SOS...*). La cámara te sigue a vos.
+- **Los demás slimes** los maneja el juego: el verde patrulla a saltitos y escupe al héroe que tenga a tiro; el
+  rojo lo persigue, le salta encima y de lejos también escupe.
+- **Los héroes** piensan cada 0,14 a 0,28 s: van al enemigo más cercano, el arquero y el mago guardan distancia
+  (el mago tira bolas de fuego), el caballero y el bárbaro van al cuerpo a cuerpo, suben a las plataformas por la
+  que les sirve de escalón, se dejan caer si el enemigo está abajo y esquivan la baba que les viene cayendo, pero
+  no siempre.
+- **Cómo termina**: si caen los cuatro héroes, ganaste (*¡DETUVISTE A LOS HÉROES!*). Si te quedás sin slimes, la
+  zona está perdida y los héroes siguen a las Ruinas, que todavía no están. Al final te dice cuántos héroes
+  tumbaste y cuántos corazones les sacaste. El récord de la campaña no se toca.
+- **HUD**: arriba a la izquierda la vida de cada héroe (y una flecha de su color al borde si quedó fuera de la
+  pantalla), arriba al medio los enemigos que te quedan y los refuerzos por llegar, abajo qué sos y cómo atacás.
+
+Diferencias con el original, a propósito, porque acá la partida es por ahora una sola zona y con los números de
+la web se terminaba en diez segundos: los slimes tienen **1 de vida más** (3 el verde, 4 el rojo), los héroes del
+bot **avanzan al 62%** de su velocidad y pegan un poco más espaciado, y hay **seis refuerzos** que van llegando de
+a uno (donde más lejos queden de los héroes) cuando cae alguno. Cuando estén las otras zonas y el jefe se pueden
+volver a los números de la web. Todavía no hay cartas del villano, ni experiencia y evolución de los héroes.
+
+Código: `scripts/hero_bot.gd` (el bot: `botThink`, `botClimb` y `botDodge`), `scripts/spit.gd` (la baba: `lob` y
+`updateShots`), en `scripts/slime.gd` la parte "modo Villano" (`playerMob`, `aiMob`, `aiLob`), en `scripts/main.gd`
+la parte "modo Villano" (`possessNext`, los refuerzos y el final) y en `scripts/player.gd`, `_down` y `_tap`: las
+acciones del héroe salen del teclado o de lo que decide el bot.
+
 ## Cómo está armado
 - `scenes/main.tscn`: la escena principal; el nivel se arma por código en `scripts/main.gd` (zonas, plataformas,
   portones y antorchas están en constantes arriba de todo, copiadas del original).
@@ -159,6 +194,6 @@ héroe y R reintenta con el mismo.
 ## Plan
 1. **Base**: proyecto, Pip arquero, slimes y el Reino. ✔
 2. **Nivel 1 completo con el arquero**: música, sonidos, juice, monedas, cartas, evolución y Mega Caballero. ✔
-   Caballero, bárbaro y mago con sus evoluciones ✔.
+   Caballero, bárbaro y mago con sus evoluciones ✔. Modo Villano: la Pradera ✔ (faltan Ruinas, Murallas y el jefe).
 3. **Niveles 2 a 4** con sus bichos y jefes (Campeón, Yeti, Kraken), experiencia y evoluciones.
 4. **Sillón** (varios joysticks en la misma pantalla) y después el **online**.
