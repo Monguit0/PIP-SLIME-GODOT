@@ -181,6 +181,10 @@ la misma compu, con el teclado y hasta ocho joysticks. Los lugares que nadie eli
   pantallas) y se acerca despacio cuando se juntan. Con la cámara ya lo más lejos posible, el que se sigue
   alejando espera a los demás. En el Salón del Trono vuelve a la normal.
 - **Pasar de zona**: cuando un héroe cruza el portón abierto, cruzan todos: los demás aparecen a su lado.
+  Hay **10 segundos** para cruzar (cuenta regresiva arriba, que late en rojo los últimos 3, y una flecha que
+  parpadea hacia el portón). Si nadie cruza a tiempo, **llueven espadas**: una sobre cada héroe y otras al azar,
+  cada vez más y con menos aviso; atraviesan las plataformas, así que no hay resguardo ni arriba ni abajo de
+  una. Además, los que llegan tarde se quedan sin los 2 corazones de premio. Vale también en el modo Villano.
 - **En pantalla**: sobre cada héroe manejado por una persona, una flechita con su control (*TEC*, *J1*...) y en
   la lista de arriba, su barra de energía. Los héroes de las personas corren a velocidad completa (los del bot
   siguen al 62%). El héroe que cae no vuelve en esa partida.

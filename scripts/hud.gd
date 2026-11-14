@@ -596,7 +596,10 @@ func _draw_villano() -> void:
 				lx += l[1].length() * 4.0 + 8.0
 		return
 	var more: int = main.reserve.size()
-	_text("ZONA %d · ENEMIGOS %d" % [main.z + 1, main.alive_in_zone(main.z)] + (" +%d" % more if more > 0 else ""), W / 2.0, 4, Pal.S)
+	if main.zone_lost:
+		_cross_hud()
+	else:
+		_text("ZONA %d · ENEMIGOS %d" % [main.z + 1, main.alive_in_zone(main.z)] + (" +%d" % more if more > 0 else ""), W / 2.0, 4, Pal.S)
 	var m = main.ctrl
 	if main.vbot:
 		if main.zone_lost and int(t * 4.0) % 2 == 0:
@@ -611,6 +614,30 @@ func _draw_villano() -> void:
 			_text("LOS HÉROES AVANZAN...", 4, 136, Pal.O, 1, 0, Pal.K)
 	elif int(t * 4.0) % 2 == 0:
 		_text("BUSCANDO OTRO CUERPO...", 4, 136, Pal.C, 1, 0, Pal.K)
+
+
+## Zona limpia: la cuenta regresiva para cruzar el portón y la flecha que lo señala.
+func _cross_hud() -> void:
+	var blink := int(t * 6.0) % 2 == 0
+	if main.late:
+		_text("¡LLUEVEN ESPADAS!", W / 2.0, 4, Pal.R if blink else Pal.Y, 1, 1, Pal.K)
+	else:
+		var left := ceili(maxf(0.0, main.cross_t))
+		var hot := left <= 3
+		_text("¡AL PORTÓN!", W / 2.0, 4, Pal.Y, 1, 1, Pal.K)
+		var beat := 1.0 - fposmod(main.cross_t, 1.0)   # late con cada segundo
+		_text(str(left), W / 2.0, 12 - (1.0 if beat < 0.15 else 0.0), (Pal.R if blink else Pal.W) if hot else Pal.W, 3 if hot else 2, 1, Pal.K)
+	# la flecha: en el borde si el portón todavía no se ve, y arriba del portón cuando entra en pantalla
+	var gp := _screen(Vector2(main.gates[main.z].x + 4.0, 92.0))
+	var bob := sin(t * 10.0) * 2.0
+	if not blink and not main.late:
+		return
+	var col: Color = Pal.R if main.late else Pal.Y
+	if gp.x > W - 14.0:
+		_text(">", W - 5 + bob, 66, col, 3, 2, Pal.K)
+		_text(">", W - 14 + bob, 66, col, 3, 2, Pal.K)
+	else:
+		_text("v", gp.x, gp.y - 10.0 + bob, col, 2, 1, Pal.K)
 
 
 ## al villano lo maneja alguien con joystick (los carteles nombran sus botones)

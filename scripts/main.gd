@@ -43,6 +43,7 @@ const MODES := ["campaign", "villano", "multi"]
 const SEATS := ["v", "archer", "knight", "barb", "mage"]
 const CAM_Z_MIN := 0.5   # lo más lejos que se va la cámara: la zona entera (dos pantallas)
 const CAM_PAD := 30.0
+const CROSS_TIME := 10.0  # segundos para cruzar el portón de una zona limpia, antes de que lluevan espadas
 
 const ZONES := [
 	{"start": 0, "end": 512, "name": "PRADERA", "green": 4, "red": 1, "arch": 0, "axe": 1, "haz": 0.55},
@@ -133,6 +134,10 @@ var lobby_t := 0.0
 var lobby_flash := {}
 var cam_z := 1.0            # 1 = normal; menos = más lejos (multijugador)
 var end_msg := ["", ""]
+var cross_t := 0.0           # lo que queda para cruzar el portón
+var late := false            # se acabó el tiempo: llueven espadas y no hay curación al cruzar
+var rain_t := 0.0
+var rain_n := 0
 var zone_lost := false      # se quedó sin bichos: el portón se abre y los héroes avanzan
 var fade := 0.0
 var _warm_paths: Array = []  # cuadros del jefe y los esqueletos que se están cargando en segundo plano
@@ -342,6 +347,7 @@ func _start_villano() -> void:
 func _villano_zone(n: int) -> void:
 	z = n
 	zone_lost = false
+	late = false
 	cleared = false
 	_spawn_villain_mobs(n)
 	reserve = VILLAIN_RESERVE[n].duplicate()
@@ -366,7 +372,11 @@ func _villano_next() -> void:
 		_villano_throne()
 		return
 	for h in heroes:
-		if not h.dead and h.hearts < h.max_hearts:
+		if late:
+			# llegaron tarde: se quedan sin el premio
+			if not h.dead and h.hearts < h.max_hearts:
+				Fx.popup(self, h.global_position + Vector2(0, -24), "SIN CURA", Pal.S)
+		elif not h.dead and h.hearts < h.max_hearts:
 			h.hearts = mini(h.max_hearts, h.hearts + 2)
 			h.hearts_changed.emit()
 			Fx.popup(self, h.global_position + Vector2(0, -24), "+2", Pal.L)
@@ -532,6 +542,8 @@ func _villano_step(dt: float) -> void:
 		possess_t -= dt
 		if possess_t <= 0.0 and field > 0:
 			_possess_next(false)
+	if zone_lost:
+		_cross_clock(dt)
 	var up := 0
 	var crossed := true
 	var first: Player = null   # el primero que cruzó el portón
@@ -564,12 +576,54 @@ func _villano_step(dt: float) -> void:
 		if not zone_lost:
 			# te quedaste sin bichos en esta zona: se abre el portón y los héroes siguen
 			zone_lost = true
+			cross_t = CROSS_TIME
+			late = false
 			gates[z].want = 1.0
 			_show_banner("ZONA PERDIDA", "LOS HÉROES AVANZAN")
 			Snd.play("porton", {"vary": false})
 			Fx.shake(1.0, 0.9)
 		elif gates[z].open > 0.85 and crossed:
 			_villano_next()
+
+
+## Zona limpia: hay CROSS_TIME segundos para cruzar el portón. Pasado ese tiempo llueven espadas, cada vez
+## más y con menos aviso, una sobre cada héroe que no cruzó y otras al azar. Atraviesan las plataformas (caen
+## hasta el piso), así que no hay dónde ponerse a resguardo; y al cruzar ya no hay curación.
+func _cross_clock(dt: float) -> void:
+	var was := ceili(cross_t)
+	cross_t -= dt
+	if not late:
+		if cross_t <= 0.0:
+			late = true
+			rain_t = 0.35
+			rain_n = 0
+			_show_banner("¡SE ACABÓ EL TIEMPO!", "LLUEVEN ESPADAS · SIN CURACIÓN")
+			Snd.play("rugido", {"rate": 1.3, "vol": 0.6, "vary": false})
+			Fx.shake(3.0, 0.4)
+		elif ceili(cross_t) != was and cross_t <= 3.0:
+			Snd.play("alerta", {"rate": 1.0 + (3.0 - cross_t) * 0.12, "vol": 0.6, "vary": false})
+		return
+	rain_t -= dt
+	if rain_t > 0.0:
+		return
+	var warn := maxf(0.45, 0.75 - rain_n * 0.03)
+	var gx: float = gates[z].x
+	var n := 0
+	for h in heroes:
+		if not h.dead and h.global_position.x < gx + 20.0:
+			_rain_sword(h.global_position.x + randf_range(-3.0, 3.0), n * 0.04, warn)
+			n += 1
+	var lo := maxf(ZONES[z].start + 6.0, cam_x)
+	for i in mini(12, 3 + rain_n):
+		_rain_sword(randf_range(lo, gx + 14.0), n * 0.04, warn)
+		n += 1
+	rain_n += 1
+	rain_t = maxf(0.4, 1.0 - rain_n * 0.06)
+
+
+func _rain_sword(x: float, delay: float, warn: float) -> void:
+	var s := spawn_hazard(x, delay, true, warn)
+	s.land_y = GROUND  # atraviesa las plataformas: ni arriba ni abajo de una hay resguardo
 
 
 func _villano_end(_won: bool) -> void:
