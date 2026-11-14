@@ -24,10 +24,13 @@ const VSPEED := {"green": 40.0, "red": 62.0}     # cuando lo maneja el juego
 const PSPEED := {"green": 58.0, "red": 78.0}     # cuando lo manejás vos
 const VJUMP := {"green": 235.0, "red": 255.0}
 const VNAME := {"green": "SLIME", "red": "SLIME ROJO"}
-# mini dash de baba del que manejás: un empujón corto resbalando sobre su propia baba
-const DASH_T := 0.17
-const DASH_SPEED := 185.0
-const DASH_CD := 1.5
+# turbo de baba del que manejás: mientras mantenés el especial resbala sobre su propia baba mucho más rápido
+# y la barra se gasta; al soltarlo se recarga sola
+const TURBO_MUL := 2.6        # cuánto más rápido va
+const TURBO_TIME := 1.8       # segundos que dura la barra llena
+const TURBO_FILL := 2.6       # segundos que tarda en llenarse de cero
+const TURBO_WAIT := 0.45      # espera antes de empezar a recargar
+const TURBO_MIN := 0.25       # si la vaciaste, hay que esperar a que junte esto para volver a usarla
 
 var kind := "green"
 var zone := 0
@@ -74,9 +77,10 @@ var mouth := 0.0       # boca abierta un instante al escupir
 var pdir := 1.0        # para dónde patrulla
 var drop_t := 0.0
 var show_hp := 0.0     # barrita de vida a la vista un rato después de un golpe
-var dash_t := 0.0
-var dash_cd := 0.0
-var dash_dir := 1.0
+var turbo := 1.0        # la barra, de 0 a 1
+var turbo_on := false
+var turbo_wait := 0.0
+var turbo_empty := false   # se vació: bloqueada hasta que junte TURBO_MIN
 var guide: Node2D      # la guía del tiro de baba (se dibuja por encima de todo)
 var aim_x := 0.0       # dónde va a caer la baba que está cargando (para que la cámara lo muestre)
 
@@ -432,42 +436,51 @@ func _update_ctrl(dt: float) -> void:
 			cool = 0.4
 		charging = false
 		charge = 0.0
-	# mini dash de baba (especial): un empujón corto para donde vas (o para donde mirás), con espera
-	var was_cd := dash_cd
-	dash_cd -= dt
-	if was_cd > 0.0 and dash_cd <= 0.0:  # listo de nuevo
-		Fx.twinkle(get_parent(), global_position + Vector2(0, -5), Pal.W, 2.5, 0.16)
-		Snd.play("menu", {"rate": 1.8, "vol": 0.25, "vary": false})
-	if playing and stun <= 0.0 and Input.is_action_just_pressed("especial") and dash_cd <= 0.0:
-		dash_dir = d if d != 0.0 else face
-		face = dash_dir
-		dash_t = DASH_T
-		dash_cd = DASH_CD
-		if is_on_floor():
-			velocity.y = -55.0
+	# turbo de baba: con el especial apretado va mucho más rápido mientras le quede barra
+	var col: Color = COL.get(kind, Pal.G)
+	var want: bool = playing and stun <= 0.0 and Input.is_action_pressed("especial") and not turbo_empty and turbo > 0.0
+	if want and not turbo_on:  # arranca: un empujón, aro y salpicón
 		squash = Vector2(1.6, 0.55)
 		Snd.play("dash", {"rate": 1.3, "vol": 0.55})
 		Snd.play("baba", {"rate": 0.9, "vol": 0.6})
-		Fx.kick(Vector2(dash_dir, 0), 0.7)
-		var col: Color = COL.get(kind, Pal.G)
-		Fx.ring(get_parent(), global_position + Vector2(-dash_dir * 3.0, -4), col, 0.0, 9.0, 0.6, 0.2)
+		Fx.kick(Vector2(face, 0), 0.7)
+		Fx.ring(get_parent(), global_position + Vector2(-face * 3.0, -4), col, 0.0, 9.0, 0.6, 0.2)
 		Fx.goo(get_parent(), global_position + Vector2(0, -3), 6, col, 70.0, global_position.y)
-		Fx.dust(get_parent(), global_position, 3, 26.0, 3.0, 1.4, col, -int(dash_dir))
-	if dash_t > 0.0:
-		dash_t -= dt
-		if stun > 0.0:
-			dash_t = 0.0
-		else:
-			velocity.x = dash_dir * DASH_SPEED
-			var col2: Color = COL.get(kind, Pal.G)
-			# resbala sobre su baba: gotas que quedan atrás y manchitas en el piso
-			Fx.part(get_parent(), global_position + Vector2(-dash_dir * 5.0, -randf_range(1, 6)), Vector2(-dash_dir * randf_range(20, 60), -randf_range(0, 30)), 200.0, 0.3, col2 if randf() < 0.7 else Pal.W, 2 if randf() < 0.4 else 1)
-			if is_on_floor() and Engine.get_physics_frames() % 3 == 0:
-				Fx.splat(get_parent(), global_position + Vector2(-dash_dir * 4.0, 0), col2, 5.0)
-			if dash_t <= 0.0:
-				velocity.x = dash_dir * float(PSPEED.get(kind, 58.0))
-				squash = Vector2(0.85, 1.15)
-	_mob_physics(dt, d, float(PSPEED.get(kind, 58.0)) * (0.5 if charging else 1.0))
+		velocity.x += face * 60.0
+	turbo_on = want
+	if turbo_on:
+		turbo = maxf(0.0, turbo - dt / TURBO_TIME)
+		turbo_wait = TURBO_WAIT
+		# resbala sobre su baba: gotas que quedan atrás, manchitas en el piso y líneas de velocidad
+		if absf(velocity.x) > 40.0:
+			var bd := signf(velocity.x)
+			Fx.part(get_parent(), global_position + Vector2(-bd * 5.0, -randf_range(1, 6)), Vector2(-bd * randf_range(20, 60), -randf_range(0, 30)), 200.0, 0.3, col if randf() < 0.7 else Pal.W, 2 if randf() < 0.4 else 1)
+			if is_on_floor() and Engine.get_physics_frames() % 4 == 0:
+				Fx.splat(get_parent(), global_position + Vector2(-bd * 4.0, 0), col, 5.0)
+			if Engine.get_physics_frames() % 5 == 0:
+				Fx.streak(get_parent(), global_position + Vector2(-bd * 3.0, -randf_range(1, 6)), Vector2(-bd * 120.0, 0), 0.1, Pal.W, 6.0)
+			if Engine.get_physics_frames() % 9 == 0:
+				Snd.play("baba", {"rate": 1.8, "vol": 0.18})
+		if turbo <= 0.0:  # se quedó sin turbo: frena de golpe y queda bloqueado un rato
+			turbo_empty = true
+			turbo_on = false
+			squash = Vector2(0.8, 1.25)
+			Snd.play("dano", {"rate": 1.8, "vol": 0.3})
+			Fx.popup(get_parent(), global_position + Vector2(0, -16), "¡SIN TURBO!", Pal.O)
+	else:
+		turbo_wait -= dt
+		if turbo_wait <= 0.0 and turbo < 1.0:
+			var was_t := turbo
+			turbo = minf(1.0, turbo + dt / TURBO_FILL)
+			if turbo_empty and turbo >= TURBO_MIN:
+				turbo_empty = false
+			if was_t < 1.0 and turbo >= 1.0:  # llena de nuevo
+				Fx.twinkle(get_parent(), global_position + Vector2(0, -5), Pal.C, 2.5, 0.16)
+				Snd.play("menu", {"rate": 1.8, "vol": 0.25, "vary": false})
+	var sp: float = float(PSPEED.get(kind, 58.0)) * (0.5 if charging else 1.0) * (TURBO_MUL if turbo_on else 1.0)
+	_mob_physics(dt, d, sp)
+	if turbo_on and stun <= 0.0 and d != 0.0:  # con turbo responde más rápido que la aceleración normal
+		velocity.x += clampf(d * sp - velocity.x, -900.0 * dt, 900.0 * dt)
 
 
 ## La guía del tiro: mientras cargás, puntitos por donde va a ir la baba con lo que lleva cargado y una marca
@@ -537,7 +550,9 @@ func _draw_guide() -> void:
 func possess() -> void:
 	ctrl = true
 	cool = 0.0
-	dash_cd = 0.0
+	turbo = 1.0
+	turbo_on = false
+	turbo_empty = false
 	if guide == null:
 		guide = Node2D.new()
 		guide.z_index = 6
@@ -567,9 +582,15 @@ func _draw() -> void:
 		if charging:
 			draw_rect(Rect2(-6.5, -21.5, 13.0, 3.0), Pal.K)
 			draw_rect(Rect2(-6.0, -21.0, 12.0 * charge, 2.0), Pal.W if charge >= 1.0 and Engine.get_physics_frames() % 6 < 3 else COL.get(kind, Pal.G))
-	if ctrl and dash_cd > 0.0:  # el dash recargando: una rayita celeste abajo
-		draw_rect(Rect2(-5.5, 1.5, 11.0, 2.0), Pal.K)
-		draw_rect(Rect2(-5.0, 2.0, 10.0 * (1.0 - dash_cd / DASH_CD), 1.0), Pal.C)
+	if ctrl and (turbo < 1.0 or turbo_on):  # la barra de turbo, debajo: celeste; naranja y titilando si se vació
+		draw_rect(Rect2(-7.5, 1.5, 15.0, 3.0), Pal.K)
+		var tc: Color = Pal.C
+		if turbo_empty:
+			tc = Pal.O if Engine.get_physics_frames() % 10 < 5 else Pal.R
+		elif turbo_on and Engine.get_physics_frames() % 6 < 3:
+			tc = Pal.W
+		draw_rect(Rect2(-7.0, 2.0, 14.0 * turbo, 2.0), tc)
+		draw_rect(Rect2(-7.0 + 14.0 * TURBO_MIN, 2.0, 0.5, 2.0), Pal.K)  # la marca de lo mínimo para volver a usarlo
 	if hp < max_hp and (show_hp > 0.0 or ctrl):
 		draw_rect(Rect2(-5.5, -13.5, 11.0, 3.0), Pal.K)
 		draw_rect(Rect2(-5.0, -13.0, 10.0 * hp / max_hp, 2.0), Pal.R)
@@ -768,6 +789,8 @@ func _animate(dt: float) -> void:
 	_set_frame(f)
 	sprite.flip_h = face < 0.0
 	var rest := Vector2(1.2, 0.82) if prep > 0.0 else Vector2.ONE
+	if villain and turbo_on and absf(velocity.x) > 40.0:
+		rest = Vector2(1.3, 0.78)  # estirado mientras resbala
 	if villain and charging:
 		rest = Vector2(1.0 + charge * 0.3, 1.0 - charge * 0.25)
 		if charge >= 1.0:  # tiembla cuando está lleno

@@ -484,7 +484,7 @@ func _draw_title() -> void:
 func _title_villano() -> void:
 	_text("MANEJÁS A LOS SLIMES, DE A UNO,", W / 2.0, 90, Pal.S)
 	_text("CONTRA LOS CUATRO HÉROES", W / 2.0, 98, Pal.S)
-	var lines := ["< > MOVER · Z SALTO", "MANTENÉ X Y SOLTÁ: BABA", "SHIFT: DASH · ABAJO + Z: BAJAR"]
+	var lines := ["< > MOVER · Z SALTO", "MANTENÉ X Y SOLTÁ: BABA", "MANTENÉ SHIFT: TURBO · ABAJO + Z: BAJAR"]
 	for i in lines.size():
 		_text(lines[i], 176, 106 + i * 7, Pal.Y if i == 1 else Pal.W, 1, 1, Pal.K)
 	var f := int(t * 8.0) % 8
@@ -524,7 +524,7 @@ func _draw_villano() -> void:
 	_text("ZONA %d · ENEMIGOS %d" % [main.z + 1, main.alive_in_zone(main.z)] + (" +%d" % more if more > 0 else ""), W / 2.0, 4, Pal.S)
 	var m = main.ctrl
 	if m != null and is_instance_valid(m) and not m.dead:
-		_text("SOS " + m.mob_name() + " · MANTENÉ X Y SOLTÁ: BABA · SHIFT: DASH", 4, 136, Pal.Y, 1, 0, Pal.K)
+		_text("SOS " + m.mob_name() + " · MANTENÉ X Y SOLTÁ: BABA · SHIFT: TURBO", 4, 136, Pal.Y, 1, 0, Pal.K)
 	elif int(t * 4.0) % 2 == 0:
 		_text("BUSCANDO OTRO CUERPO...", 4, 136, Pal.C, 1, 0, Pal.K)
 
