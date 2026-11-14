@@ -180,11 +180,12 @@ la misma compu, con el teclado y hasta ocho joysticks. Los lugares que nadie eli
 - **La cámara**: si las personas se separan, se aleja apoyada en el piso hasta mostrar la zona entera (dos
   pantallas) y se acerca despacio cuando se juntan. Con la cámara ya lo más lejos posible, el que se sigue
   alejando espera a los demás. En el Salón del Trono vuelve a la normal.
+- **Pasar de zona**: cuando un héroe cruza el portón abierto, cruzan todos: los demás aparecen a su lado.
 - **En pantalla**: sobre cada héroe manejado por una persona, una flechita con su control (*TEC*, *J1*...) y en
   la lista de arriba, su barra de energía. Los héroes de las personas corren a velocidad completa (los del bot
   siguen al 62%). El héroe que cae no vuelve en esa partida.
 - **Final**: *¡GANARON LOS HÉROES!* si cae el Mega Caballero, *GANÓ EL VILLANO* si caen los cuatro. `R` es la
-  revancha con los mismos lugares; volviendo al título se pasa otra vez por la sala.
+  revancha con los mismos lugares (solo en el teclado: ningún botón del joystick reinicia); volviendo al título se pasa otra vez por la sala.
 
 Código: `scripts/ctl.gd` (los controles por dispositivo: cada uno tiene sus acciones, `kb_saltar`, `j0_saltar`...),
 en `scripts/main.gd` la parte "multijugador local" (`lobby_step`, los lugares en `seats`, la cámara que se aleja

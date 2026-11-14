@@ -534,11 +534,30 @@ func _villano_step(dt: float) -> void:
 			_possess_next(false)
 	var up := 0
 	var crossed := true
+	var first: Player = null   # el primero que cruzó el portón
 	for h in heroes:
 		if not h.dead:
 			up += 1
 			if h.global_position.x < gates[z].x + 20.0:
 				crossed = false
+			elif first == null:
+				first = h
+	if multi and zone_lost and first != null and not crossed and gates[z].open > 0.85:
+		# multijugador: cuando cruza uno, cruzan todos (los demás aparecen a su lado)
+		var i := 0
+		for h in heroes:
+			if h.dead or h.global_position.x >= gates[z].x + 20.0:
+				continue
+			Fx.dust(self, h.global_position, 4, 30.0, 4.0, 1.6)
+			h.global_position = Vector2(gates[z].x + 24.0 + i * 9.0, GROUND)
+			h.velocity = Vector2.ZERO
+			h.invuln = maxf(h.invuln, 0.6)
+			h.squash = Vector2(0.7, 1.35)
+			Fx.ring(self, h.global_position + Vector2(0, -10), Pal.C, 0.0, 14.0, 1.0, 0.3)
+			Fx.burst(self, h.global_position + Vector2(0, -10), 8, [Pal.C, Pal.W], 60.0, 30.0, 0.4, 0.0)
+			i += 1
+		Snd.play("posesion", {"rate": 1.3, "vol": 0.6, "vary": false})
+		crossed = true
 	if up == 0:
 		_villano_end(true)
 	elif field == 0 and reserve.is_empty():
@@ -1208,7 +1227,7 @@ func _setup_input() -> void:
 		"izquierda": [JOY_BUTTON_DPAD_LEFT], "derecha": [JOY_BUTTON_DPAD_RIGHT],
 		"abajo": [JOY_BUTTON_DPAD_DOWN], "arriba": [JOY_BUTTON_DPAD_UP],
 		"saltar": [JOY_BUTTON_A], "atacar": [JOY_BUTTON_X], "especial": [JOY_BUTTON_B],
-		"poder": [JOY_BUTTON_Y], "reiniciar": [JOY_BUTTON_BACK],
+		"poder": [JOY_BUTTON_Y],  # (reiniciar queda solo en la R del teclado: en un joystick se apretaba sin querer)
 	}
 	for action in map:
 		if InputMap.has_action(action):
