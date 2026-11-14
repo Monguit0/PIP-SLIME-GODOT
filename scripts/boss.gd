@@ -150,6 +150,7 @@ var combo := 0      # con media vida o menos, los ataques encadenados salen más
 var chain_t := 0.0
 var step_t := 0.0
 var hurt_inv := 0.0
+var atk_n := 0      # cuántos ataques lleva (los héroes del bot deciden una vez por ataque si lo ven venir)
 
 
 ## Todos los cuadros del jefe, para que main.gd los vaya cargando en segundo plano desde el título
@@ -253,6 +254,21 @@ func _nearest_hero() -> void:
 			player = h
 
 
+## En cuántos segundos la embestida llega a ese punto (-1 si no viene para ahí). Lo usan los héroes del bot
+## para saltarla a tiempo.
+func charge_eta(px: float) -> float:
+	if atk != "charge" or (state != "tele" and state != "act"):
+		return -1.0
+	var d := (px - cx()) * face - BW / 2.0
+	if d < 0.0:
+		return -1.0
+	var spd := 300.0 if phase >= 2 else 260.0
+	var wait := 0.0
+	if state == "tele":
+		wait = maxf(0.0, PB.charge.tele * (0.8 if phase >= 2 else 1.0) * (0.5 if combo >= 2 else 1.0) - t)
+	return wait + d / spd
+
+
 func _cdm() -> float:
 	return 0.45 if phase >= 3 else (0.6 if phase >= 2 else 1.0)
 
@@ -286,6 +302,7 @@ func _pick() -> String:
 func _start(pick: String, dir: int, chain: bool) -> void:
 	chain = chain and _can_combo()
 	combo = (maxi(combo, 1) + 1) if chain else 1
+	atk_n += 1
 	chain_t = 0.0
 	atk = pick
 	last = pick

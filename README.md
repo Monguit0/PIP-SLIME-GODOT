@@ -132,7 +132,8 @@ Son tres zonas (Pradera, Ruinas y Murallas) y al final el Salón del Trono, dond
   Abajo se ven los cuatro ataques: en amarillo el que está listo. Con media vida o menos (furia) las recargas
   bajan y podés **encadenar**: pedir otro ataque mientras se recupera del anterior lo saca sin pausa, con el
   aviso a la mitad y un punto más de daño (*COMBO x2, x3...*). Entre golpe y golpe que recibe tiene 0,2 s de
-  respiro. Los héroes le pegan de cerca o de lejos según quién sea, se corren del tajo, saltan las ondas y se
+  respiro. Los héroes le pegan de cerca o de lejos según quién sea, se corren del tajo, saltan las ondas, a la
+  embestida le pasan por arriba con un salto doble (7 de cada 10 veces; si caen sobre el yelmo, lo pisan) y se
   apartan de donde va a caer una espada, pero no siempre.
 - **Posesión**: una flechita amarilla marca al que manejás. Cuando lo matan, tu alma queda suelta un segundo
   (*BUSCANDO OTRO CUERPO...*), viaja en un arco de chispas celestes y entra en el slime que esté más cerca de los

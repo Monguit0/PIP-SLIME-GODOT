@@ -23,6 +23,9 @@ var atk_cd := 0.0
 var spc_hold := 0.0
 var spc_cd := 0.0
 var seen := {}
+var leap2 := -1.0            # salto doble pendiente: en cuánto aprieta el segundo
+var leap_t := 0.0            # está saltando la embestida del jefe: sigue de largo hacia este lado
+var leap_dir := 0
 var wait_x := 0.0           # cada uno espera un poco más o menos lejos del portón, para no amontonarse
 
 
@@ -40,6 +43,12 @@ func think(p: Player, dt: float) -> void:
 	spc_cd -= dt
 	jump_hold -= dt
 	jump_gap -= dt
+	leap_t -= dt
+	if leap2 > 0.0:
+		leap2 -= dt
+		if leap2 <= 0.0:  # el segundo salto, en el aire: suelta un cuadro y vuelve a apretar
+			jump_gap = 0.03
+			jump_hold = 0.34
 	atk_hold -= dt
 	spc_hold -= dt
 	drop = false
@@ -52,6 +61,7 @@ func think(p: Player, dt: float) -> void:
 		_decide(p)
 	_climb(p)
 	_dodge(p)
+	_leap(p)
 	p.inp = {
 		"derecha": move > 0, "izquierda": move < 0,
 		"saltar": jump_hold > 0.0 and jump_gap <= 0.0,
@@ -174,7 +184,7 @@ func _decide(p: Player) -> void:
 			jump_gap = 0.0
 
 
-## Contra el Mega Caballero: los de espada se le pegan y se apartan cuando levanta la espada o embiste;
+## Contra el Mega Caballero: los de espada se le pegan y se apartan cuando levanta la espada; la embestida la saltan;
 ## el arquero y el mago le tiran de lejos. Todos bajan al piso.
 func _boss(p: Player, b) -> void:
 	var cx := p.global_position.x
@@ -184,6 +194,8 @@ func _boss(p: Player, b) -> void:
 	var lo: float = b.ARENA_MIN + 6.0
 	var hi: float = b.ARENA_MAX - 6.0
 	var cornered: bool = (toward > 0 and cx < lo + 14.0) or (toward < 0 and cx > hi - 14.0)
+	if leap_t > 0.0 or b.charge_eta(cx) >= 0.0:
+		return  # la embestida la resuelve _leap, cuadro a cuadro
 	if _on_platform(p):
 		drop = true
 		jump_hold = 0.06
@@ -208,8 +220,6 @@ func _boss(p: Player, b) -> void:
 					move = -move
 			elif b.atk == "charge":
 				move = -toward if not cornered else 0
-				if b.state == "act" and dist < 70.0:
-					_jump()
 			else:
 				move = -toward if not cornered else toward
 				if cornered:
@@ -232,6 +242,40 @@ func _boss(p: Player, b) -> void:
 			_attack(p)
 	if move == 0 and p.face != toward:
 		move = toward
+
+
+## La embestida del jefe no se salta con un salto solo (mide 40): salto doble justo antes de que llegue, yendo
+## hacia él para pasarle por arriba y caer atrás. Si cae sobre el yelmo, encima lo pisa. Se mira cuadro a
+## cuadro, porque entre pensada y pensada la embestida ya llegó.
+func _leap(p: Player) -> void:
+	if leap_t > 0.0:
+		move = leap_dir
+		return
+	var b = game.boss
+	if game.z < 3 or b == null or not is_instance_valid(b) or not b.active():
+		return
+	var cx := p.global_position.x
+	var eta: float = b.charge_eta(cx)
+	if eta < 0.0:
+		return
+	var k: int = b.atk_n * 31 + 7
+	if not seen.has(k):
+		seen[k] = randf() < maxf(skill, 0.7)  # la embestida se ve venir de lejos: la saltan 7 de cada 10 veces
+	if not seen[k]:
+		return
+	var toward := 1 if b.cx() >= cx else -1
+	if eta < 0.48 and eta > 0.1 and p.is_on_floor():
+		jump_hold = 0.22
+		jump_gap = 0.0
+		leap2 = 0.2
+		leap_t = 0.75
+		leap_dir = toward
+		move = toward
+	elif _on_platform(p):
+		move = 0  # arriba de una plataforma la embestida le pasa por abajo
+	else:
+		var cornered: bool = (toward > 0 and cx < b.ARENA_MIN + 20.0) or (toward < 0 and cx > b.ARENA_MAX - 20.0)
+		move = 0 if cornered else -toward
 
 
 func _climb(p: Player) -> void:
