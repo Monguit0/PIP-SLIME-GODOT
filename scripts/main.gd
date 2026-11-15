@@ -23,6 +23,8 @@ const ShroomScript := preload("res://scripts/shroom.gd")
 const PlantScript := preload("res://scripts/plant.gd")
 const BatScript := preload("res://scripts/bat.gd")
 const PupScript := preload("res://scripts/pup.gd")
+const BoxerScript := preload("res://scripts/boxer.gd")
+const MINIBOSS_ODDS := 0.5   # nivel 2: en cada zona, la chance de que aparezca un minijefe (uno por partida)
 const HudScript := preload("res://scripts/hud.gd")
 const BgScript := preload("res://scripts/background.gd")
 const CoinScript := preload("res://scripts/coin.gd")
@@ -48,7 +50,7 @@ const MODES := ["campaign", "villano", "multi", "prueba"]
 ## final: manejás el bicho que elijas (o lo mirás manejado por el juego) contra los cuatro héroes, que
 ## reviven solos. TAB / Q cambian de bicho, los números eligen uno, H deja quietos a los héroes y G le
 ## pasa el bicho al juego.
-const TEST_KINDS := ["green", "red", "skarch", "skaxe", "spider", "shroom", "plant", "toxic", "bat", "pup"]
+const TEST_KINDS := ["green", "red", "skarch", "skaxe", "spider", "shroom", "plant", "toxic", "bat", "pup", "boxer"]
 ## Multijugador local: los lugares de la sala. El que nadie elige lo maneja un bot.
 const SEATS := ["v", "archer", "knight", "barb", "mage"]
 const CAM_Z_MIN := 0.5   # lo más lejos que se va la cámara: la zona entera (dos pantallas)
@@ -519,6 +521,8 @@ func _villain_mob(n: int, k: String, at: Vector2, surf: Array = []) -> Node2D:
 		s = BatScript.new()
 	elif k == "pup":
 		s = PupScript.new()
+	elif k == "boxer":
+		s = BoxerScript.new()
 	else:
 		s = SlimeScript.new()
 	s.kind = k
@@ -561,6 +565,7 @@ func _reinforce() -> void:
 
 # ---------------------------------------------------------------- modo Prueba
 
+var miniboss_seen := false
 var test_idle := true       # los héroes se quedan quietos, de muñecos (H los pone a pelear)
 var test_ai := false        # el bicho lo maneja el juego y vos mirás
 var test_wait := 0.0        # el bicho murió: en cuánto vuelve
@@ -960,6 +965,18 @@ func slime_killed(s: Node2D, how: String, crit: bool) -> void:
 			Fx.flash_red = 0.2
 		return
 	var kind: String = s.get("kind")
+	if s.get("miniboss") == true:
+		# cayó un minijefe: muchos puntos y experiencia, y dos corazones
+		add_score(300)
+		Fx.popup(self, s.global_position + Vector2(0, -52), "¡MINIJEFE! +300", Pal.Y, true)
+		gain_xp(30, s.global_position + Vector2(0, -40))
+		if player.hearts < player.max_hearts:
+			player.hearts = mini(player.max_hearts, player.hearts + 2)
+			player.hearts_changed.emit()
+			Fx.popup(self, player.global_position + Vector2(0, -26), "+2 VIDA", Pal.R)
+		Snd.play("oleada", {"rate": 1.3, "vary": false})
+		Fx.shake(4.0, 0.3)
+		return
 	var extra: int = {"red": 10, "skarch": 20, "skaxe": 25}.get(kind, 0)
 	var base := 10 if how == "trap" else (25 if how == "stomp" else 15) + extra
 	var pts := base * (2 if crit else 1)
@@ -1213,6 +1230,10 @@ func _spawn_slimes(n: int) -> void:
 	var kinds: Array = []
 	if zd.has("mix"):
 		kinds = zd.mix.duplicate()
+		# el minijefe: aparece al azar en alguna zona del bosque, una sola vez por partida
+		if not miniboss_seen and (randf() < MINIBOSS_ODDS or n == 2):
+			miniboss_seen = true
+			kinds.append("boxer")
 	for i in zd.get("green", 0):
 		kinds.append("green")
 	for i in zd.get("red", 0):
@@ -1245,12 +1266,14 @@ func _spawn_slimes(n: int) -> void:
 			s = BatScript.new()
 		elif kind == "pup":
 			s = PupScript.new()
+		elif kind == "boxer":
+			s = BoxerScript.new()
 		else:
 			s = SlimeScript.new()
 		s.set("kind", kind)
 		s.set("zone", n)
 		s.position = Vector2(x + 5, surf[1])
-		if kind == "red" or kind in ["spider", "shroom", "plant", "bat", "pup"] or (kind.begins_with("sk") and surf == ground):
+		if kind == "red" or kind in ["spider", "shroom", "plant", "bat", "pup", "boxer"] or (kind.begins_with("sk") and surf == ground):
 			s.set("min_x", float(zd.start + 11))
 			s.set("max_x", float(zd.end - 11))
 		else:

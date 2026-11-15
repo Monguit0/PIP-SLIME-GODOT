@@ -248,8 +248,14 @@ cuál está elegido) y vale para la campaña, el Villano y el multijugador. El n
   izquierda y derecha invertidas) y **cachorro de lobo** (`scripts/pup.gd`: corre, se agazapa y salta a morder;
   manejado por una persona tiene doble salto). Los dibujos del
   murciélago y el cachorro son de PixelLab (`assets/sprites/bosque/murcielago`, `lobito`).
+- **Hongo boxeador** (`scripts/boxer.gd`), el primer minijefe: 20 de vida, los golpes no le cortan lo que está
+  haciendo y tiene cuatro movimientos: uno-dos (`X`), puño del dragón (`C`: un uppercut que lo levanta del piso
+  y revolea a los que agarra), esquive (`Shift`) y cubrirse bajo el sombrero para contestar con un gran
+  puñetazo que lo impulsa hacia adelante y saca 3 (`abajo + X`; 4 si le pegaron mientras se cubría). En la
+  campaña aparece al azar en alguna zona del bosque, una vez por partida, y al caer da 300 puntos, mucha
+  experiencia y dos corazones. Está en el Modo Prueba (el último de la lista).
 - **Falta**: el lobo Campeón (por ahora el jefe de la guarida es el Mega Caballero, de prestado), las trampas
-  de pinchos y los tres hongos minijefes (el boxeador ya tiene animaciones en `tools/bosque/boxeador/`).
+  de pinchos y los otros dos hongos minijefes (el bruto y el gólem).
 
 Los tres enemigos nuevos, que no están en la web (los maneja el juego o, en el modo Villano, una persona).
 Sus dibujos salieron de PixelLab (`assets/sprites/bosque/`).
