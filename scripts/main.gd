@@ -21,6 +21,8 @@ const SkelScript := preload("res://scripts/skeleton.gd")
 const SpiderScript := preload("res://scripts/spider.gd")
 const ShroomScript := preload("res://scripts/shroom.gd")
 const PlantScript := preload("res://scripts/plant.gd")
+const BatScript := preload("res://scripts/bat.gd")
+const PupScript := preload("res://scripts/pup.gd")
 const HudScript := preload("res://scripts/hud.gd")
 const BgScript := preload("res://scripts/background.gd")
 const CoinScript := preload("res://scripts/coin.gd")
@@ -46,7 +48,7 @@ const MODES := ["campaign", "villano", "multi", "prueba"]
 ## final: manejás el bicho que elijas (o lo mirás manejado por el juego) contra los cuatro héroes, que
 ## reviven solos. TAB / Q cambian de bicho, los números eligen uno, H deja quietos a los héroes y G le
 ## pasa el bicho al juego.
-const TEST_KINDS := ["green", "red", "skarch", "skaxe", "spider", "shroom", "plant"]
+const TEST_KINDS := ["green", "red", "skarch", "skaxe", "spider", "shroom", "plant", "toxic", "bat", "pup"]
 ## Multijugador local: los lugares de la sala. El que nadie elige lo maneja un bot.
 const SEATS := ["v", "archer", "knight", "barb", "mage"]
 const CAM_Z_MIN := 0.5   # lo más lejos que se va la cámara: la zona entera (dos pantallas)
@@ -61,9 +63,9 @@ const SideSword := preload("res://scripts/side_sword.gd")
 const LEVEL_NAMES := ["EL REINO", "EL BOSQUE OSCURO"]
 const LEVEL_2 := {
 	"zones": [
-		{"start": 0, "end": 512, "name": "LINDE DEL BOSQUE", "haz": 0.5, "mix": ["green", "shroom", "green", "spider", "plant"]},
-		{"start": 512, "end": 1024, "name": "BOSQUE OSCURO", "haz": 0.8, "mix": ["shroom", "spider", "plant", "red", "spider", "green"]},
-		{"start": 1024, "end": 1536, "name": "CIÉNAGA DE RAÍCES", "haz": 1.0, "mix": ["plant", "spider", "shroom", "plant", "red", "spider", "shroom"]},
+		{"start": 0, "end": 512, "name": "LINDE DEL BOSQUE", "haz": 0.5, "mix": ["green", "toxic", "bat", "shroom", "spider"]},
+		{"start": 512, "end": 1024, "name": "BOSQUE OSCURO", "haz": 0.8, "mix": ["toxic", "bat", "pup", "plant", "spider", "shroom"]},
+		{"start": 1024, "end": 1536, "name": "CIÉNAGA DE RAÍCES", "haz": 1.0, "mix": ["pup", "toxic", "bat", "plant", "spider", "shroom", "pup"]},
 		{"start": 1536, "end": 1792, "name": "GUARIDA DEL CAMPEÓN", "boss": true},
 	],
 	# las plataformas del nivel 2 del original
@@ -75,15 +77,15 @@ const LEVEL_2 := {
 	],
 	# en el Villano van menos bichos que en el Reino: los del bosque pegan más fuerte
 	"mobs": [
-		["green", "shroom", "spider", "green"],
-		["shroom", "spider", "plant", "green"],
-		["plant", "spider", "shroom", "red", "green"],
+		["green", "shroom", "spider", "toxic"],
+		["shroom", "bat", "plant", "pup"],
+		["plant", "spider", "shroom", "pup", "bat"],
 	],
 	"first": ["shroom", "spider", "plant"],
 	"reserve": [
-		["green", "spider", "green"],
-		["spider", "green", "shroom"],
-		["plant", "green", "spider"],
+		["toxic", "spider", "green"],
+		["bat", "toxic", "shroom"],
+		["pup", "bat", "spider"],
 	],
 }
 
@@ -513,6 +515,10 @@ func _villain_mob(n: int, k: String, at: Vector2, surf: Array = []) -> Node2D:
 		s = ShroomScript.new()
 	elif k == "plant":
 		s = PlantScript.new()
+	elif k == "bat":
+		s = BatScript.new()
+	elif k == "pup":
+		s = PupScript.new()
 	else:
 		s = SlimeScript.new()
 	s.kind = k
@@ -599,7 +605,7 @@ func _test_step(dt: float) -> void:
 	elif _test_tap(KEY_Q):
 		pick_i = (test_i - 1 + TEST_KINDS.size()) % TEST_KINDS.size()
 	for i in TEST_KINDS.size():
-		if _test_tap(KEY_1 + i):
+		if i < 9 and _test_tap(KEY_1 + i):
 			pick_i = i
 	if pick_i >= 0:
 		test_i = pick_i
@@ -1235,12 +1241,16 @@ func _spawn_slimes(n: int) -> void:
 			s = ShroomScript.new()
 		elif kind == "plant":
 			s = PlantScript.new()
+		elif kind == "bat":
+			s = BatScript.new()
+		elif kind == "pup":
+			s = PupScript.new()
 		else:
 			s = SlimeScript.new()
 		s.set("kind", kind)
 		s.set("zone", n)
 		s.position = Vector2(x + 5, surf[1])
-		if kind == "red" or kind in ["spider", "shroom", "plant"] or (kind.begins_with("sk") and surf == ground):
+		if kind == "red" or kind in ["spider", "shroom", "plant", "bat", "pup"] or (kind.begins_with("sk") and surf == ground):
 			s.set("min_x", float(zd.start + 11))
 			s.set("max_x", float(zd.end - 11))
 		else:

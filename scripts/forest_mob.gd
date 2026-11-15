@@ -59,6 +59,7 @@ var aim_x := 0.0
 var turbo = Turbo.new()
 var immune := false        # no le entra ningún golpe (la planta bajo tierra)
 var touch := true          # tocarlo lastima
+var idle_anim := "idle"    # el cuadro con el que aparece
 var vanish := false        # al morir no deja cuerpo: se infla y desaparece de un saque
 
 
@@ -110,7 +111,7 @@ func _ready() -> void:
 	sprite = Sprite2D.new()
 	sprite.centered = false
 	sprite.offset = Vector2(-canvas / 2.0, -foot_y)
-	sprite.texture = frame("idle", 0)
+	sprite.texture = frame(idle_anim, 0)
 	add_child(sprite)
 	hurtbox = Area2D.new()
 	hurtbox.collision_layer = 0
@@ -230,7 +231,7 @@ func _physics_process(dt: float) -> void:
 		spawn -= dt
 		var k := clampf(1.0 - spawn / 0.55, 0.0, 1.0)
 		sprite.modulate.a = k
-		sprite.texture = frame("idle", 0)
+		sprite.texture = frame(idle_anim, 0)
 		look()
 		sprite.position.y = roundf((1.0 - k) * 10.0)
 		if randf() < 0.4:

@@ -46,7 +46,7 @@ func _physics_process(dt: float) -> void:
 	if Engine.get_physics_frames() % 22 == 0 and t < LIFE - END:
 		var bx := randf_range(-RAD, RAD) * 0.8
 		Fx.ring(get_parent(), global_position + Vector2(bx, -randf_range(4, 26)), Color("9ffd4e"), 0.0, 5.0, 0.8, 0.22)
-	if t < 0.2 or t > LIFE - END * 0.6:
+	if t < 0.7 or t > LIFE - END * 0.6:   # tarda un instante en hacer daño: da tiempo a salir
 		return
 	var area := Rect2(global_position.x - RAD, global_position.y - 34.0, RAD * 2.0, 36.0)
 	for h in get_tree().get_nodes_in_group("heroe"):

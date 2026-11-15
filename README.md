@@ -220,8 +220,9 @@ En el título, arriba y abajo cambian de modo; el último es **Modo Prueba**: un
 separado, sin final. Es el modo Villano en la primera zona del nivel elegido: manejás un bicho contra los cuatro
 héroes, que arrancan quietos (de muñecos) y reviven solos; si te matan, el bicho vuelve a aparecer.
 
-- `TAB` (o `BACK` en el joystick): el bicho siguiente · `Q`: el anterior · `1` a `7`: uno puntual (slime, slime
-  rojo, esqueleto arquero, esqueleto hachero, araña, hongo, planta; la lista es `TEST_KINDS` en `main.gd`).
+- `TAB` (o `BACK` en el joystick): el bicho siguiente · `Q`: el anterior · `1` a `9`: uno puntual (slime, slime
+  rojo, esqueleto arquero, esqueleto hachero, araña, hongo, planta, slime tóxico, murciélago; el cachorro de
+  lobo es el décimo, con `TAB`; la lista es `TEST_KINDS` en `main.gd`).
 - `H` (o apretar la palanca derecha): los héroes se quedan quietos o te atacan.
 - `G`: el bicho lo manejás vos o lo maneja el juego (para mirar cómo se porta solo).
 
@@ -241,9 +242,12 @@ cuál está elegido) y vale para la campaña, el Villano y el multijugador. El n
 - Música propia: "Hongos que brillan", una variación del tema principal (Am–F–Dm–E, campanas, arpa, flauta y
   colchón sobre el pulso de siempre), sintetizada por `tools/musica/bosque.py` (`b0`, `b1`, `b2`: una por zona,
   cada una un poco más rápida). El jefe, las cartas y los finales siguen con la música del Reino.
-- **Falta**: el lobo Campeón (por ahora el jefe de la guarida es el Mega Caballero, de prestado), los
-  enemigos de la web (slime tóxico, murciélago, cachorro de lobo), las trampas de pinchos y los tres hongos
-  minijefes.
+- Los tres enemigos del nivel 2 de la web: **slime tóxico** (no saca vida al tocar: envenena, y el corazón se
+  pierde 1,4 s después), **murciélago** (`scripts/bat.gd`: revolotea arriba del héroe y baja en picada, con
+  aviso) y **cachorro de lobo** (`scripts/pup.gd`: corre, se agazapa y salta a morder). Los dibujos del
+  murciélago y el cachorro son de PixelLab (`assets/sprites/bosque/murcielago`, `lobito`).
+- **Falta**: el lobo Campeón (por ahora el jefe de la guarida es el Mega Caballero, de prestado), las trampas
+  de pinchos y los tres hongos minijefes (el boxeador ya tiene animaciones en `tools/bosque/boxeador/`).
 
 Los tres enemigos nuevos, que no están en la web (los maneja el juego o, en el modo Villano, una persona).
 Sus dibujos salieron de PixelLab (`assets/sprites/bosque/`).

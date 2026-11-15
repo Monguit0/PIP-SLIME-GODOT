@@ -14,6 +14,10 @@ const FW := 32
 const FH := 26
 const SHEET := preload("res://assets/sprites/slimes.png")
 const ROWS := {"green": 0, "red": 1, "toxic": 2, "ice": 3}
+## el slime tóxico no saca vida al tocar: envenena (Player.hurt lo mira)
+var toxic: bool:
+	get:
+		return kind == "toxic"
 const HP := {"green": 1, "red": 2, "toxic": 1, "ice": 2}
 const COL := {"green": Pal.G, "red": Pal.R, "toxic": Pal.P, "ice": Pal.B}  # color de la baba
 const Pix := preload("res://scripts/pix.gd")
@@ -23,7 +27,7 @@ const VHP := {"green": 3, "red": 4}             # uno más que en el original: a
 const VSPEED := {"green": 40.0, "red": 62.0}     # cuando lo maneja el juego
 const PSPEED := {"green": 58.0, "red": 78.0}     # cuando lo manejás vos
 const VJUMP := {"green": 235.0, "red": 255.0}
-const VNAME := {"green": "SLIME", "red": "SLIME ROJO"}
+const VNAME := {"green": "SLIME", "red": "SLIME ROJO", "toxic": "SLIME TÓXICO"}
 const Turbo := preload("res://scripts/turbo.gd")   # el turbo de baba y las marcas del que manejás
 
 var kind := "green"

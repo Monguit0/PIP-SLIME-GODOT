@@ -168,6 +168,7 @@ var twirl_t := 0.0           # girando en el aire (doble salto y al rebotar en u
 var apex_fx := false         # ya salió el destello de arriba de todo del salto
 # modo Villano: a este héroe lo maneja un bot (hero_bot.gd), que "aprieta" las acciones por él
 var bot := false
+var poison_t := 0.0   # envenenado (slime tóxico): cuando llega a cero pierde un corazón
 var web_t := 0.0   # enredado en la telaraña de la araña: se mueve muy lento
 var web_k := 1.0
 var pad = null   # multijugador: con qué juega esta persona (Ctl.KB o el número del joystick); null = cualquiera
@@ -418,6 +419,24 @@ func _physics_process(dt: float) -> void:
 		slow = 0.5
 	elif charge >= CHG_ON:
 		slow = 0.6 if melee() else 0.0
+	if poison_t > 0.0 and not dead:
+		poison_t -= dt
+		if randf() < 0.3:
+			Fx.part(get_parent(), global_position + Vector2(randf_range(-4, 4), -randf_range(8, 18)), Vector2(0, -20), -10.0, 0.4, Pal.L if randf() < 0.5 else Pal.P)
+		if poison_t <= 0.0 and (game == null or game.state == "play"):
+			hearts = maxi(0, hearts - 1)
+			flash_t = 0.09
+			Snd.play("baba", {"rate": 1.3})
+			Snd.play("dano", {"rate": 1.4, "vol": 0.6})
+			Fx.burst(get_parent(), global_position + Vector2(0, -9), 10, [Pal.L, Pal.P, Pal.G], 60.0, 30.0, 0.4, 150.0)
+			Fx.popup(get_parent(), global_position + Vector2(0, -24), "-1", Pal.L)
+			hearts_changed.emit()
+			if hearts <= 0:
+				dead = true
+				set_collision_mask_value(2, false)
+				died.emit()
+			else:
+				_try_cure()
 	if web_t > 0.0:
 		web_t -= dt
 		slow *= web_k
@@ -1484,6 +1503,18 @@ func hurt(from_x: float, amount: int = 1, src: Object = null) -> bool:
 		else:
 			_block(dir, src)
 		return false
+	if src != null and src.get("toxic") == true:
+		# el slime tóxico no pega: envenena (un corazón menos un rato después)
+		if poison_t > 0.0:
+			return false
+		poison_t = 1.4
+		invuln = 0.9
+		velocity = Vector2(dir * 90.0, -110.0)
+		Snd.play("baba", {"rate": 0.9})
+		Fx.popup(get_parent(), global_position + Vector2(0, -24), "¡VENENO!", Pal.L)
+		Fx.burst(get_parent(), global_position + Vector2(0, -9), 10, [Pal.L, Pal.P, Pal.G], 60.0, 30.0, 0.4, 150.0)
+		hurt_by.emit(src)
+		return true
 	hearts = maxi(0, hearts - amount)
 	invuln = 0.75 if bot else 1.4  # los héroes del bot, como en el modo villano del original
 	hurt_t = 0.3
