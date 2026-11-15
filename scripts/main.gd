@@ -426,6 +426,7 @@ func _villano_zone(n: int) -> void:
 	cleared = false
 	if test:
 		reserve = []
+		last_ctrl_x = ZONES[n].start + 300.0   # lejos de los héroes, que arrancan a la izquierda
 		_test_spawn()
 		return
 	_spawn_villain_mobs(n)

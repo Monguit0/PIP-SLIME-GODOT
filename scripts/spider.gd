@@ -71,6 +71,7 @@ var hang_t := 0.0
 var rope_cd := 0.0
 var shoot_line := 0.0   # el hilo recién lanzado: un destello a lo largo
 var ai_rope := 4.0
+var fling := false       # salió despedida de la hamaca: en el aire conserva la velocidad que traía
 var air_jump := true    # le queda el segundo salto (se recarga al pisar o al colgarse)
 
 
@@ -282,8 +283,22 @@ func _ground_step(dt: float) -> void:
 		dir = _think(dt)
 	var top := (PSPEED if ctrl else SPEED) * (0.3 if spit_t >= 0.0 else 1.0)
 	var acc := (700.0 if is_on_floor() else 450.0) * dt
-	velocity.x += clampf(dir * top - velocity.x, -acc, acc)
-	velocity.y = minf(velocity.y + GRAV * dt, 280.0)
+	if is_on_floor() and velocity.y >= 0.0:
+		if fling:
+			Fx.dust(get_parent(), global_position, 4, 34.0, 6.0, 1.6, Pal.S)
+		fling = false
+	if fling and absf(velocity.x) > top and dir * velocity.x >= 0.0:
+		# volando más rápido de lo que camina: no frena (apenas el aire), y deja una estela
+		velocity.x *= maxf(0.0, 1.0 - 0.5 * dt)
+		if Engine.get_physics_frames() % 2 == 0:
+			Fx.part(get_parent(), global_position + Vector2(0, -10), -velocity * 0.1, 0.0, 0.22, Pal.W if randf() < 0.5 else Pal.S)
+	else:
+		if fling:
+			acc *= 0.6   # frenar o dar vuelta en el aire cuesta
+		velocity.x += clampf(dir * top - velocity.x, -acc, acc)
+	velocity.y = minf(velocity.y + GRAV * (0.8 if fling and velocity.y < 0.0 else 1.0) * dt, 280.0)
+	if global_position.y < 30.0 and velocity.y < 0.0:
+		velocity.y *= 0.8   # el techo de ramas: no se va de la pantalla
 	if knock != 0.0:
 		velocity.x += knock
 		knock *= maxf(0.0, 1.0 - 6.0 * dt)
@@ -409,7 +424,8 @@ func _hang_step(dt: float) -> void:
 		stun -= dt
 	elif ctrl and _playing():
 		var push := float(int(Ctl.down(_dev(), "derecha")) - int(Ctl.down(_dev(), "izquierda")))
-		ang_v += push * 5.5 * dt
+		# empujar a favor del envión rinde más: así la hamaca crece rápido
+		ang_v += push * (7.5 if push * ang_v >= 0.0 else 5.0) * dt
 		if push != 0.0:
 			face = push
 		var climb := float(int(Ctl.down(_dev(), "abajo")) - int(Ctl.down(_dev(), "arriba")))
@@ -431,10 +447,10 @@ func _hang_step(dt: float) -> void:
 			if hang_t > 0.7 and (absf(dx) < 18.0 or hang_t > 2.6):
 				cut = true
 	ang_v += -(GRAV / rope) * sin(ang) * dt
-	ang_v *= maxf(0.0, 1.0 - 0.35 * dt)
+	ang_v *= maxf(0.0, 1.0 - 0.2 * dt)
 	ang += ang_v * dt
-	ang = clampf(ang, -1.05, 1.05)
-	if absf(ang) >= 1.05:
+	ang = clampf(ang, -1.3, 1.3)
+	if absf(ang) >= 1.3:
 		ang_v *= -0.4
 	# recién enganchada recoge un poco de hilo, así se despega del piso
 	if hang_t < 0.25:
@@ -456,10 +472,18 @@ func _hang_step(dt: float) -> void:
 ## Corta el hilo: sale despedida con la velocidad que llevaba en la hamaca.
 func _cut_rope() -> void:
 	hanging = false
-	rope_cd = 0.35
+	rope_cd = 0.2
 	set_collision_mask_value(2, true)
+	# sale volando por la tangente, con toda la velocidad de la hamaca y un empujón extra: cortar cuando
+	# va subiendo la manda lejos y alto; cortar abajo, rasante y rápido
 	var tang := Vector2(cos(ang), -sin(ang)) * ang_v * rope
-	velocity = Vector2(tang.x * 1.15, minf(tang.y * 1.15, 0.0) - 50.0).limit_length(230.0)
+	velocity = Vector2(tang.x * 1.45, tang.y * 1.3 - 70.0).limit_length(340.0)
+	velocity.y = maxf(velocity.y, -235.0)   # hacia arriba, lo justo para no irse de la pantalla
+	fling = velocity.length() > 90.0
+	air_jump = true
+	if fling:
+		Snd.play("dash", {"rate": 1.3, "vol": 0.5})
+		Fx.dust(get_parent(), global_position + Vector2(0, -10), 3, 30.0, 8.0, 1.4, Pal.W)
 	sprite.rotation = 0.0
 	Snd.play("tajo", {"rate": 1.8, "vol": 0.4})
 	Fx.burst(get_parent(), global_position + Vector2(0, -12), 5, [Pal.W, Pal.S], 40.0, 10.0, 0.25, 100.0)
