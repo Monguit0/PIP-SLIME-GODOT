@@ -1,6 +1,6 @@
 extends "res://scripts/forest_mob.gd"
 ## Planta carnívora del Bosque Oscuro. Camina muy lento sobre sus raíces.
-## - ataque: mordisco de largo alcance: estira el cuello y muerde a BITE_REACH píxeles;
+## - ataque: se abalanza entera hacia adelante (BITE_REACH píxeles) y muerde lo que encuentre en el camino;
 ## - poder: enredaderas que avanzan por el piso en onda y pueden lastimar a varios (con recarga);
 ## - especial: se hunde bajo la tierra. Ahí abajo es inmune y se mueve rápido; sale sola al acabarse el
 ##   tiempo o al apretar el ataque, con un mordisco hacia arriba que lastima a los que tenga encima.
@@ -11,16 +11,15 @@ const BURROW_FILL := 8.0    # segundos para llenar la barra
 const BURROW_T := 2.0       # lo que aguanta bajo tierra
 const BURROW_SPEED := 96.0
 const SINK := 0.22          # lo que tarda en hundirse o en salir
-const BITE_REACH := 30.0    # cuánto estira el cuello
+const BITE_REACH := 30.0    # cuánto avanza al abalanzarse
 const BITE_T := 0.62        # lo que dura el mordisco entero
-# El cuadro del mordisco con la boca abierta se parte en dos: la cabeza (arriba a la izquierda de HEAD_CUT,
-# en píxeles del dibujo) sale disparada y el resto se queda; entre las dos se dibuja el cuello.
-const HEAD_CUT := Vector2(45, 30)
-const NECK_AT := Vector2(13.5, 30.0)   # por dónde pasa el cuello en el corte
+const LUNGE_A := 0.16       # cuándo arranca y cuándo termina el envión
+const LUNGE_B := 0.28
 const WaveScript := preload("res://scripts/vine_wave.gd")
 
 var bite_t := -1.0
 var bit := false
+var bit_list: Array = []    # a quiénes ya mordió en este envión
 var vines_t := -1.0
 var cast := false
 var vines_cd := 1.5
@@ -53,7 +52,7 @@ func _setup() -> void:
 func mob_hint() -> String:
 	if under:
 		return "BAJO TIERRA: < > MOVERSE · X: SALIR MORDIENDO"
-	return "X: MORDISCO LARGO · C: ENREDADERAS · SHIFT: HUNDIRSE (BARRA LLENA)"
+	return "X: MORDISCO · C: ENREDADERAS · SHIFT: HUNDIRSE (BARRA LLENA)"
 
 
 func _busy() -> bool:
@@ -106,6 +105,9 @@ func _step(dt: float) -> void:
 			dir = signf(dx)
 	if _busy():
 		dir = 0.0
+	if bite_t >= LUNGE_A and bite_t < LUNGE_B:
+		dir = face
+		top = BITE_REACH / (LUNGE_B - LUNGE_A)
 	walk(dir, top, dt)
 	_attacks(dt)
 
@@ -207,24 +209,33 @@ func _attacks(dt: float) -> void:
 	if bite_t >= 0.0:
 		var was := bite_t
 		bite_t += dt
-		if was < 0.16 and bite_t >= 0.16:
-			Snd.play("disparo", {"rate": 0.7, "vol": 0.5})   # sale la cabeza
-		if bite_t >= 0.25 and not bit:
-			bit = true
-			Snd.play("tajo", {"rate": 0.7, "vol": 0.8})
-			# muerde todo lo que haya a lo largo del cuello estirado
-			var far := 24.0 + BITE_REACH
-			var hb := Rect2(global_position.x + (2.0 if face > 0.0 else -far), global_position.y - 26.0, far - 2.0, 22)
-			var got := false
+		if was < LUNGE_A and bite_t >= LUNGE_A:
+			# el envión: toda la planta salta hacia adelante con la boca abierta
+			bit_list.clear()
+			velocity.y = -70.0
+			squash = Vector2(1.35, 0.75)
+			Snd.play("dash", {"rate": 0.8, "vol": 0.6})
+			Fx.dust(get_parent(), global_position, 5, 30.0, 8.0, 1.8, Color("5a3a25"))
+		if bite_t >= LUNGE_A and bite_t < LUNGE_B:
+			velocity.x = face * BITE_REACH / (LUNGE_B - LUNGE_A)
+			if Engine.get_physics_frames() % 2 == 0:
+				Fx.part(get_parent(), global_position + Vector2(-face * 6.0, -randf_range(4, 20)), Vector2(-face * 30.0, 0), 0.0, 0.2, Color("41ce11"))
+			# muerde a los que va encontrando, una vez a cada uno
+			var hb := Rect2(global_position.x + (2.0 if face > 0.0 else -24.0), global_position.y - 26.0, 22, 24)
 			for p in heroes_in(hb):
-				if p.hurt(global_position.x, 1, self):
-					got = true
-			var mouth := global_position + Vector2(face * (14.0 + BITE_REACH), -17.0)
+				if not bit_list.has(p):
+					bit_list.append(p)
+					if p.hurt(global_position.x - face * 6.0, 1, self):
+						Fx.hitstop(0.06)
+						Fx.shake(2.0, 0.12)
+		if was < LUNGE_B and bite_t >= LUNGE_B:
+			# cierra la boca y frena de golpe
+			velocity.x = 0.0
+			squash = Vector2(0.8, 1.25)
+			Snd.play("tajo", {"rate": 0.7, "vol": 0.8})
+			var mouth := global_position + Vector2(face * 14.0, -17.0)
 			Fx.hit(get_parent(), mouth, Vector2(face, 0), Pal.W)
 			Fx.burst(get_parent(), mouth, 5, [Pal.W, Color("41ce11")], 50.0, 20.0, 0.25, 200.0)
-			if got:
-				Fx.hitstop(0.06)
-				Fx.shake(2.0, 0.12)
 		if bite_t >= BITE_T:
 			bite_t = -1.0
 	if vines_t >= 0.0:
@@ -251,7 +262,8 @@ func _anim() -> void:
 	elif windup > 0.0:
 		sprite.texture = frame("bite", 1 + int(anim_t * 14.0) % 2)
 	elif bite_t >= 0.0:
-		sprite.texture = frame("bite", int(bite_t / BITE_T * count("bite")))
+		# boca abierta mientras vuela, se cierra al llegar
+		sprite.texture = frame("bite", 4 if bite_t >= LUNGE_A and bite_t < LUNGE_B else int(bite_t / BITE_T * count("bite")))
 	elif vines_t >= 0.0:
 		sprite.texture = frame("vines", int(vines_t / 0.6 * count("vines")))
 	elif absf(velocity.x) > 3.0 and is_on_floor():
@@ -264,66 +276,19 @@ func _anim() -> void:
 ## Al salir con el mordisco hacia arriba, el dibujo se estira para arriba.
 func look() -> void:
 	super.look()
-	sprite.visible = _stretch() <= 0.0   # con el cuello estirado se dibuja a mano (_draw)
 	var h := canvas * (1.0 - sink * 0.97)
 	sprite.region_enabled = true
 	sprite.region_rect = Rect2(0, 0, canvas, h)
 	sprite.offset = Vector2(-canvas / 2.0, -foot_y)
 	sprite.position.y = roundf(sink * foot_y * draw_scale)
 	sprite.rotation = (-0.5 * face if faces_right else 0.5 * face) * clampf(1.0 - absf(rise_t - 0.1) / 0.2, 0.0, 1.0) if rise_t >= 0.0 else 0.0
-
-
-## Cuánto está estirado el cuello ahora (0 a 1): sale rápido, aguanta un instante mordiendo y vuelve.
-func _stretch() -> float:
-	if bite_t < 0.16 or windup > 0.0 or dead:
-		return 0.0
-	if bite_t < 0.25:
-		var k := (bite_t - 0.16) / 0.09
-		return 1.0 - (1.0 - k) * (1.0 - k)
-	if bite_t < 0.34:
-		return 1.0
-	return clampf(1.0 - (bite_t - 0.34) / 0.16, 0.0, 1.0)
-
-
-func _draw_neck() -> void:
-	var k := _stretch()
-	var tex := frame("bite", 4 if bite_t < 0.27 else 3)
-	var fl := 1.0 if face >= 0.0 else -1.0
-	var s := draw_scale
-	var d := k * BITE_REACH / s             # en píxeles del dibujo
-	var lift := -sin(k * PI) * 3.0          # la cabeza sube apenas en el viaje
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(s * fl, s))
-	var o := Vector2(-canvas / 2.0, -foot_y)
-	var col := Color.WHITE if flash > 0.0 else sprite.modulate
-	# el cuerpo: todo menos la cabeza
-	draw_texture_rect_region(tex, Rect2(o + Vector2(0, HEAD_CUT.y), Vector2(canvas, canvas - HEAD_CUT.y)), Rect2(0, HEAD_CUT.y, canvas, canvas - HEAD_CUT.y), col)
-	draw_texture_rect_region(tex, Rect2(o + Vector2(HEAD_CUT.x, 0), Vector2(canvas - HEAD_CUT.x, HEAD_CUT.y)), Rect2(HEAD_CUT.x, 0, canvas - HEAD_CUT.x, HEAD_CUT.y), col)
-	# el cuello: una curva gruesa del muñón a la cabeza, con una panza hacia abajo y espinas
-	var a := o + NECK_AT + Vector2(0, 1)
-	var b := o + NECK_AT + Vector2(d, lift - 1.0)
-	var pts := PackedVector2Array()
-	var n := 10
-	for i in n + 1:
-		var u := float(i) / n
-		pts.append(a.lerp(b, u) + Vector2(0, sin(u * PI) * (5.0 + 3.0 * sin(anim_t * 40.0)) * k))
-	draw_polyline(pts, Color("0d1f14"), 9.0)
-	draw_polyline(pts, Color("189030"), 6.5)
-	var hi := PackedVector2Array()
-	for p in pts:
-		hi.append(p + Vector2(0, -1.5))
-	draw_polyline(hi, Color("41ce11"), 3.0)
-	for i in range(2, n, 2):
-		draw_rect(Rect2(pts[i] + Vector2(-1, -5.5), Vector2(2, 2)), Pal.W)
-	# la cabeza
-	draw_texture_rect_region(tex, Rect2(o + Vector2(d, lift), HEAD_CUT), Rect2(Vector2.ZERO, HEAD_CUT), col)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if bite_t >= LUNGE_A - 0.06 and bite_t < LUNGE_B + 0.08 and windup <= 0.0:
+		sprite.rotation = 0.38 * face   # se tira de cabeza
 
 
 func _draw() -> void:
 	if dead or spawn > 0.0:
 		return
-	if _stretch() > 0.0:
-		_draw_neck()
 	if under:
 		# el montículo
 		draw_circle(Vector2(0, 0), 4.0, Color("5a3a25"))

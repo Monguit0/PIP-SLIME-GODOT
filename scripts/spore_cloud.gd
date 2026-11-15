@@ -80,5 +80,5 @@ func _draw() -> void:
 		var s: float = float(p[2]) * k * (1.0 + 0.05 * sin(t * 3.0 + i * 1.7))
 		var c := Vector2(float(p[0]) * k + sin(t * 1.3 + i) * 1.5, float(p[1]) * k - (1.0 - fade) * 6.0)
 		draw_set_transform(c, 0.0, Vector2(s if i % 2 == 0 else -s, s))
-		draw_texture(tex, Vector2(-32, -32), Color(1.0 + pulse * 0.5, 1.0 + pulse * 0.5, 1.0 + pulse * 0.5, 0.74))
+		draw_texture(tex, Vector2(-32, -32), Color(1.0 + pulse * 0.5, 1.0 + pulse * 0.5, 1.0 + pulse * 0.5, 0.5))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
