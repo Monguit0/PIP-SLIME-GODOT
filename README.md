@@ -214,6 +214,17 @@ Código: `scripts/ctl.gd` (los controles por dispositivo: cada uno tiene sus acc
 en `scripts/main.gd` la parte "multijugador local" (`lobby_step`, los lugares en `seats`, la cámara que se aleja
 en `_update_camera`) y en `scripts/hud.gd`, `_draw_lobby`.
 
+## Modo Prueba
+
+En el título, arriba y abajo cambian de modo; el último es **Modo Prueba**: un banco para probar cada bicho por
+separado, sin final. Es el modo Villano en la primera zona del nivel elegido: manejás un bicho contra los cuatro
+héroes, que arrancan quietos (de muñecos) y reviven solos; si te matan, el bicho vuelve a aparecer.
+
+- `TAB` (o `BACK` en el joystick): el bicho siguiente · `Q`: el anterior · `1` a `7`: uno puntual (slime, slime
+  rojo, esqueleto arquero, esqueleto hachero, araña, hongo, planta; la lista es `TEST_KINDS` en `main.gd`).
+- `H` (o apretar la palanca derecha): los héroes se quedan quietos o te atacan.
+- `G`: el bicho lo manejás vos o lo maneja el juego (para mirar cómo se porta solo).
+
 ## Nivel 2: el Bosque Oscuro (en construcción)
 
 Ya se puede jugar. En el título, **`C` (o `Y` en el joystick) cambia de nivel** (arriba a la izquierda dice
@@ -227,6 +238,9 @@ cuál está elegido) y vale para la campaña, el Villano y el multijugador. El n
   troncos de las plataformas, que dibuja el script.
 - Enemigos: los tres nuevos de abajo, mezclados con slimes. Los bots héroes saltan la telaraña y las
   enredaderas y salen de la nube de esporas.
+- Música propia: "Hongos que brillan", una variación del tema principal (Am–F–Dm–E, campanas, arpa, flauta y
+  colchón sobre el pulso de siempre), sintetizada por `tools/musica/bosque.py` (`b0`, `b1`, `b2`: una por zona,
+  cada una un poco más rápida). El jefe, las cartas y los finales siguen con la música del Reino.
 - **Falta**: el lobo Campeón (por ahora el jefe de la guarida es el Mega Caballero, de prestado), los
   enemigos de la web (slime tóxico, murciélago, cachorro de lobo), las trampas de pinchos y los tres hongos
   minijefes.

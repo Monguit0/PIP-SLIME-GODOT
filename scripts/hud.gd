@@ -432,6 +432,8 @@ func _draw_title() -> void:
 	var mname := "MODO VILLANO" if vil else "MODO CAMPAÑA"
 	if main.multi:
 		mname = "MULTIJUGADOR LOCAL"
+	if main.test:
+		mname = "MODO PRUEBA"
 	var mb := int(t * 3.0) % 2 == 0
 	_text(mname, W / 2.0, 71, Pal.C if main.multi else (Pal.RAMP_R[3] if vil else Pal.L), 1, 1, Pal.K)
 	var mhalf := PText.width(mname) / 2.0
@@ -443,6 +445,13 @@ func _draw_title() -> void:
 		_text("UNO ES EL VILLANO Y HASTA CUATRO, LOS HÉROES", W / 2.0, 90, Pal.S)
 		_text("LOS LUGARES VACÍOS SON BOTS", W / 2.0, 98, Pal.S)
 		_text("TECLADO Y JOYSTICKS · CADA UNO ELIGE EN LA SALA", W / 2.0, 108, Pal.W, 1, 1, Pal.K)
+		return
+	if main.test:
+		_text("PROBÁ CADA BICHO POR SEPARADO", W / 2.0, 90, Pal.S)
+		_text("CONTRA LOS HÉROES, QUE REVIVEN SOLOS", W / 2.0, 98, Pal.S)
+		var tl := ["TAB / Q: CAMBIAR DE BICHO · 1 A 7: ELEGIR", "H: HÉROES QUIETOS O ATACANDO", "G: LO MANEJÁS VOS O EL JUEGO"]
+		for i in tl.size():
+			_text(tl[i], W / 2.0, 108 + i * 7, Pal.W, 1, 1, Pal.K)
 		return
 	if vil:
 		_title_villano()
@@ -602,7 +611,10 @@ func _draw_villano() -> void:
 				lx += l[1].length() * 4.0 + 8.0
 		return
 	var more: int = main.reserve.size()
-	if main.zone_lost:
+	if main.test:
+		_text("PRUEBA %d/%d · %s" % [main.test_i + 1, main.TEST_KINDS.size(), main.test_name()], W / 2.0, 4, Pal.L, 1, 1, Pal.K)
+		_text("TAB/Q: BICHO · H: HÉROES %s · G: %s" % ["QUIETOS" if main.test_idle else "ATACAN", "JUEGO" if main.test_ai else "VOS"], W / 2.0, 12, Pal.S, 1, 1, Pal.K)
+	elif main.zone_lost:
 		_cross_hud()
 	else:
 		_text("ZONA %d · ENEMIGOS %d" % [main.z + 1, main.alive_in_zone(main.z)] + (" +%d" % more if more > 0 else ""), W / 2.0, 4, Pal.S)

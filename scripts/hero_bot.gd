@@ -13,6 +13,7 @@ var game                    # main.gd
 var react := 0.2            # cada cuánto piensa
 var guard_t := 0.0           # caballero: cada cuánto vuelve a decidir si se cubre de una amenaza
 var guard_ok := false
+var idle := false            # modo Prueba: se queda quieto, de muñeco
 var skill := 0.62            # probabilidad de ver venir cada baba
 var think_t := 0.0
 var move := 0               # -1, 0, 1
@@ -55,7 +56,7 @@ func think(p: Player, dt: float) -> void:
 	spc_hold -= dt
 	drop = false
 	var playing: bool = game != null and game.state == "play"
-	if not playing or p.dead:
+	if not playing or p.dead or idle:
 		p.inp = {}
 		return
 	if think_t <= 0.0:

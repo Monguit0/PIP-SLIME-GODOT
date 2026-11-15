@@ -13,6 +13,8 @@ const MUSIC_VOL := 0.5
 const MOODS := {
 	"titulo": 96, "cartas": 104, "z0": 132, "z1": 136, "z2": 140, "intro": 120,
 	"jefe": 148, "furia": 168, "final": 186, "respiro": 112, "derrota": 72, "victoria": 150,
+	# el Bosque Oscuro ("Hongos que brillan", tools/musica/bosque.py), un poco más rápida en cada zona
+	"b0": 124, "b1": 128, "b2": 132,
 }
 
 var _sfx := {}

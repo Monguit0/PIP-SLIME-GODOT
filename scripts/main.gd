@@ -41,7 +41,12 @@ var VILLAIN_RESERVE: Array = [
 	["skarch", "green", "skaxe", "red"],
 	["skaxe", "skarch", "red", "skarch"],
 ]
-const MODES := ["campaign", "villano", "multi"]
+const MODES := ["campaign", "villano", "multi", "prueba"]
+## Modo Prueba: un banco para probar cada bicho por separado. Es el modo Villano en una sola zona, sin
+## final: manejás el bicho que elijas (o lo mirás manejado por el juego) contra los cuatro héroes, que
+## reviven solos. TAB / Q cambian de bicho, los números eligen uno, H deja quietos a los héroes y G le
+## pasa el bicho al juego.
+const TEST_KINDS := ["green", "red", "skarch", "skaxe", "spider", "shroom", "plant"]
 ## Multijugador local: los lugares de la sala. El que nadie elige lo maneja un bot.
 const SEATS := ["v", "archer", "knight", "barb", "mage"]
 const CAM_Z_MIN := 0.5   # lo más lejos que se va la cámara: la zona entera (dos pantallas)
@@ -126,6 +131,9 @@ static var kind := "archer"
 static var mode := "campaign"
 ## en qué nivel se juega (0: el Reino, 1: el Bosque Oscuro). Se elige en el título.
 static var level := 0
+## modo Prueba (ver TEST_KINDS) y qué bicho quedó elegido
+static var test := false
+static var test_i := 0
 ## multijugador local: es el modo Villano, pero cada lugar lo puede manejar una persona (seats: lugar -> dispositivo)
 static var multi := false
 static var seats := {}
@@ -246,12 +254,13 @@ func _ready() -> void:
 
 ## En el título: arriba y abajo cambian de modo.
 func mode_name() -> String:
-	return "multi" if multi else mode
+	return "prueba" if test else ("multi" if multi else mode)
 
 
 func pick_mode(step: int) -> void:
 	var m: String = MODES[(MODES.find(mode_name()) + step + MODES.size()) % MODES.size()]
 	multi = m == "multi"
+	test = m == "prueba"
 	mode = "campaign" if m == "campaign" else "villano"
 	Snd.play("menu", {"rate": 0.9 if mode == "villano" else 1.2, "vol": 0.6, "vary": false})
 	if mode == "villano":
@@ -415,6 +424,10 @@ func _villano_zone(n: int) -> void:
 	zone_lost = false
 	late = false
 	cleared = false
+	if test:
+		reserve = []
+		_test_spawn()
+		return
 	_spawn_villain_mobs(n)
 	reserve = VILLAIN_RESERVE[n].duplicate()
 	reinforce_t = 3.0
@@ -539,6 +552,96 @@ func _reinforce() -> void:
 	Fx.ring(self, at + Vector2(0, -4), Pal.W, 0.0, 12.0, 0.4, 0.3)
 
 
+# ---------------------------------------------------------------- modo Prueba
+
+var test_idle := true       # los héroes se quedan quietos, de muñecos (H los pone a pelear)
+var test_ai := false        # el bicho lo maneja el juego y vos mirás
+var test_wait := 0.0        # el bicho murió: en cuánto vuelve
+var test_mob: Node2D
+var test_down := {}         # héroe caído -> cuánto falta para que reviva
+var test_keys := {}
+
+
+func test_name() -> String:
+	return test_mob.mob_name() if test_mob != null and is_instance_valid(test_mob) and test_mob.has_method("mob_name") else str(TEST_KINDS[test_i]).to_upper()
+
+
+## Saca lo que haya y pone el bicho elegido (donde estaba el anterior).
+func _test_spawn() -> void:
+	for e in get_tree().get_nodes_in_group("enemigos"):
+		e.queue_free()
+	var zd: Dictionary = ZONES[z]
+	var x := clampf(last_ctrl_x if last_ctrl_x > 0.0 else zd.start + 300.0, zd.start + 60.0, gates[z].x - 30.0)
+	test_mob = _villain_mob(z, TEST_KINDS[test_i], Vector2(x, GROUND))
+	test_mob.spawn = 0.3
+	test_wait = 0.0
+	ctrl = null
+	if not test_ai:
+		ctrl = test_mob
+		test_mob.possess()
+	Snd.play("posesion", {"vary": false})
+	_show_banner("PRUEBA %d DE %d" % [test_i + 1, TEST_KINDS.size()], test_name() + (" · LO MANEJA EL JUEGO" if test_ai else ""))
+
+
+func _test_tap(key: int) -> bool:
+	var on := Input.is_physical_key_pressed(key)
+	var was: bool = test_keys.get(key, false)
+	test_keys[key] = on
+	return on and not was
+
+
+func _test_step(dt: float) -> void:
+	# cambiar de bicho: TAB (o BACK en el joystick) el siguiente, Q el anterior, los números uno puntual
+	var pick_i := -1
+	if Input.is_action_just_pressed("prueba_sig"):
+		pick_i = (test_i + 1) % TEST_KINDS.size()
+	elif _test_tap(KEY_Q):
+		pick_i = (test_i - 1 + TEST_KINDS.size()) % TEST_KINDS.size()
+	for i in TEST_KINDS.size():
+		if _test_tap(KEY_1 + i):
+			pick_i = i
+	if pick_i >= 0:
+		test_i = pick_i
+		_test_spawn()
+	if Input.is_action_just_pressed("prueba_heroes"):
+		test_idle = not test_idle
+		Snd.play("menu", {"rate": 0.9 if test_idle else 1.3, "vol": 0.6, "vary": false})
+		_show_banner("HÉROES QUIETOS" if test_idle else "HÉROES ATACAN", "")
+	if _test_tap(KEY_G):
+		test_ai = not test_ai
+		_test_spawn()
+	for h in heroes:
+		if h.brain != null:
+			h.brain.idle = test_idle
+		# los héroes reviven solos
+		if h.dead:
+			test_down[h] = float(test_down.get(h, 2.5)) - dt
+			if test_down[h] <= 0.0:
+				test_down.erase(h)
+				h.dead = false
+				h.hearts = h.max_hearts
+				h.set_collision_mask_value(2, true)
+				h.global_position = Vector2(ZONES[z].start + 24.0 + randf() * 30.0, GROUND)
+				h.velocity = Vector2.ZERO
+				h.invuln = 1.2
+				h.hearts_changed.emit()
+				Fx.ring(self, h.global_position + Vector2(0, -10), Pal.C, 0.0, 14.0, 1.0, 0.3)
+	# el bicho vuelve solo si lo matan
+	if test_mob == null or not is_instance_valid(test_mob) or test_mob.dead:
+		ctrl = null
+		test_wait += dt
+		if test_wait > 1.2:
+			# vuelve lejos de los héroes, para que no lo reciban a los golpes
+			var hx := 0.0
+			for h in heroes:
+				hx += h.global_position.x / heroes.size()
+			var zd: Dictionary = ZONES[z]
+			last_ctrl_x = zd.start + 80.0 if hx > (zd.start + gates[z].x) / 2.0 else gates[z].x - 60.0
+			_test_spawn()
+	elif test_ai:
+		last_ctrl_x = test_mob.global_position.x
+
+
 ## Tu alma entra en otro bicho: al empezar, un slime común; después, el que esté más cerca de los héroes.
 func _possess_next(first: bool) -> void:
 	var alive: Array = []
@@ -592,6 +695,9 @@ func _villano_step(dt: float) -> void:
 		if soul.t > 0.6:
 			soul = null
 	if state != "play":
+		return
+	if test:
+		_test_step(dt)
 		return
 	if z >= 3:
 		# el Salón del Trono: ganás si caen los cuatro (si cae el jefe, avisa él: boss_defeated)
@@ -974,8 +1080,9 @@ func finish_pick() -> void:
 func music_director() -> void:
 	var danger := player.max_hearts > 1 and player.hearts == 1 and not player.dead
 	if mode == "villano":  # en peligro cuando te queda un solo cuerpo
-		danger = state == "play" and _alive_in_zone(z) + reserve.size() == 1
-	var m := "z%d" % mini(2, z)
+		danger = state == "play" and _alive_in_zone(z) + reserve.size() == 1 and not test
+	# el Bosque Oscuro tiene su versión del tema ("Hongos que brillan": b0, b1, b2)
+	var m := ("b%d" if level == 1 else "z%d") % mini(2, z)
 	if state == "title":
 		m = "titulo"
 		danger = false
@@ -1378,12 +1485,15 @@ func _setup_input() -> void:
 		"especial": [KEY_SHIFT, KEY_V, KEY_L],
 		"poder": [KEY_C, KEY_E, KEY_I],
 		"reiniciar": [KEY_R],
+		"prueba_sig": [KEY_TAB],
+		"prueba_heroes": [KEY_H],
 	}
 	var pads := {
 		"izquierda": [JOY_BUTTON_DPAD_LEFT], "derecha": [JOY_BUTTON_DPAD_RIGHT],
 		"abajo": [JOY_BUTTON_DPAD_DOWN], "arriba": [JOY_BUTTON_DPAD_UP],
 		"saltar": [JOY_BUTTON_A], "atacar": [JOY_BUTTON_X], "especial": [JOY_BUTTON_B],
 		"poder": [JOY_BUTTON_Y],  # (reiniciar queda solo en la R del teclado: en un joystick se apretaba sin querer)
+		"prueba_sig": [JOY_BUTTON_BACK], "prueba_heroes": [JOY_BUTTON_RIGHT_STICK],
 	}
 	for action in map:
 		if InputMap.has_action(action):
