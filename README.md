@@ -234,6 +234,11 @@ cuál está elegido) y vale para la campaña, el Villano y el multijugador. El n
 Los tres enemigos nuevos, que no están en la web (los maneja el juego o, en el modo Villano, una persona).
 Sus dibujos salieron de PixelLab (`assets/sprites/bosque/`).
 
+Ajustes pedidos después de probarlos: la **planta** muerde estirando el cuello (alcanza unos 50 px; la cabeza
+y el cuello se dibujan aparte en `plant.gd`), el **hongo** tiene 8 de vida y al morir revienta sin dejar cuerpo,
+con una nube venenosa más grande (`assets/sprites/bosque/nube`), las **enredaderas** tienen dibujo propio
+(`assets/sprites/bosque/enredadera`) y la **araña** tiene doble salto (también después de cortar el hilo).
+
 - **Araña** (`scripts/spider.gd`, `web.gd`): `X` escupe una telaraña que saca 1 y deja al héroe *enredado* (al
   40% de su velocidad, 2,5 s). `Shift` lanza su hilo en diagonal y queda colgada: ← → se hamaca (es un péndulo),
   ↑ trepa, ↓ suelta hilo, y `Shift` o el salto lo cortan y sale despedida. Colgada escupe en diagonal hacia

@@ -71,6 +71,7 @@ var hang_t := 0.0
 var rope_cd := 0.0
 var shoot_line := 0.0   # el hilo recién lanzado: un destello a lo largo
 var ai_rope := 4.0
+var air_jump := true    # le queda el segundo salto (se recarga al pisar o al colgarse)
 
 
 func _ready() -> void:
@@ -147,7 +148,7 @@ func mob_name() -> String:
 func mob_hint() -> String:
 	if hanging:
 		return "< > HAMACARSE · ARRIBA: TREPAR · SHIFT: CORTAR EL HILO · X: TELARAÑA"
-	return "X: TELARAÑA · SHIFT: COLGARSE DEL HILO"
+	return "X: TELARAÑA · SHIFT: COLGARSE DEL HILO · DOBLE SALTO"
 
 
 func _playing() -> bool:
@@ -254,6 +255,8 @@ func _ground_step(dt: float) -> void:
 			dir = float(int(Ctl.down(_dev(), "derecha")) - int(Ctl.down(_dev(), "izquierda")))
 			if dir != 0.0 and spit_t < 0.0:
 				face = dir
+			if is_on_floor():
+				air_jump = true
 			if Ctl.tap(_dev(), "saltar") and is_on_floor():
 				if Ctl.down(_dev(), "abajo") and global_position.y < 126.0:
 					set_collision_mask_value(2, false)
@@ -262,6 +265,14 @@ func _ground_step(dt: float) -> void:
 					velocity.y = -VJUMP
 					squash = Vector2(0.75, 1.3)
 					Snd.play("salto", {"rate": 1.3})
+			elif Ctl.tap(_dev(), "saltar") and air_jump:
+				# el segundo salto, en el aire (también después de cortar el hilo)
+				air_jump = false
+				velocity.y = -VJUMP * 0.92
+				squash = Vector2(0.7, 1.35)
+				Snd.play("salto", {"rate": 1.7})
+				Fx.ring(get_parent(), global_position + Vector2(0, -2), Pal.W, 0.0, 9.0, 0.6, 0.2)
+				Fx.dust(get_parent(), global_position, 3, 22.0, 6.0, 1.4, Pal.S)
 			if Ctl.tap(_dev(), "atacar") and cool <= 0.0:
 				_start_spit()
 			if Ctl.tap(_dev(), "especial") and rope_cd <= 0.0:
@@ -351,6 +362,7 @@ func _spit_step(dt: float) -> void:
 ## Lanza el hilo en diagonal (hacia arriba y adelante): se engancha en la primera plataforma que cruza o,
 ## si no hay, en las ramas de arriba.
 func _throw_rope() -> void:
+	air_jump = true
 	var from := global_position + Vector2(0, -8)
 	var dir := Vector2(face * 0.55, -0.84).normalized()
 	var hit := from + dir * ROPE_REACH

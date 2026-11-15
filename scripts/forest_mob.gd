@@ -59,6 +59,7 @@ var aim_x := 0.0
 var turbo = Turbo.new()
 var immune := false        # no le entra ningún golpe (la planta bajo tierra)
 var touch := true          # tocarlo lastima
+var vanish := false        # al morir no deja cuerpo: se infla y desaparece de un saque
 
 
 func _setup() -> void:
@@ -201,6 +202,16 @@ func _physics_process(dt: float) -> void:
 	flash -= dt
 	anim_t += dt
 	queue_redraw()
+	if dead and vanish:
+		dead_t += dt
+		var k := clampf(dead_t / 0.14, 0.0, 1.0)
+		look()
+		sprite.scale *= Vector2(1.0 + k * 0.9, 1.0 - k * 0.55)
+		sprite.material = Fx.silhouette(Color.WHITE)
+		sprite.modulate = Color(1, 1, 1, 1.0 - k)
+		if dead_t > 0.14:
+			queue_free()
+		return
 	if dead:
 		dead_t += dt
 		velocity.y = minf(velocity.y + GRAV * dt, 280.0)

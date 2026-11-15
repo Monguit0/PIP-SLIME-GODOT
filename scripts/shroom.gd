@@ -3,7 +3,7 @@ extends "res://scripts/forest_mob.gd"
 ## - ataque: un puñetazo corto;
 ## - poder: invoca dos mini hongos que corren por el piso (recarga larga, para no llenar la pantalla);
 ## - especial: el turbo de siempre;
-## - al morir deja una nube de esporas que lastima al que se queda adentro.
+## - al morir revienta (no queda cuerpo) y deja una nube venenosa grande que lastima al que se queda adentro.
 
 const SUMMON_CD := 6.0
 const MiniScript := preload("res://scripts/mini_shroom.gd")
@@ -24,7 +24,8 @@ func _setup() -> void:
 	draw_scale = 0.42
 	body_w = 12.0
 	body_h = 22.0
-	base_hp = 5
+	base_hp = 8
+	vanish = true
 	walk_speed = 24.0
 	ctrl_speed = 46.0
 	jump_v = 215.0
@@ -149,9 +150,17 @@ func _anim() -> void:
 
 
 func _on_death(_how: String, _from_dir: int) -> void:
+	# revienta: no queda cuerpo, queda la nube
 	var c := CloudScript.new()
 	c.position = position
 	get_parent().add_child(c)
+	var mid := global_position + Vector2(0, -12)
+	Fx.shake(4.0, 0.28)
+	Fx.hitstop(0.09)
+	Fx.ring(get_parent(), mid, Color("9ffd4e"), 4.0, 40.0, 1.0, 0.35)
+	Fx.ring(get_parent(), mid, Pal.W, 0.0, 24.0, 1.0, 0.2)
+	Fx.burst(get_parent(), mid, 18, [Color("863cac"), Color("e6d9c8"), Color("29da0c")], 150.0, 90.0, 0.6, 320.0)
+	Fx.burst(get_parent(), mid, 12, [Color("9ffd4e"), Color("29da0c")], 70.0, 20.0, 0.9, -30.0)
 
 
 func _draw_extra() -> void:
