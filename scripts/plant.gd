@@ -31,10 +31,10 @@ var sink := 0.0             # 0 afuera, 1 del todo hundida
 var rise_t := -1.0          # saliendo con el mordisco hacia arriba
 var rose := false
 var rise_hit: Array = []    # a quiénes ya mordió en esta salida
-const RISE_UP := 0.12       # lo que tarda en salir disparada hacia arriba
-const RISE_CHOMP := 0.34    # cuándo cierra la boca allá arriba
+const RISE_UP := 0.1        # lo que tarda en salir de la tierra
+const RISE_CHOMP := 0.27    # cuándo cierra la boca: ahí lastima (no antes)
 const RISE_T := 0.72
-const RISE_HIGH := 54.0     # hasta dónde llega el mordisco hacia arriba
+const RISE_HIGH := 46.0     # hasta dónde llega la boca
 var ai_burrow := 3.0
 
 
@@ -199,30 +199,33 @@ func _attacks(dt: float) -> void:
 		var was := rise_t
 		rise_t += dt
 		sink = maxf(0.0, 1.0 - rise_t / RISE_UP)
-		if rise_t < RISE_CHOMP:
-			# mientras sube y con la boca abierta: agarra a todos los que tenga encima (una vez a cada uno),
-			# de a 2, y los revolea para arriba
-			var top := RISE_HIGH * clampf(rise_t / RISE_UP, 0.3, 1.0)
-			var hb := Rect2(global_position.x - 12.0, global_position.y - top, 24, top)
-			for p in heroes_in(hb):
-				if rise_hit.has(p):
-					continue
-				rise_hit.append(p)
-				if p.hurt(global_position.x, 2, self):
-					p.velocity.y = -290.0
-					Fx.hitstop(0.1)
-					Fx.shake(3.5, 0.2)
-					Fx.burst(get_parent(), p.global_position + Vector2(0, -10), 8, [Pal.W, Color("41ce11"), Color("863cac")], 90.0, 60.0, 0.35, 240.0)
-			if Engine.get_physics_frames() % 2 == 0:
-				Fx.part(get_parent(), global_position + Vector2(randf_range(-7, 7), -randf_range(4, top)), Vector2(randf_range(-12, 12), 40.0), 200.0, 0.3, Color("7e5531"))
+		if rise_t < RISE_UP:
+			# al salir levanta por el aire a los que tenía encima, sin lastimarlos: quedan justo en la boca
+			for p in heroes_in(Rect2(global_position.x - 14.0, global_position.y - 30.0, 28, 30)):
+				if not rise_hit.has(p):
+					rise_hit.append(p)
+					p.velocity = Vector2((global_position.x - p.global_position.x) * 4.0, -200.0)
+		if rise_t < RISE_CHOMP and Engine.get_physics_frames() % 2 == 0:
+			Fx.part(get_parent(), global_position + Vector2(randf_range(-7, 7), -randf_range(4, 30)), Vector2(randf_range(-12, 12), 40.0), 200.0, 0.3, Color("7e5531"))
 		if was < RISE_CHOMP and rise_t >= RISE_CHOMP:
-			# ¡ÑAM! allá arriba
+			# ¡ÑAM! la boca se cierra de golpe: el daño es el mordisco. A todos los que queden entre las
+			# mandíbulas, de a 2, y salen despedidos
 			rose = true
-			Snd.play("tajo", {"rate": 0.55, "vol": 0.9})
-			Snd.play("clavar", {"rate": 1.3, "vol": 0.6})
-			Fx.shake(3.0, 0.16)
-			Fx.hitstop(0.05)
-			Fx.burst(get_parent(), global_position + Vector2(0, -RISE_HIGH + 12.0), 8, [Pal.W, Color("41ce11"), Color("863cac")], 90.0, 40.0, 0.3, 240.0)
+			var mouth := global_position + Vector2(0, -RISE_HIGH + 12.0)
+			var got := false
+			for p in heroes_in(Rect2(global_position.x - 19.0, global_position.y - RISE_HIGH - 6.0, 38, RISE_HIGH - 4.0)):
+				if p.hurt(global_position.x, 2, self):
+					got = true
+					p.velocity = Vector2(signf(p.global_position.x - global_position.x + 0.01) * 110.0, -250.0)
+					Fx.burst(get_parent(), p.global_position + Vector2(0, -10), 10, [Pal.W, Pal.R, Color("41ce11")], 110.0, 70.0, 0.4, 240.0)
+			Snd.play("tajo", {"rate": 0.5, "vol": 1.0})
+			Snd.play("clavar", {"rate": 1.2, "vol": 0.7})
+			Fx.burst(get_parent(), mouth, 10, [Pal.W, Color("41ce11"), Color("863cac")], 110.0, 50.0, 0.3, 240.0)
+			Fx.shake(5.5 if got else 3.0, 0.24 if got else 0.16)
+			Fx.hitstop(0.13 if got else 0.05)
+			if got:
+				Snd.boom(0.7)
+				Fx.popup(get_parent(), mouth + Vector2(0, -12), "¡ÑAM!", Pal.Y, true)
 		if rise_t >= RISE_CHOMP + 0.04:
 			immune = false   # recién ahí se le puede pegar
 		if rise_t >= RISE_T:
@@ -280,9 +283,9 @@ func _anim() -> void:
 		if rise_t < RISE_UP:
 			sprite.texture = frame("rise", int(rise_t / RISE_UP * 3.0))
 		elif rise_t < RISE_CHOMP:
-			sprite.texture = frame("rise", 3)
+			sprite.texture = frame("rise", 2 if rise_t < RISE_UP + 0.04 else 3)
 		else:
-			sprite.texture = frame("rise", clampi(5 + int((rise_t - RISE_CHOMP - 0.1) / 0.08), 5, 7))
+			sprite.texture = frame("rise", clampi(5 + int((rise_t - RISE_CHOMP - 0.16) / 0.09), 5, 7))
 	elif windup > 0.0:
 		sprite.texture = frame("chomp", 0 if int(anim_t * 14.0) % 2 == 0 else 7)   # avisa: abre y cierra la boca
 	elif bite_t >= 0.0:
@@ -320,13 +323,18 @@ func look() -> void:
 	sprite.position.y = roundf(sink * foot * draw_scale)
 	sprite.rotation = 0.0
 	if rise_t >= 0.0:
-		# sale estirándose de más, tiembla con la boca abierta y se aplasta al cerrar
+		# abre la boca cada vez más grande (y tiembla); al cerrar se aprieta de golpe hacia el medio
 		if rise_t < RISE_CHOMP:
-			var k := clampf(rise_t / RISE_UP, 0.0, 1.0)
-			sprite.scale *= Vector2(1.0 + 0.12 * k, 1.0 + 0.22 * sin(k * PI * 0.5) + 0.03 * sin(anim_t * 70.0))
-		elif rise_t < RISE_CHOMP + 0.14:
-			var u := (rise_t - RISE_CHOMP) / 0.14
-			sprite.scale *= Vector2(1.3 - 0.3 * u, 0.78 + 0.22 * u)
+			var k := clampf((rise_t - RISE_UP * 0.5) / (RISE_CHOMP - RISE_UP * 0.5), 0.0, 1.0)
+			sprite.scale *= Vector2(1.0 + 0.22 * k + 0.04 * sin(anim_t * 80.0), 1.0 + 0.3 * k)
+		elif rise_t < RISE_CHOMP + 0.16:
+			var u := (rise_t - RISE_CHOMP) / 0.16
+			sprite.scale *= Vector2(0.72 + 0.28 * u, 1.3 - 0.3 * u)
+			sprite.position.x = roundf(sin(anim_t * 95.0) * (1.0 - u) * 1.5)
+		else:
+			sprite.position.x = 0.0
+	else:
+		sprite.position.x = 0.0
 	# el mordisco: junta fuerza achatándose y al morder tiembla un poco (el estirón ya viene dibujado)
 	if windup > 0.0 or (bite_t >= 0.0 and bite_t < SNAP_A):
 		sprite.scale *= Vector2(1.1, 0.86 + 0.03 * sin(anim_t * 60.0))
