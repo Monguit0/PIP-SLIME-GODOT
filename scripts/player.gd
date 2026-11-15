@@ -168,6 +168,7 @@ var twirl_t := 0.0           # girando en el aire (doble salto y al rebotar en u
 var apex_fx := false         # ya salió el destello de arriba de todo del salto
 # modo Villano: a este héroe lo maneja un bot (hero_bot.gd), que "aprieta" las acciones por él
 var bot := false
+var confuse_t := 0.0  # confundido: los controles de izquierda y derecha invertidos
 var poison_t := 0.0   # envenenado (slime tóxico): cuando llega a cero pierde un corazón
 var web_t := 0.0   # enredado en la telaraña de la araña: se mueve muy lento
 var web_k := 1.0
@@ -197,11 +198,25 @@ func melee() -> bool:
 ## lo que cuesta el especial de cada uno (las marcas de la barra de energía)
 ## Las acciones del héroe: del teclado o el joystick, o las que decide el bot.
 func _down(a: String) -> bool:
+	a = _confused(a)
 	return bool(inp.get(a, false)) if bot else Ctl.down(pad, a)
 
 
 func _tap(a: String) -> bool:
+	a = _confused(a)
 	return (bool(inp.get(a, false)) and not bool(inp_prev.get(a, false))) if bot else Ctl.tap(pad, a)
+
+
+## Confundido (el chirrido del murciélago): izquierda y derecha están cambiadas.
+func _confused(a: String) -> String:
+	if confuse_t <= 0.0:
+		return a
+	return "derecha" if a == "izquierda" else ("izquierda" if a == "derecha" else a)
+
+
+func apply_confuse(t: float) -> void:
+	confuse_t = maxf(confuse_t, t)
+	Fx.popup(get_parent(), global_position + Vector2(0, -26), "¡CONFUNDIDO!", Pal.P)
 
 
 ## La telaraña de la araña: lo deja lento un rato (k: a cuánto queda su velocidad).
@@ -419,6 +434,12 @@ func _physics_process(dt: float) -> void:
 		slow = 0.5
 	elif charge >= CHG_ON:
 		slow = 0.6 if melee() else 0.0
+	if confuse_t > 0.0:
+		confuse_t -= dt
+		# estrellitas que le dan vueltas a la cabeza
+		if Engine.get_physics_frames() % 4 == 0:
+			var ca := Engine.get_physics_frames() * 0.18
+			Fx.part(get_parent(), global_position + Vector2(cos(ca) * 7.0, -22.0 + sin(ca) * 2.5), Vector2.ZERO, 0.0, 0.25, Pal.Y if Engine.get_physics_frames() % 8 == 0 else Pal.P)
 	if poison_t > 0.0 and not dead:
 		poison_t -= dt
 		if randf() < 0.3:

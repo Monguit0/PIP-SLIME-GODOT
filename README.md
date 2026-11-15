@@ -244,7 +244,9 @@ cuál está elegido) y vale para la campaña, el Villano y el multijugador. El n
   cada una un poco más rápida). El jefe, las cartas y los finales siguen con la música del Reino.
 - Los tres enemigos del nivel 2 de la web: **slime tóxico** (no saca vida al tocar: envenena, y el corazón se
   pierde 1,4 s después), **murciélago** (`scripts/bat.gd`: revolotea arriba del héroe y baja en picada, con
-  aviso) y **cachorro de lobo** (`scripts/pup.gd`: corre, se agazapa y salta a morder). Los dibujos del
+  aviso; su **chirrido**, con 6 s de recarga, saca 1 a los héroes cercanos y los deja 3 s *confundidos*, con
+  izquierda y derecha invertidas) y **cachorro de lobo** (`scripts/pup.gd`: corre, se agazapa y salta a morder;
+  manejado por una persona tiene doble salto). Los dibujos del
   murciélago y el cachorro son de PixelLab (`assets/sprites/bosque/murcielago`, `lobito`).
 - **Falta**: el lobo Campeón (por ahora el jefe de la guarida es el Mega Caballero, de prestado), las trampas
   de pinchos y los tres hongos minijefes (el boxeador ya tiene animaciones en `tools/bosque/boxeador/`).

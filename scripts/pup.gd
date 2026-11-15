@@ -10,6 +10,7 @@ const WARN := 0.22
 var warn := 0.0
 var pouncing := false
 var land_t := 0.0
+var air_jump := true        # le queda el segundo salto
 
 
 func _setup() -> void:
@@ -30,7 +31,7 @@ func _setup() -> void:
 
 
 func mob_hint() -> String:
-	return "X: SALTO A MORDER · SHIFT: TURBO"
+	return "X: SALTO A MORDER · SHIFT: TURBO · DOBLE SALTO"
 
 
 func _interrupt() -> void:
@@ -66,7 +67,17 @@ func _step(dt: float) -> void:
 			dir = face
 			top = POUNCE_VX
 	elif ctrl:
+		var grounded := is_on_floor()
 		dir = ctrl_dir()
+		if grounded:
+			air_jump = true
+		elif air_jump and playing() and stun <= 0.0 and Ctl.tap(dev(), "saltar"):
+			# el segundo salto, en el aire
+			air_jump = false
+			velocity.y = -jump_v * 0.92
+			squash = Vector2(0.7, 1.35)
+			Snd.play("salto", {"rate": 1.7})
+			Fx.dust(get_parent(), global_position, 3, 22.0, 6.0, 1.4, Pal.S)
 		var on: bool = turbo.step(self, dt, stun <= 0.0 and Ctl.down(dev(), "especial") and playing(), face, Color("9ebcc1"), 8.0)
 		top = ctrl_speed * (Turbo.MUL if on else 1.0)
 		if playing() and stun <= 0.0 and Ctl.tap(dev(), "atacar") and cool <= 0.0 and is_on_floor():
