@@ -1,6 +1,7 @@
 extends "res://scripts/forest_mob.gd"
 ## Planta carnívora del Bosque Oscuro. Camina muy lento sobre sus raíces.
-## - ataque: se abalanza entera hacia adelante (BITE_REACH píxeles) y muerde lo que encuentre en el camino;
+## - ataque: no se mueve de donde está plantada: abre la boca enorme, estira el tallo y muerde allá adelante
+##   (cuadros "chomp", de PixelLab); alcanza unos 40 px;
 ## - poder: enredaderas que avanzan por el piso en onda y pueden lastimar a varios (con recarga);
 ## - especial: se hunde bajo la tierra. Ahí abajo es inmune y se mueve rápido; sale sola al acabarse el
 ##   tiempo o al apretar el ataque, con un mordisco hacia arriba que lastima a los que tenga encima.
@@ -12,14 +13,14 @@ const BURROW_T := 2.0       # lo que aguanta bajo tierra
 const BURROW_SPEED := 96.0
 const SINK := 0.22          # lo que tarda en hundirse o en salir
 const BITE_REACH := 30.0    # cuánto avanza al abalanzarse
-const BITE_T := 0.62        # lo que dura el mordisco entero
-const LUNGE_A := 0.16       # cuándo arranca y cuándo termina el envión
-const LUNGE_B := 0.28
+const BITE_T := 0.82        # lo que dura el mordisco entero
+const SNAP_A := 0.2         # hasta acá toma carrera (se echa para atrás); después sale el latigazo
+const SNAP_B := 0.39        # acá cierra la boca: el mordisco
+const HOLD := 0.17          # lo que se queda clavada adelante antes de volver, rebotando
 const WaveScript := preload("res://scripts/vine_wave.gd")
 
 var bite_t := -1.0
 var bit := false
-var bit_list: Array = []    # a quiénes ya mordió en este envión
 var vines_t := -1.0
 var cast := false
 var vines_cd := 1.5
@@ -35,7 +36,7 @@ var ai_burrow := 3.0
 func _setup() -> void:
 	kind = "plant"
 	dir_path = "res://assets/sprites/bosque/planta/"
-	anims = ["idle", "walk", "bite", "vines", "death"]
+	anims = ["idle", "walk", "bite", "chomp", "vines", "death"]
 	foot_y = 63.0
 	draw_scale = 0.45
 	body_w = 12.0
@@ -105,9 +106,6 @@ func _step(dt: float) -> void:
 			dir = signf(dx)
 	if _busy():
 		dir = 0.0
-	if bite_t >= LUNGE_A and bite_t < LUNGE_B:
-		dir = face
-		top = BITE_REACH / (LUNGE_B - LUNGE_A)
 	walk(dir, top, dt)
 	_attacks(dt)
 
@@ -209,33 +207,27 @@ func _attacks(dt: float) -> void:
 	if bite_t >= 0.0:
 		var was := bite_t
 		bite_t += dt
-		if was < LUNGE_A and bite_t >= LUNGE_A:
-			# el envión: toda la planta salta hacia adelante con la boca abierta
-			bit_list.clear()
-			velocity.y = -70.0
-			squash = Vector2(1.35, 0.75)
-			Snd.play("dash", {"rate": 0.8, "vol": 0.6})
-			Fx.dust(get_parent(), global_position, 5, 30.0, 8.0, 1.8, Color("5a3a25"))
-		if bite_t >= LUNGE_A and bite_t < LUNGE_B:
-			velocity.x = face * BITE_REACH / (LUNGE_B - LUNGE_A)
-			if Engine.get_physics_frames() % 2 == 0:
-				Fx.part(get_parent(), global_position + Vector2(-face * 6.0, -randf_range(4, 20)), Vector2(-face * 30.0, 0), 0.0, 0.2, Color("41ce11"))
-			# muerde a los que va encontrando, una vez a cada uno
-			var hb := Rect2(global_position.x + (2.0 if face > 0.0 else -24.0), global_position.y - 26.0, 22, 24)
+		if bite_t < SNAP_A and Engine.get_physics_frames() % 3 == 0:
+			# toma carrera: tiembla y junta fuerza
+			Fx.part(get_parent(), global_position + Vector2(randf_range(-8, 8), -randf_range(2, 24)), Vector2(-face * 14.0, -10.0), 0.0, 0.2, Color("41ce11"))
+		if was < SNAP_A and bite_t >= SNAP_A:
+			Snd.play("dash", {"rate": 0.8, "vol": 0.7})
+			Fx.dust(get_parent(), global_position, 5, 34.0, 8.0, 1.8, Color("5a3a25"))
+		if was < SNAP_B and bite_t >= SNAP_B:
+			# ¡ÑAM! cierra la boca allá adelante: muerde a todos los que estén a tiro
+			var far := 12.0 + BITE_REACH
+			var hb := Rect2(global_position.x + (2.0 if face > 0.0 else -far), global_position.y - 26.0, far - 2.0, 26)
+			var got := false
 			for p in heroes_in(hb):
-				if not bit_list.has(p):
-					bit_list.append(p)
-					if p.hurt(global_position.x - face * 6.0, 1, self):
-						Fx.hitstop(0.06)
-						Fx.shake(2.0, 0.12)
-		if was < LUNGE_B and bite_t >= LUNGE_B:
-			# cierra la boca y frena de golpe
-			velocity.x = 0.0
-			squash = Vector2(0.8, 1.25)
-			Snd.play("tajo", {"rate": 0.7, "vol": 0.8})
-			var mouth := global_position + Vector2(face * 14.0, -17.0)
-			Fx.hit(get_parent(), mouth, Vector2(face, 0), Pal.W)
-			Fx.burst(get_parent(), mouth, 5, [Pal.W, Color("41ce11")], 50.0, 20.0, 0.25, 200.0)
+				if p.hurt(global_position.x, 1, self):
+					got = true
+			var mouth := global_position + Vector2(face * (BITE_REACH + 6.0), -15.0)
+			Snd.play("tajo", {"rate": 0.6, "vol": 0.9})
+			Snd.play("clavar", {"rate": 1.4, "vol": 0.5})
+			Fx.burst(get_parent(), mouth, 8, [Pal.W, Color("41ce11"), Color("863cac")], 90.0, 40.0, 0.3, 240.0)
+			Fx.dust(get_parent(), global_position, 4, 34.0, 8.0, 1.8, Color("5a3a25"))
+			Fx.shake(4.0 if got else 2.0, 0.18)
+			Fx.hitstop(0.11 if got else 0.04)
 		if bite_t >= BITE_T:
 			bite_t = -1.0
 	if vines_t >= 0.0:
@@ -260,10 +252,20 @@ func _anim() -> void:
 	if rise_t >= 0.0:
 		sprite.texture = frame("bite", 3 + int(rise_t / 0.45 * 5.0))
 	elif windup > 0.0:
-		sprite.texture = frame("bite", 1 + int(anim_t * 14.0) % 2)
+		sprite.texture = frame("chomp", 0 if int(anim_t * 14.0) % 2 == 0 else 7)   # avisa: abre y cierra la boca
 	elif bite_t >= 0.0:
-		# boca abierta mientras vuela, se cierra al llegar
-		sprite.texture = frame("bite", 4 if bite_t >= LUNGE_A and bite_t < LUNGE_B else int(bite_t / BITE_T * count("bite")))
+		# los cuadros de "chomp" (128 de ancho, la planta a la izquierda): abre la boca enorme, sale el tallo
+		# estirado, cierra de golpe allá adelante y vuelve
+		if bite_t < SNAP_A:
+			sprite.texture = frame("chomp", 0)
+		elif bite_t < SNAP_B:
+			# sale el tallo y la boca se abre cada vez más; el último cuadro, ya cerrando, apenas se ve
+			var k := (bite_t - SNAP_A) / (SNAP_B - SNAP_A)
+			sprite.texture = frame("chomp", 1 if k < 0.2 else (2 if k < 0.4 else (3 if k < 0.86 else 4)))
+		elif bite_t < SNAP_B + HOLD:
+			sprite.texture = frame("chomp", 5)
+		else:
+			sprite.texture = frame("chomp", 6 if bite_t < SNAP_B + HOLD + 0.08 else 7)
 	elif vines_t >= 0.0:
 		sprite.texture = frame("vines", int(vines_t / 0.6 * count("vines")))
 	elif absf(velocity.x) > 3.0 and is_on_floor():
@@ -278,12 +280,22 @@ func look() -> void:
 	super.look()
 	var h := canvas * (1.0 - sink * 0.97)
 	sprite.region_enabled = true
-	sprite.region_rect = Rect2(0, 0, canvas, h)
+	sprite.region_rect = Rect2(0, 0, sprite.texture.get_width() if sprite.texture != null else canvas, h)
 	sprite.offset = Vector2(-canvas / 2.0, -foot_y)
 	sprite.position.y = roundf(sink * foot_y * draw_scale)
 	sprite.rotation = (-0.5 * face if faces_right else 0.5 * face) * clampf(1.0 - absf(rise_t - 0.1) / 0.2, 0.0, 1.0) if rise_t >= 0.0 else 0.0
-	if bite_t >= LUNGE_A - 0.06 and bite_t < LUNGE_B + 0.08 and windup <= 0.0:
-		sprite.rotation = 0.38 * face   # se tira de cabeza
+	# el mordisco: junta fuerza achatándose y al morder tiembla un poco (el estirón ya viene dibujado)
+	if windup > 0.0 or (bite_t >= 0.0 and bite_t < SNAP_A):
+		sprite.scale *= Vector2(1.1, 0.86 + 0.03 * sin(anim_t * 60.0))
+	elif bite_t >= SNAP_A and bite_t < SNAP_B:
+		# con la boca abierta se agranda y se estira todavía más de lo que está dibujada
+		var k := clampf((bite_t - SNAP_A) / 0.08, 0.0, 1.0)
+		sprite.scale *= Vector2(1.0 + 0.28 * k, 1.0 + 0.18 * k)
+	elif bite_t >= SNAP_B and bite_t < SNAP_B + HOLD:
+		# el ñam: se aplasta de golpe y tiembla
+		var u := (bite_t - SNAP_B) / HOLD
+		sprite.scale *= Vector2(1.28 - 0.1 * u, 0.78 + 0.22 * u)
+		sprite.position.y += roundf(sin(anim_t * 90.0) * (1.0 - u) * 1.5)
 
 
 func _draw() -> void:
