@@ -249,8 +249,8 @@ cuál está elegido) y vale para la campaña, el Villano y el multijugador. El n
   manejado por una persona tiene doble salto). Los dibujos del
   murciélago y el cachorro son de PixelLab (`assets/sprites/bosque/murcielago`, `lobito`).
 - **Hongo boxeador** (`scripts/boxer.gd`), el primer minijefe: 20 de vida, los golpes no le cortan lo que está
-  haciendo y tiene cuatro movimientos: uno-dos (`X`), puño del dragón (`C`: un uppercut que lo levanta del piso
-  y revolea a los que agarra), esquive (`Shift`) y cubrirse bajo el sombrero para contestar con un gran
+  haciendo y tiene cuatro movimientos: uno-dos (`X`), puño del dragón (`C`: se agacha, y el uppercut lo levanta del piso
+  y revolea a los que agarra; desde que se agacha hasta que termina de subir no le entra nada), esquive (`Shift`) y cubrirse bajo el sombrero para contestar con un gran
   puñetazo que lo impulsa hacia adelante y saca 3 (`abajo + X`; 4 si le pegaron mientras se cubría). En la
   campaña aparece al azar en alguna zona del bosque, una vez por partida, y al caer da 300 puntos, mucha
   experiencia y dos corazones. Está en el Modo Prueba (el último de la lista).

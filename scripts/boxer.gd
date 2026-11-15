@@ -13,6 +13,8 @@ const JAB_AT := 0.17
 const CROSS_AT := 0.36
 const DP_CD := 3.0
 const DP_VY := 310.0
+const DP_IMMUNE := 0.34     # y mientras sube, este tiempo, tampoco le entra nada
+const DP_WIND := 0.2        # se agacha juntando fuerza antes de salir
 const DODGE_CD := 1.4
 const DODGE_T := 0.3
 const DODGE_SPD := 170.0
@@ -30,6 +32,7 @@ var dp_t := -1.0
 var dp_cd := 1.5
 var dp_hit: Array = []
 var dp_land := 0.0
+var dp_peak := false
 var dodge_t := -1.0
 var dodge_cd := 0.0
 var dodge_dir := 1.0
@@ -179,12 +182,40 @@ func _step(dt: float) -> void:
 			Snd.play("tajo", {"rate": 0.9, "vol": 0.8})
 		if combo_t >= COMBO_T:
 			combo_t = -1.0
+	elif dp_t >= 0.0 and dp_t < DP_WIND:
+		# agachado, con el puño abajo: junta fuerza (y ya no le entra nada)
+		dp_t += dt
+		immune = true
+		var fist := global_position + Vector2(face * 8.0, -8.0)
+		if Engine.get_physics_frames() % 3 == 0:
+			Fx.converge(get_parent(), fist, 18.0, Color("20efe9"), 0.16)
+		Fx.part(get_parent(), fist + Vector2(randf_range(-4, 4), randf_range(-3, 3)), Vector2(0, -40), 0.0, 0.2, Pal.Y if randf() < 0.4 else Color("20efe9"))
+		if dp_t >= DP_WIND:
+			# ¡despega!
+			velocity = Vector2(face * 50.0, -DP_VY)
+			squash = Vector2(0.7, 1.45)
+			Snd.play("salto", {"rate": 0.8, "vol": 0.8})
+			Snd.play("fuego", {"rate": 1.2, "vol": 0.8})
+			Snd.boom(0.5)
+			Fx.shake(3.0, 0.18)
+			Fx.kick(Vector2(0, -1), 2.5)
+			Fx.dust(get_parent(), global_position, 8, 46.0, 10.0, 2.2, Pal.S)
+			Fx.chunks(get_parent(), global_position, 6, [Color("5a3a25"), Color("7e5531"), Color("3a2415")], 110.0, 150.0)
+			Fx.burst(get_parent(), global_position + Vector2(0, -6), 12, [Color("20efe9"), Pal.W, Pal.Y], 120.0, 60.0, 0.4, 200.0)
 	elif dp_t >= 0.0:
 		dp_t += dt
 		dir = face * 0.6
 		top = 70.0
-		immune = dp_t < 0.2          # arranca invulnerable
-		if dp_t < 0.42:
+		var rising := dp_t < DP_WIND + DP_IMMUNE
+		immune = rising             # mientras sube no le entra nada
+		if rising:
+			# la estela: copias del cuerpo que quedan atrás, y fuego en el puño
+			if Engine.get_physics_frames() % 3 == 0:
+				Fx.ghost(get_parent(), sprite, Color("20efe9"))
+			var fist2 := global_position + Vector2(face * 5.0, -42.0)
+			for i in 2:
+				Fx.part(get_parent(), fist2 + Vector2(randf_range(-3, 3), randf_range(-3, 3)), Vector2(randf_range(-20, 20), 70.0), 0.0, 0.3, [Pal.Y, Pal.O, Color("20efe9"), Pal.W].pick_random())
+		if dp_t < DP_WIND + 0.42:
 			# mientras sube: a cada héroe que agarra, una vez, y lo revolea para arriba
 			var hb := Rect2(global_position.x - 13.0 + face * 6.0, global_position.y - 46.0, 26, 42)
 			for p in heroes_in(hb):
@@ -192,19 +223,30 @@ func _step(dt: float) -> void:
 					continue
 				dp_hit.append(p)
 				if p.hurt(global_position.x - face * 4.0, 2, self):
-					p.velocity = Vector2(face * 60.0, -300.0)
-					Fx.hitstop(0.1)
-					Fx.shake(4.0, 0.2)
-					Snd.boom(0.6)
-					Fx.burst(get_parent(), p.global_position + Vector2(0, -10), 10, [Pal.W, Color("20efe9"), Pal.Y], 110.0, 80.0, 0.4, 240.0)
-			if Engine.get_physics_frames() % 2 == 0:
-				Fx.part(get_parent(), global_position + Vector2(face * 6.0, -randf_range(20, 44)), Vector2(-face * 20.0, 30.0), 0.0, 0.25, Color("20efe9") if randf() < 0.6 else Pal.W)
-		if dp_t > 0.25 and is_on_floor() and velocity.y >= 0.0:
+					p.velocity = Vector2(face * 70.0, -320.0)
+					var at: Vector2 = p.global_position + Vector2(0, -10)
+					Fx.hitstop(0.15)
+					Fx.shake(6.0, 0.28)
+					Fx.impact(at, 0.1)
+					Snd.boom(0.9)
+					Snd.play("critico", {"rate": 0.9, "vol": 0.7})
+					Fx.hit(get_parent(), at, Vector2(face * 0.3, -1), Pal.Y, true)
+					Fx.burst(get_parent(), at, 16, [Pal.W, Color("20efe9"), Pal.Y, Pal.O], 150.0, 110.0, 0.5, 240.0)
+					if dp_hit.size() == 1:
+						Fx.popup(get_parent(), global_position + Vector2(0, -56), "¡PUÑO DEL DRAGÓN!", Pal.Y, true)
+		if not dp_peak and velocity.y >= 0.0:
+			# lo más alto: un destello en el puño
+			dp_peak = true
+			var top_at := global_position + Vector2(face * 5.0, -42.0)
+			Fx.twinkle(get_parent(), top_at, Pal.Y, 6.0, 0.3)
+			Fx.burst(get_parent(), top_at, 8, [Pal.Y, Pal.W, Color("20efe9")], 70.0, 20.0, 0.35, 150.0)
+		if dp_t > DP_WIND + 0.25 and is_on_floor() and velocity.y >= 0.0:
 			dp_t = -1.0
 			dp_land = 0.22
 			immune = false
-			squash = Vector2(1.3, 0.75)
-			Fx.dust(get_parent(), global_position, 5, 34.0, 6.0, 1.8, Pal.S)
+			squash = Vector2(1.35, 0.7)
+			Fx.shake(2.0, 0.12)
+			Fx.dust(get_parent(), global_position, 7, 40.0, 6.0, 2.0, Pal.S)
 	elif dp_land > 0.0:
 		dp_land -= dt
 	elif dodge_t >= 0.0:
@@ -281,12 +323,10 @@ func _dragon() -> void:
 	dp_t = 0.0
 	dp_cd = DP_CD
 	dp_hit.clear()
-	velocity = Vector2(face * 50.0, -DP_VY)
-	squash = Vector2(0.75, 1.35)
-	Snd.play("salto", {"rate": 0.8, "vol": 0.8})
-	Snd.play("fuego", {"rate": 1.4, "vol": 0.5})
-	Fx.dust(get_parent(), global_position, 6, 40.0, 8.0, 2.0, Pal.S)
-	Fx.shake(1.5, 0.12)
+	dp_peak = false
+	velocity.x = 0.0
+	squash = Vector2(1.25, 0.8)
+	Snd.play("alerta", {"rate": 0.9, "vol": 0.3})
 
 
 func _dodge(d: float) -> void:
@@ -311,12 +351,18 @@ func _anim() -> void:
 	elif punch_t >= 0.0:
 		sprite.texture = frame("counter", 6 if punch_t < PUNCH_AT else clampi(7 + int((punch_t - PUNCH_AT) / 0.09), 7, 10))
 	elif dp_t >= 0.0:
-		var n := count("dragon")
-		# sube (cuadros del medio), llega arriba y cae
-		var k := clampf(dp_t / 0.55, 0.0, 1.0)
-		sprite.texture = frame("dragon", 1 + int(k * (n - 3)))
+		# 0 agachado · 1 se levanta con el puño abajo · 2 el puño pasa por el pecho · 3 despega con el brazo
+		# arriba · 4-6 en el aire con las rodillas arriba · 7 cae · 8 aterriza · 9 se para
+		if dp_t < DP_WIND:
+			sprite.texture = frame("dragon", 0 if dp_t < DP_WIND * 0.55 else 1)
+		else:
+			var u := dp_t - DP_WIND
+			if u < 0.05:
+				sprite.texture = frame("dragon", 2)
+			else:
+				sprite.texture = frame("dragon", 3 + mini(4, int((u - 0.05) / 0.11)))
 	elif dp_land > 0.0:
-		sprite.texture = frame("dragon", count("dragon") - 1)
+		sprite.texture = frame("dragon", 8 if dp_land > 0.1 else 9)
 	elif windup > 0.0:
 		sprite.texture = frame("combo", 1)
 	elif combo_t >= 0.0:
@@ -335,6 +381,11 @@ func look() -> void:
 	var th: float = sprite.texture.get_height() if sprite.texture != null else canvas
 	sprite.offset.y = -(foot_y + th - canvas)
 	sprite.modulate.a = 0.6 if dodge_t >= 0.0 else sprite.modulate.a
+	if dp_t >= 0.0 and immune and flash <= 0.0:
+		# invulnerable: titila entre su color y un celeste encendido
+		sprite.modulate = Color(0.75, 1.6, 1.7) if int(anim_t * 30.0) % 2 == 0 else Color(1.25, 1.25, 1.1)
+		if dp_t < DP_WIND:
+			sprite.scale *= Vector2(1.12, 0.86 + 0.03 * sin(anim_t * 70.0))
 	if cover_t >= 0.0:
 		sprite.scale *= Vector2(1.06, 0.94 + 0.02 * sin(anim_t * 60.0))
 	elif punch_t >= 0.0 and punch_t < 0.2:
