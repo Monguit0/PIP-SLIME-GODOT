@@ -351,18 +351,22 @@ func _anim() -> void:
 	elif punch_t >= 0.0:
 		sprite.texture = frame("counter", 6 if punch_t < PUNCH_AT else clampi(7 + int((punch_t - PUNCH_AT) / 0.09), 7, 10))
 	elif dp_t >= 0.0:
-		# 0 agachado · 1 se levanta con el puño abajo · 2 el puño pasa por el pecho · 3 despega con el brazo
-		# arriba · 4-6 en el aire con las rodillas arriba · 7 cae · 8 aterriza · 9 se para
+		# 0 agachado · 1 se levanta en guardia baja · 2 el puño sube por el pecho · 3 arriba de todo, rodilla
+		# arriba · 4 gira en el aire (de espaldas) · 5 cae con el puño arriba · 6 aterriza · 7 se para
 		if dp_t < DP_WIND:
 			sprite.texture = frame("dragon", 0 if dp_t < DP_WIND * 0.55 else 1)
 		else:
 			var u := dp_t - DP_WIND
-			if u < 0.05:
+			if u < 0.06:
 				sprite.texture = frame("dragon", 2)
+			elif u < 0.26:
+				sprite.texture = frame("dragon", 3)
+			elif u < 0.42:
+				sprite.texture = frame("dragon", 4)
 			else:
-				sprite.texture = frame("dragon", 3 + mini(4, int((u - 0.05) / 0.11)))
+				sprite.texture = frame("dragon", 5)
 	elif dp_land > 0.0:
-		sprite.texture = frame("dragon", 8 if dp_land > 0.1 else 9)
+		sprite.texture = frame("dragon", 5 if dp_land > 0.1 else 7)
 	elif windup > 0.0:
 		sprite.texture = frame("combo", 1)
 	elif combo_t >= 0.0:
